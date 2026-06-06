@@ -1,0 +1,124 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $TemporalExplorerWindow : Adw.ApplicationWindow {
+  title: _("Temporal Explorer");
+  default-width: 1100;
+  default-height: 700;
+
+  content: Adw.ToolbarView {
+
+    [top]
+    Adw.HeaderBar {
+
+      [start]
+      Button open_repo_button {
+        icon-name: "folder-open-symbolic";
+        tooltip-text: _("Open Repository");
+        styles ["flat"]
+      }
+
+      [title]
+      Adw.WindowTitle window_title {
+        title: _("Temporal Explorer");
+        subtitle: _("No repository selected");
+      }
+
+      [end]
+      MenuButton {
+        primary: true;
+        icon-name: "open-menu-symbolic";
+        tooltip-text: _("Main Menu");
+        menu-model: primary_menu;
+      }
+    }
+
+    content: Gtk.Paned main_paned {
+      orientation: horizontal;
+      position: 280;
+
+      [start]
+      Box {
+        orientation: vertical;
+        spacing: 0;
+
+        Label {
+          label: _("Timeline");
+          xalign: 0;
+          margin-top: 12;
+          margin-bottom: 8;
+          margin-start: 16;
+          margin-end: 16;
+          styles ["heading"]
+        }
+
+        SearchEntry commit_search_entry {
+          placeholder-text: _("Search commits\u2026");
+          margin-start: 8;
+          margin-end: 8;
+          margin-bottom: 8;
+        }
+
+        ScrolledWindow {
+          vexpand: true;
+          hscrollbar-policy: never;
+
+          ListBox commit_list {
+            selection-mode: single;
+            styles ["navigation-sidebar"]
+          }
+        }
+      }
+
+      [end]
+      Adw.StatusPage empty_state {
+        icon-name: "folder-symbolic";
+        title: _("No Snapshot Selected");
+        description: _("Open a Git repository and select a commit from the timeline to browse its file tree.");
+        vexpand: true;
+        hexpand: true;
+      }
+    };
+
+    [bottom]
+    Gtk.ActionBar commit_info_bar {
+      revealed: false;
+
+      [start]
+      Label commit_hash_label {
+        label: "";
+        styles ["monospace"]
+      }
+
+      [start]
+      Label commit_message_label {
+        label: "";
+        ellipsize: end;
+        max-width-chars: 60;
+      }
+
+      [end]
+      Label commit_date_label {
+        label: "";
+        styles ["dim-label"]
+      }
+    }
+  };
+}
+
+menu primary_menu {
+  section {
+    item {
+      label: _("_Preferences");
+      action: "app.preferences";
+    }
+    item {
+      label: _("_Keyboard Shortcuts");
+      action: "app.shortcuts";
+    }
+    item {
+      label: _("_About Temporal Explorer");
+      action: "app.about";
+    }
+  }
+}

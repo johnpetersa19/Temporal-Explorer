@@ -18,9 +18,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-use gtk::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::{gio, glib};
+use gtk::prelude::*;
 
 mod imp {
     use super::*;
@@ -29,7 +29,26 @@ mod imp {
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/window.ui")]
     pub struct TemporalExplorerWindow {
         #[template_child]
-        pub label: TemplateChild<gtk::Label>,
+        pub open_repo_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub window_title: TemplateChild<adw::WindowTitle>,
+
+        #[template_child]
+        pub commit_search_entry: TemplateChild<gtk::SearchEntry>,
+        #[template_child]
+        pub commit_list: TemplateChild<gtk::ListBox>,
+
+        #[template_child]
+        pub empty_state: TemplateChild<adw::StatusPage>,
+
+        #[template_child]
+        pub commit_info_bar: TemplateChild<gtk::ActionBar>,
+        #[template_child]
+        pub commit_hash_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub commit_message_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub commit_date_label: TemplateChild<gtk::Label>,
     }
 
     #[glib::object_subclass]
@@ -47,7 +66,13 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for TemporalExplorerWindow {}
+    impl ObjectImpl for TemporalExplorerWindow {
+        fn constructed(&self) {
+            self.parent_constructed();
+            self.obj().setup_callbacks();
+        }
+    }
+
     impl WidgetImpl for TemporalExplorerWindow {}
     impl WindowImpl for TemporalExplorerWindow {}
     impl ApplicationWindowImpl for TemporalExplorerWindow {}
@@ -65,5 +90,45 @@ impl TemporalExplorerWindow {
         glib::Object::builder()
             .property("application", application)
             .build()
+    }
+
+    fn setup_callbacks(&self) {
+        let imp = self.imp();
+
+        imp.open_repo_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_| {
+                window.open_repository_dialog();
+            }
+        ));
+
+        imp.commit_list.connect_row_selected(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_, row| {
+                window.on_commit_selected(row);
+            }
+        ));
+    }
+
+    fn open_repository_dialog(&self) {
+        // TODO: replace with gtk::FileDialog (GTK 4.10+)
+        //
+        // let dialog = gtk::FileDialog::builder()
+        //     .title("Open Repository")
+        //     .build();
+        // dialog.select_folder(Some(self), gio::Cancellable::NONE, |result| {
+        //     if let Ok(folder) = result {
+        //         // load_repository(folder.path().unwrap());
+        //     }
+        // });
+    }
+
+    fn on_commit_selected(&self, row: Option<&gtk::ListBoxRow>) {
+        let imp = self.imp();
+        imp.commit_info_bar.set_revealed(row.is_some());
+        // TODO: populate commit_hash_label, commit_message_label, commit_date_label
+        // TODO: swap empty_state for the real file tree GtkColumnView
     }
 }
