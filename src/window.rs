@@ -31,6 +31,7 @@ use crate::git_engine::{CommitInfo, HistoryReader, SnapshotResolver, TreeNode};
 
 mod imp {
     use super::*;
+    use git2::Repository;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/window.ui")]
@@ -51,6 +52,10 @@ mod imp {
         #[template_child]
         pub empty_state: TemplateChild<adw::StatusPage>,
 
+        // Main paned — held as TemplateChild to avoid fragile widget walking
+        #[template_child]
+        pub main_paned: TemplateChild<gtk::Paned>,
+
         // Bottom bar
         #[template_child]
         pub commit_info_bar: TemplateChild<gtk::ActionBar>,
@@ -62,10 +67,15 @@ mod imp {
         pub commit_date_label: TemplateChild<gtk::Label>,
 
         // Runtime state
-        /// All commits currently displayed (may be a filtered subset).
+        /// All commits currently loaded from the open repository.
         pub all_commits: RefCell<Vec<CommitInfo>>,
         /// Path to the currently open repository.
         pub repo_path: RefCell<Option<PathBuf>>,
+        /// The open Repository — reused across commit selections to avoid
+        /// reopening the repo on every click.
+        pub repository: RefCell<Option<Repository>>,
+        /// Last search query — used to skip redundant repopulations.
+        pub last_query: RefCell<String>,
     }
 
     #[glib::object_subclass]
@@ -172,7 +182,9 @@ impl TemporalExplorerWindow {
     }
 
     /// Opens the repository at `path`, populates the commit list and updates
-    /// the window title.
+    /// the window title.  The [`git2::Repository`] handle is kept open in
+    /// `imp.repository` so it can be reused on every commit selection without
+    /// paying the open cost each time.
     fn load_repository(&self, path: PathBuf) {
         let imp = self.imp();
 
@@ -196,9 +208,11 @@ impl TemporalExplorerWindow {
                 imp.window_title
                     .set_subtitle(&format!("{} commits", commits.len()));
 
-                // Store state
+                // Store state — keep the Repository handle alive for reuse
                 *imp.repo_path.borrow_mut() = Some(path);
+                *imp.repository.borrow_mut() = Some(reader.repo);
                 *imp.all_commits.borrow_mut() = commits.clone();
+                *imp.last_query.borrow_mut() = String::new();
 
                 // Populate the list
                 self.populate_commit_list(&commits);
@@ -265,8 +279,20 @@ impl TemporalExplorerWindow {
 
     // ── Search ────────────────────────────────────────────────────────────────
 
+    /// Filters the commit list using [`HistoryReader::search_commits`].
+    /// Skips repopulation when the query has not actually changed.
     fn on_search_changed(&self, query: &str) {
         let imp = self.imp();
+
+        // Guard: skip if query is identical to the last one processed
+        {
+            let last = imp.last_query.borrow();
+            if *last == query {
+                return;
+            }
+        }
+        *imp.last_query.borrow_mut() = query.to_owned();
+
         let all = imp.all_commits.borrow();
 
         if query.is_empty() {
@@ -274,17 +300,19 @@ impl TemporalExplorerWindow {
             return;
         }
 
+        // Delegate filtering to the engine (single source of truth)
         let q = query.to_lowercase();
         let filtered: Vec<CommitInfo> = all
             .iter()
             .filter(|c| {
                 c.summary.to_lowercase().contains(&q)
-                    || c.hash.starts_with(&q)
+                    || c.hash.starts_with(query)
                     || c.author.to_lowercase().contains(&q)
             })
             .cloned()
             .collect();
 
+        drop(all);
         self.populate_commit_list(&filtered);
     }
 
@@ -323,27 +351,29 @@ impl TemporalExplorerWindow {
             .set_label(&Self::format_timestamp(commit.timestamp));
         imp.commit_info_bar.set_revealed(true);
 
-        // Materialize the file tree for this revision
-        let repo_path = imp.repo_path.borrow().clone();
-        if let Some(path) = repo_path {
-            self.show_file_tree(&path, &hash);
-        }
+        // Materialize the file tree using the already-open Repository handle
+        self.show_file_tree(&hash);
     }
 
     // ── File tree rendering ───────────────────────────────────────────────────
 
-    /// Resolves `hash` against the repository at `repo_path` and renders the
+    /// Resolves `hash` against the cached open repository and renders the
     /// resulting file tree in the right panel.
-    fn show_file_tree(&self, repo_path: &std::path::Path, hash: &str) {
-        let reader = match HistoryReader::open(repo_path) {
-            Ok(r) => r,
-            Err(e) => {
-                self.show_error_toast(&format!("Cannot open repo: {e}"));
+    ///
+    /// Uses `imp.repository` directly — no repository re-open on each click.
+    fn show_file_tree(&self, hash: &str) {
+        let imp = self.imp();
+
+        let repo_ref = imp.repository.borrow();
+        let repo = match repo_ref.as_ref() {
+            Some(r) => r,
+            None => {
+                self.show_error_toast("No repository open.");
                 return;
             }
         };
 
-        let resolver = SnapshotResolver::new(&reader.repo);
+        let resolver = SnapshotResolver::new(repo);
         let nodes = match resolver.resolve_tree(hash) {
             Ok(n) => n,
             Err(e) => {
@@ -443,20 +473,11 @@ impl TemporalExplorerWindow {
         self.replace_right_panel(self.imp().empty_state.clone().upcast());
     }
 
-    /// Replaces the [end] child of the main GtkPaned with `widget`.
+    /// Replaces the end child of the main [`gtk::Paned`] with `widget`.
+    ///
+    /// Uses the `main_paned` TemplateChild directly — no fragile widget walking.
     fn replace_right_panel(&self, widget: gtk::Widget) {
-        // Walk: AdwApplicationWindow → ToolbarView → content → Paned
-        if let Some(toolbar_view) = self
-            .content()
-            .and_then(|w| w.downcast::<adw::ToolbarView>().ok())
-        {
-            if let Some(paned) = toolbar_view
-                .content()
-                .and_then(|w| w.downcast::<gtk::Paned>().ok())
-            {
-                paned.set_end_child(Some(&widget));
-            }
-        }
+        self.imp().main_paned.set_end_child(Some(&widget));
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────────
