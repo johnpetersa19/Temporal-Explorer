@@ -12,6 +12,14 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
     Adw.HeaderBar {
 
       [start]
+      Button back_button {
+        icon-name: "go-previous-symbolic";
+        tooltip-text: _("Go Back");
+        visible: false;
+        styles ["flat"]
+      }
+
+      [start]
       Button open_repo_button {
         icon-name: "folder-open-symbolic";
         tooltip-text: _("Open Repository");
@@ -31,6 +39,18 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
         tooltip-text: _("Main Menu");
         menu-model: primary_menu;
       }
+    }
+
+    [top]
+    Box breadcrumb_bar {
+      orientation: horizontal;
+      spacing: 0;
+      margin-start: 8;
+      margin-end: 8;
+      margin-top: 4;
+      margin-bottom: 4;
+      visible: false;
+      styles ["linked"]
     }
 
     content: Gtk.Paned main_paned {
@@ -53,7 +73,7 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
         }
 
         SearchEntry commit_search_entry {
-          placeholder-text: _("Search commits…");
+          placeholder-text: _("Search commits\u2026");
           margin-start: 8;
           margin-end: 8;
           margin-bottom: 8;
