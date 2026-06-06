@@ -136,44 +136,78 @@ impl TemporalExplorerWindow {
     fn setup_styles(&self) {
         let provider = gtk::CssProvider::new();
         provider.load_from_string("
+            /* ── Path bar ────────────────────────────────────────────────── */
             .nautilus-pathbar {
-                background-color: color-mix(in srgb, currentColor 10%, transparent);
-                border-radius: 9px;
-                padding: 2px;
+                background-color: color-mix(in srgb, currentColor 8%, transparent);
+                border-radius: 9999px;
+                padding: 2px 4px;
+                min-height: 32px;
             }
             .nautilus-path-button {
-                margin: 3px;
                 min-width: 8px;
-                border-radius: 7px;
-                padding-top: 0px;
-                padding-bottom: 0px;
+                border-radius: 9999px;
+                padding: 0 8px;
+                min-height: 28px;
             }
             .nautilus-path-button label {
-                font-weight: bold;
+                font-weight: 600;
             }
-            .nautilus-path-button:not(:hover),
+            .nautilus-path-button:not(.current-dir) label,
+            .nautilus-path-button:not(.current-dir) image {
+                opacity: 0.55;
+            }
+            .nautilus-path-button:not(.current-dir):hover label,
+            .nautilus-path-button:not(.current-dir):hover image {
+                opacity: 0.85;
+            }
             .nautilus-path-button.current-dir {
                 background: none;
                 box-shadow: none;
             }
-            .nautilus-path-button:not(.current-dir):not(:backdrop):hover label,
-            .nautilus-path-button:not(.current-dir):not(:backdrop):hover image {
-                opacity: 1;
+            .nautilus-path-separator {
+                opacity: 0.35;
+                margin: 0 1px;
+                -gtk-icon-size: 12px;
             }
+
+            /* ── Grid view cells (Nautilus-style) ────────────────────────── */
             .nautilus-view-cell {
-                background-color: color-mix(in srgb, currentColor 4%, transparent);
-                border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
-                border-radius: 12px;
-                padding: 10px;
-                transition: background-color 0.15s ease, border-color 0.15s ease;
+                border-radius: 8px;
+                padding: 8px 6px 6px 6px;
+                transition: background-color 150ms ease;
             }
             .nautilus-view-cell:hover {
-                background-color: color-mix(in srgb, currentColor 8%, transparent);
-                border-color: color-mix(in srgb, currentColor 12%, transparent);
+                background-color: color-mix(in srgb, currentColor 7%, transparent);
             }
             flowboxchild:selected .nautilus-view-cell {
-                background-color: color-mix(in srgb, var(--accent-bg-color, #3584e4) 20%, transparent);
-                border-color: var(--accent-bg-color, #3584e4);
+                background-color: color-mix(in srgb, @accent_bg_color 18%, transparent);
+                outline: 1.5px solid color-mix(in srgb, @accent_bg_color 60%, transparent);
+                outline-offset: -1.5px;
+            }
+            flowboxchild:selected:focus .nautilus-view-cell {
+                background-color: color-mix(in srgb, @accent_bg_color 28%, transparent);
+                outline-color: @accent_bg_color;
+            }
+
+            /* ── List view rows ──────────────────────────────────────────── */
+            .nautilus-list-row {
+                border-radius: 6px;
+                transition: background-color 120ms ease;
+            }
+            .nautilus-list-row:hover {
+                background-color: color-mix(in srgb, currentColor 5%, transparent);
+            }
+            row:selected.nautilus-list-row,
+            row:selected .nautilus-list-row {
+                background-color: color-mix(in srgb, @accent_bg_color 18%, transparent);
+            }
+
+            /* ── Commit info bar ─────────────────────────────────────────── */
+            .commit-hash {
+                font-family: monospace;
+                font-size: 0.85em;
+                opacity: 0.75;
+                letter-spacing: 0.04em;
             }
         ");
         if let Some(display) = gtk::gdk::Display::default() {
@@ -272,6 +306,8 @@ impl TemporalExplorerWindow {
                 *imp.current_dir.borrow_mut()  = PathBuf::new();
                 imp.history_back.borrow_mut().clear();
                 imp.history_forward.borrow_mut().clear();
+                imp.nav_back_button.set_sensitive(false);
+                imp.nav_forward_button.set_sensitive(false);
                 self.populate_commit_list(&commits);
                 imp.commit_info_bar.set_revealed(false);
                 self.show_empty_state();
@@ -329,6 +365,7 @@ impl TemporalExplorerWindow {
         let commit = { let all = imp.all_commits.borrow(); all.iter().find(|c| c.hash == hash).cloned() };
         let commit = match commit { Some(c) => c, None => return };
         imp.commit_hash_label.set_label(&commit.hash[..12]);
+        imp.commit_hash_label.add_css_class("commit-hash");
         imp.commit_message_label.set_label(&commit.summary);
         imp.commit_date_label.set_label(&Self::format_timestamp(commit.timestamp));
         imp.commit_info_bar.set_revealed(true);
@@ -411,6 +448,15 @@ impl TemporalExplorerWindow {
         let children = Self::direct_children(&all_nodes, dir);
         drop(repo_ref);
 
+        // Update subtitle with item count
+        let item_count = children.len();
+        let subtitle = if item_count == 1 {
+            "1 item".to_string()
+        } else {
+            format!("{item_count} items")
+        };
+        imp.window_title.set_subtitle(&subtitle);
+
         self.update_address_bar(dir);
 
         let view_mode = *imp.view_mode.borrow();
@@ -460,10 +506,12 @@ impl TemporalExplorerWindow {
     fn build_file_row(node: &TreeNode) -> gtk::ListBoxRow {
         let hbox = gtk::Box::builder()
             .orientation(gtk::Orientation::Horizontal).spacing(10)
-            .margin_top(6).margin_bottom(6).margin_start(12).margin_end(12)
+            .margin_top(5).margin_bottom(5).margin_start(12).margin_end(12)
             .build();
+        hbox.add_css_class("nautilus-list-row");
+
         let icon_name = match node {
-            TreeNode::Dir(p)  => {
+            TreeNode::Dir(p) => {
                 let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
                 folder_icon_symbolic(name)
             }
@@ -472,15 +520,29 @@ impl TemporalExplorerWindow {
         let icon = gtk::Image::from_icon_name(icon_name);
         icon.set_pixel_size(16);
         hbox.append(&icon);
+
         let name = node.path().file_name().and_then(|n| n.to_str()).unwrap_or("");
         let label = gtk::Label::builder().label(name).xalign(0.0).hexpand(true)
             .ellipsize(gtk::pango::EllipsizeMode::End).build();
         hbox.append(&label);
+
         if node.is_dir() {
             let chevron = gtk::Image::from_icon_name("go-next-symbolic");
             chevron.add_css_class("dim-label");
+            chevron.set_pixel_size(12);
             hbox.append(&chevron);
+        } else {
+            // Show file extension as a type hint (Nautilus behaviour)
+            if let Some(ext) = node.path().extension().and_then(|e| e.to_str()) {
+                let type_label = gtk::Label::builder()
+                    .label(&ext.to_uppercase())
+                    .build();
+                type_label.add_css_class("caption");
+                type_label.add_css_class("dim-label");
+                hbox.append(&type_label);
+            }
         }
+
         gtk::ListBoxRow::builder().child(&hbox).build()
     }
 
@@ -492,20 +554,18 @@ impl TemporalExplorerWindow {
             .hscrollbar_policy(gtk::PolicyType::Never)
             .build();
 
-        // Match Nautilus: row/column spacing and padding
         let flow = gtk::FlowBox::builder()
             .selection_mode(gtk::SelectionMode::Single)
             .homogeneous(true)
-            .column_spacing(16)
-            .row_spacing(16)
-            .margin_top(12)
-            .margin_bottom(12)
-            .margin_start(12)
-            .margin_end(12)
+            .column_spacing(6)
+            .row_spacing(6)
+            .margin_top(16)
+            .margin_bottom(16)
+            .margin_start(16)
+            .margin_end(16)
             .max_children_per_line(64)
             .min_children_per_line(1)
             .build();
-        flow.add_css_class("nautilus-grid-view");
 
         if children.is_empty() {
             let placeholder = gtk::Label::builder().label("Empty directory")
@@ -540,21 +600,19 @@ impl TemporalExplorerWindow {
     }
 
     fn build_grid_cell(node: &TreeNode) -> gtk::Box {
-        // Nautilus-style cell: 96px wide, 4px padding on each side,
-        // 64px icon, label up to 3 lines with ellipsis.
         let vbox = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
-            .spacing(4)
-            .margin_top(4)
-            .margin_bottom(4)
-            .margin_start(4)
-            .margin_end(4)
+            .spacing(6)
+            .margin_top(6)
+            .margin_bottom(6)
+            .margin_start(6)
+            .margin_end(6)
             .width_request(96)
             .build();
         vbox.add_css_class("nautilus-view-cell");
 
         let icon_name = match node {
-            TreeNode::Dir(p)  => {
+            TreeNode::Dir(p) => {
                 let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
                 folder_icon(name)
             }
@@ -611,113 +669,41 @@ impl TemporalExplorerWindow {
             bar.remove(&child);
         }
 
-        // Get translation for "Home" (translated to e.g. "Pasta pessoal" in Portuguese)
-        let get_home_label = || -> String {
-            let gtk_translation = gettextrs::dgettext("gtk40", "Home");
-            if gtk_translation != "Home" {
-                return gtk_translation;
-            }
-            let lang = std::env::var("LANG").unwrap_or_default();
-            if lang.starts_with("pt") {
-                "Pasta pessoal".to_string()
-            } else {
-                "Home".to_string()
-            }
-        };
-
         struct PathComponent {
             label: String,
-            icon: Option<String>,
+            icon: Option<&'static str>,
             target_dir: PathBuf,
         }
 
-        let mut components = Vec::new();
-        let repo_path_opt = imp.repo_path.borrow().clone();
+        let mut components: Vec<PathComponent> = Vec::new();
+        let repo_name = imp.repo_name.borrow().clone();
 
-        if let Some(ref repo_path) = repo_path_opt {
-            let absolute_path = repo_path.join(dir);
-            let home_dir = glib::home_dir();
+        // Repo root is always the first breadcrumb
+        components.push(PathComponent {
+            label: repo_name,
+            icon: Some("folder-symbolic"),
+            target_dir: PathBuf::new(),
+        });
 
-            if absolute_path.starts_with(&home_dir) {
-                // Home directory component
-                components.push(PathComponent {
-                    label: get_home_label(),
-                    icon: Some("user-home-symbolic".to_string()),
-                    target_dir: PathBuf::new(),
-                });
-
-                if let Ok(relative_to_home) = absolute_path.strip_prefix(&home_dir) {
-                    let mut current_absolute = home_dir.clone();
-                    for seg in relative_to_home.components() {
-                        let seg_str = seg.as_os_str().to_string_lossy().to_string();
-                        current_absolute.push(&seg_str);
-
-                        let target = if current_absolute.starts_with(repo_path) {
-                            if let Ok(rel) = current_absolute.strip_prefix(repo_path) {
-                                rel.to_path_buf()
-                            } else {
-                                PathBuf::new()
-                            }
-                        } else {
-                            PathBuf::new()
-                        };
-
-                        components.push(PathComponent {
-                            label: seg_str,
-                            icon: None,
-                            target_dir: target,
-                        });
-                    }
-                }
-            } else {
-                // Fallback: Repository Root
-                let repo_name = imp.repo_name.borrow().clone();
-                components.push(PathComponent {
-                    label: repo_name,
-                    icon: Some("folder-symbolic".to_string()),
-                    target_dir: PathBuf::new(),
-                });
-
-                let mut accumulated = PathBuf::new();
-                for component in dir.components() {
-                    let seg = component.as_os_str().to_string_lossy().to_string();
-                    accumulated.push(&seg);
-                    components.push(PathComponent {
-                        label: seg,
-                        icon: None,
-                        target_dir: accumulated.clone(),
-                    });
-                }
-            }
-        } else {
-            let repo_name = imp.repo_name.borrow().clone();
+        let mut accumulated = PathBuf::new();
+        for component in dir.components() {
+            let seg = component.as_os_str().to_string_lossy().to_string();
+            accumulated.push(&seg);
             components.push(PathComponent {
-                label: repo_name,
-                icon: Some("folder-symbolic".to_string()),
-                target_dir: PathBuf::new(),
+                label: seg,
+                icon: None,
+                target_dir: accumulated.clone(),
             });
-
-            let mut accumulated = PathBuf::new();
-            for component in dir.components() {
-                let seg = component.as_os_str().to_string_lossy().to_string();
-                accumulated.push(&seg);
-                components.push(PathComponent {
-                    label: seg,
-                    icon: None,
-                    target_dir: accumulated.clone(),
-                });
-            }
         }
 
-        let total_components = components.len();
+        let total = components.len();
         for (idx, component) in components.iter().enumerate() {
-            let is_current = idx == total_components - 1;
+            let is_current = idx == total - 1;
 
+            // Chevron separator (Nautilus uses go-next-symbolic between segments)
             if idx > 0 {
-                let sep = gtk::Label::builder().label("/").build();
-                sep.add_css_class("dim-label");
-                sep.set_margin_start(2);
-                sep.set_margin_end(2);
+                let sep = gtk::Image::from_icon_name("go-next-symbolic");
+                sep.add_css_class("nautilus-path-separator");
                 bar.append(&sep);
             }
 
@@ -728,33 +714,20 @@ impl TemporalExplorerWindow {
                 btn.add_css_class("current-dir");
             }
 
-            if component.icon.is_some() {
-                let box_layout = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-                let img = gtk::Image::from_icon_name(component.icon.as_ref().unwrap());
-                if !is_current {
-                    img.add_css_class("dim-label");
-                }
-                box_layout.append(&img);
+            let box_layout = gtk::Box::new(gtk::Orientation::Horizontal, 4);
 
-                let lbl = gtk::Label::builder()
-                    .label(&component.label)
-                    .single_line_mode(true)
-                    .build();
-                if !is_current {
-                    lbl.add_css_class("dim-label");
-                }
-                box_layout.append(&lbl);
-                btn.set_child(Some(&box_layout));
-            } else {
-                let lbl = gtk::Label::builder()
-                    .label(&component.label)
-                    .single_line_mode(true)
-                    .build();
-                if !is_current {
-                    lbl.add_css_class("dim-label");
-                }
-                btn.set_child(Some(&lbl));
+            if let Some(icon_name) = component.icon {
+                let img = gtk::Image::from_icon_name(icon_name);
+                img.set_pixel_size(16);
+                box_layout.append(&img);
             }
+
+            let lbl = gtk::Label::builder()
+                .label(&component.label)
+                .single_line_mode(true)
+                .build();
+            box_layout.append(&lbl);
+            btn.set_child(Some(&box_layout));
 
             let target = component.target_dir.clone();
             btn.connect_clicked(glib::clone!(
@@ -806,31 +779,62 @@ impl TemporalExplorerWindow {
 
 fn mime_icon(path: &std::path::Path) -> &'static str {
     match path.extension().and_then(|e| e.to_str()) {
-        Some("rs")                                       => "text-x-rust-symbolic",
-        Some("toml")|Some("yaml")|Some("yml")|Some("json") => "text-x-script-symbolic",
-        Some("md")|Some("txt")                           => "text-x-generic-symbolic",
-        Some("png")|Some("jpg")|Some("jpeg")|Some("svg")|Some("webp") => "image-x-generic-symbolic",
-        Some("mp3")|Some("ogg")|Some("flac")|Some("wav") => "audio-x-generic-symbolic",
-        Some("sh")|Some("bash")                          => "text-x-script-symbolic",
-        Some("c")|Some("h")|Some("cpp")|Some("hpp")      => "text-x-csrc-symbolic",
-        Some("py")                                       => "text-x-python-symbolic",
-        Some("html")|Some("css")                         => "text-html-symbolic",
-        _                                                => "text-x-generic-symbolic",
+        Some("rs")                                              => "text-x-rust-symbolic",
+        Some("toml") | Some("yaml") | Some("yml")              => "text-x-script-symbolic",
+        Some("json")                                            => "text-x-script-symbolic",
+        Some("xml") | Some("blp") | Some("ui")                 => "text-xml-symbolic",
+        Some("md") | Some("rst") | Some("txt")                 => "text-x-generic-symbolic",
+        Some("png") | Some("jpg") | Some("jpeg")               => "image-x-generic-symbolic",
+        Some("svg") | Some("webp") | Some("gif")               => "image-x-generic-symbolic",
+        Some("mp3") | Some("ogg") | Some("flac") | Some("wav") => "audio-x-generic-symbolic",
+        Some("mp4") | Some("mkv") | Some("webm") | Some("avi") => "video-x-generic-symbolic",
+        Some("sh") | Some("bash") | Some("zsh") | Some("fish") => "text-x-script-symbolic",
+        Some("c") | Some("h") | Some("cpp") | Some("hpp")      => "text-x-csrc-symbolic",
+        Some("py")                                             => "text-x-python-symbolic",
+        Some("js") | Some("ts") | Some("jsx") | Some("tsx")    => "text-x-javascript-symbolic",
+        Some("html") | Some("css")                             => "text-html-symbolic",
+        Some("pdf")                                            => "application-pdf-symbolic",
+        Some("zip") | Some("tar") | Some("gz") | Some("xz")    => "application-zip-symbolic",
+        Some("lock")                                           => "text-x-generic-symbolic",
+        Some("in")                                             => "text-x-makefile-symbolic",
+        // Dotfiles / special names
+        _ => match path.file_name().and_then(|n| n.to_str()) {
+            Some(".gitignore") | Some(".gitattributes") | Some(".gitmodules") => "text-x-generic-symbolic",
+            Some("Makefile") | Some("makefile") | Some("GNUmakefile")         => "text-x-makefile-symbolic",
+            Some("LICENSE") | Some("COPYING") | Some("NOTICE")               => "text-x-generic-symbolic",
+            Some("Dockerfile") | Some("Containerfile")                       => "application-x-executable-symbolic",
+            _                                                                => "text-x-generic-symbolic",
+        },
     }
 }
 
 fn mime_icon_full(path: &std::path::Path) -> &'static str {
     match path.extension().and_then(|e| e.to_str()) {
-        Some("rs")                                       => "text-x-rust",
-        Some("toml")|Some("yaml")|Some("yml")|Some("json") => "text-x-script",
-        Some("md")|Some("txt")                           => "text-x-generic",
-        Some("png")|Some("jpg")|Some("jpeg")|Some("svg")|Some("webp") => "image-x-generic",
-        Some("mp3")|Some("ogg")|Some("flac")|Some("wav") => "audio-x-generic",
-        Some("sh")|Some("bash")                          => "text-x-script",
-        Some("c")|Some("h")|Some("cpp")|Some("hpp")      => "text-x-csrc",
-        Some("py")                                       => "text-x-python",
-        Some("html")|Some("css")                         => "text-html",
-        _                                                => "text-x-generic",
+        Some("rs")                                              => "text-x-rust",
+        Some("toml") | Some("yaml") | Some("yml")              => "text-x-script",
+        Some("json")                                            => "text-x-script",
+        Some("xml") | Some("blp") | Some("ui")                 => "text-xml",
+        Some("md") | Some("rst") | Some("txt")                 => "text-x-generic",
+        Some("png") | Some("jpg") | Some("jpeg")               => "image-x-generic",
+        Some("svg") | Some("webp") | Some("gif")               => "image-x-generic",
+        Some("mp3") | Some("ogg") | Some("flac") | Some("wav") => "audio-x-generic",
+        Some("mp4") | Some("mkv") | Some("webm") | Some("avi") => "video-x-generic",
+        Some("sh") | Some("bash") | Some("zsh") | Some("fish") => "text-x-script",
+        Some("c") | Some("h") | Some("cpp") | Some("hpp")      => "text-x-csrc",
+        Some("py")                                             => "text-x-python",
+        Some("js") | Some("ts") | Some("jsx") | Some("tsx")    => "text-x-javascript",
+        Some("html") | Some("css")                             => "text-html",
+        Some("pdf")                                            => "application-pdf",
+        Some("zip") | Some("tar") | Some("gz") | Some("xz")    => "application-zip",
+        Some("lock")                                           => "text-x-generic",
+        Some("in")                                             => "text-x-makefile",
+        _ => match path.file_name().and_then(|n| n.to_str()) {
+            Some(".gitignore") | Some(".gitattributes") | Some(".gitmodules") => "text-x-generic",
+            Some("Makefile") | Some("makefile") | Some("GNUmakefile")         => "text-x-makefile",
+            Some("LICENSE") | Some("COPYING") | Some("NOTICE")               => "text-x-generic",
+            Some("Dockerfile") | Some("Containerfile")                       => "application-x-executable",
+            _                                                                => "text-x-generic",
+        },
     }
 }
 
@@ -838,26 +842,42 @@ fn mime_icon_full(path: &std::path::Path) -> &'static str {
 
 fn folder_icon(name: &str) -> &'static str {
     match name.to_lowercase().as_str() {
-        "src" | "code" | "devel" | "development" | "projects" | "projetos" => "folder-development",
-        "doc" | "docs" | "documents" | "documentos" => "folder-documents",
-        "data" | "db" | "database" => "folder-documents",
-        "test" | "tests" | "spec" | "specs" => "folder-remote",
-        "images" | "img" | "pictures" | "imagens" => "folder-pictures",
-        "videos" | "video" => "folder-videos",
-        "music" | "audio" | "músicas" | "musicas" => "folder-music",
-        "download" | "downloads" => "folder-download",
-        _ => "folder",
+        "src" | "source" | "lib" | "crates"                              => "folder-development",
+        "code" | "devel" | "development" | "projects" | "projetos"       => "folder-development",
+        "doc" | "docs" | "documents" | "documentos" | "documentation"    => "folder-documents",
+        "data" | "db" | "database" | "datasets"                          => "folder-documents",
+        "test" | "tests" | "spec" | "specs" | "testing"                  => "folder-remote",
+        "images" | "img" | "pictures" | "imagens" | "assets" | "media"   => "folder-pictures",
+        "icons" | "pixmaps"                                              => "folder-pictures",
+        "videos" | "video"                                               => "folder-videos",
+        "music" | "audio" | "músicas" | "musicas" | "sounds"             => "folder-music",
+        "download" | "downloads"                                         => "folder-download",
+        "build" | "target" | "dist" | "out" | "output"                   => "folder-remote",
+        "config" | "cfg" | "settings" | "conf"                           => "folder-documents",
+        "scripts" | "bin" | "tools"                                      => "folder-development",
+        "po" | "i18n" | "l10n" | "locale"                               => "folder-documents",
+        "themes" | "theme" | "skins"                                     => "folder-pictures",
+        _                                                                => "folder",
     }
 }
 
 fn folder_icon_symbolic(name: &str) -> &'static str {
     match name.to_lowercase().as_str() {
-        "src" | "code" | "devel" | "development" | "projects" | "projetos" => "folder-development-symbolic",
-        "doc" | "docs" | "documents" | "documentos" => "folder-documents-symbolic",
-        "images" | "img" | "pictures" | "imagens" => "folder-pictures-symbolic",
-        "videos" | "video" => "folder-videos-symbolic",
-        "music" | "audio" | "músicas" | "musicas" => "folder-music-symbolic",
-        "download" | "downloads" => "folder-download-symbolic",
-        _ => "folder-symbolic",
+        "src" | "source" | "lib" | "crates"                              => "folder-development-symbolic",
+        "code" | "devel" | "development" | "projects" | "projetos"       => "folder-development-symbolic",
+        "doc" | "docs" | "documents" | "documentos" | "documentation"    => "folder-documents-symbolic",
+        "data" | "db" | "database" | "datasets"                          => "folder-documents-symbolic",
+        "test" | "tests" | "spec" | "specs" | "testing"                  => "folder-remote-symbolic",
+        "images" | "img" | "pictures" | "imagens" | "assets" | "media"   => "folder-pictures-symbolic",
+        "icons" | "pixmaps"                                              => "folder-pictures-symbolic",
+        "videos" | "video"                                               => "folder-videos-symbolic",
+        "music" | "audio" | "músicas" | "musicas" | "sounds"             => "folder-music-symbolic",
+        "download" | "downloads"                                         => "folder-download-symbolic",
+        "build" | "target" | "dist" | "out" | "output"                   => "folder-remote-symbolic",
+        "config" | "cfg" | "settings" | "conf"                           => "folder-documents-symbolic",
+        "scripts" | "bin" | "tools"                                      => "folder-development-symbolic",
+        "po" | "i18n" | "l10n" | "locale"                               => "folder-documents-symbolic",
+        "themes" | "theme" | "skins"                                     => "folder-pictures-symbolic",
+        _                                                                => "folder-symbolic",
     }
 }
