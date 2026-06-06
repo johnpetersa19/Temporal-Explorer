@@ -27,7 +27,7 @@ use std::path::PathBuf;
 
 use crate::git_engine::{CommitInfo, HistoryReader, SnapshotResolver, TreeNode};
 
-// ── ViewMode ──────────────────────────────────────────────────────────────────
+// ── ViewMode ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum ViewMode { #[default] List, Grid }
@@ -56,40 +56,47 @@ mod imp {
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/window.ui")]
     pub struct TemporalExplorerWindow {
         // Header
-        #[template_child] pub open_repo_button:    TemplateChild<gtk::Button>,
-        #[template_child] pub nav_back_button:     TemplateChild<gtk::Button>,
-        #[template_child] pub nav_forward_button:  TemplateChild<gtk::Button>,
-        #[template_child] pub view_toggle_button:  TemplateChild<gtk::Button>,
-        #[template_child] pub show_sidebar_button: TemplateChild<gtk::ToggleButton>,
-        #[template_child] pub window_title:        TemplateChild<adw::WindowTitle>,
-        #[template_child] pub address_bar:         TemplateChild<gtk::Box>,
+        #[template_child] pub open_repo_button:     TemplateChild<gtk::Button>,
+        #[template_child] pub nav_back_button:      TemplateChild<gtk::Button>,
+        #[template_child] pub nav_forward_button:   TemplateChild<gtk::Button>,
+        #[template_child] pub view_toggle_button:   TemplateChild<gtk::Button>,
+        #[template_child] pub show_sidebar_button:  TemplateChild<gtk::ToggleButton>,
+        #[template_child] pub window_title:         TemplateChild<adw::WindowTitle>,
+
+        // Nautilus-style toolbar_switcher Stack
+        #[template_child] pub toolbar_switcher:     TemplateChild<gtk::Stack>,
+        // "pathbar" page
+        #[template_child] pub address_bar:          TemplateChild<gtk::Box>,
+        // "location" page
+        #[template_child] pub location_entry:       TemplateChild<gtk::Entry>,
+        #[template_child] pub location_cancel_btn:  TemplateChild<gtk::Button>,
 
         // Left panel
-        #[template_child] pub commit_search_entry: TemplateChild<gtk::SearchEntry>,
-        #[template_child] pub commit_list:         TemplateChild<gtk::ListBox>,
+        #[template_child] pub commit_search_entry:  TemplateChild<gtk::SearchEntry>,
+        #[template_child] pub commit_list:          TemplateChild<gtk::ListBox>,
 
         // Right panel
-        #[template_child] pub empty_state:         TemplateChild<adw::StatusPage>,
-        #[template_child] pub split_view:          TemplateChild<adw::OverlaySplitView>,
-        #[template_child] pub content_toolbar_view:TemplateChild<adw::ToolbarView>,
+        #[template_child] pub empty_state:          TemplateChild<adw::StatusPage>,
+        #[template_child] pub split_view:           TemplateChild<adw::OverlaySplitView>,
+        #[template_child] pub content_toolbar_view: TemplateChild<adw::ToolbarView>,
 
         // Bottom bar
-        #[template_child] pub commit_info_bar:     TemplateChild<gtk::ActionBar>,
-        #[template_child] pub commit_hash_label:   TemplateChild<gtk::Label>,
-        #[template_child] pub commit_message_label:TemplateChild<gtk::Label>,
-        #[template_child] pub commit_date_label:   TemplateChild<gtk::Label>,
+        #[template_child] pub commit_info_bar:      TemplateChild<gtk::ActionBar>,
+        #[template_child] pub commit_hash_label:    TemplateChild<gtk::Label>,
+        #[template_child] pub commit_message_label: TemplateChild<gtk::Label>,
+        #[template_child] pub commit_date_label:    TemplateChild<gtk::Label>,
 
         // Runtime state
-        pub all_commits:     RefCell<Vec<CommitInfo>>,
-        pub repo_path:       RefCell<Option<PathBuf>>,
-        pub repository:      RefCell<Option<DebugRepository>>,
-        pub last_query:      RefCell<String>,
-        pub current_hash:    RefCell<Option<String>>,
-        pub current_dir:     RefCell<PathBuf>,
-        pub history_back:    RefCell<Vec<PathBuf>>,
-        pub history_forward: RefCell<Vec<PathBuf>>,
-        pub view_mode:       RefCell<ViewMode>,
-        pub repo_name:       RefCell<String>,
+        pub all_commits:      RefCell<Vec<CommitInfo>>,
+        pub repo_path:        RefCell<Option<PathBuf>>,
+        pub repository:       RefCell<Option<DebugRepository>>,
+        pub last_query:       RefCell<String>,
+        pub current_hash:     RefCell<Option<String>>,
+        pub current_dir:      RefCell<PathBuf>,
+        pub history_back:     RefCell<Vec<PathBuf>>,
+        pub history_forward:  RefCell<Vec<PathBuf>>,
+        pub view_mode:        RefCell<ViewMode>,
+        pub repo_name:        RefCell<String>,
     }
 
     #[glib::object_subclass]
@@ -136,13 +143,20 @@ impl TemporalExplorerWindow {
     fn setup_styles(&self) {
         let provider = gtk::CssProvider::new();
         provider.load_from_string("
-            /* ── Path bar ────────────────────────────────────────────────── */
+            /* ── Toolbar switcher (matches NautilusToolbar header_toolbar) ──── */
+            .header-toolbar-box {
+                spacing: 6;
+            }
+
+            /* ── Path bar pill container ─────────────────────────────── */
             .nautilus-pathbar {
                 background-color: color-mix(in srgb, currentColor 8%, transparent);
                 border-radius: 9999px;
                 padding: 2px 4px;
                 min-height: 32px;
             }
+
+            /* ── Individual path segment buttons ──────────────────────── */
             .nautilus-path-button {
                 min-width: 8px;
                 border-radius: 9999px;
@@ -152,6 +166,7 @@ impl TemporalExplorerWindow {
             .nautilus-path-button label {
                 font-weight: 600;
             }
+            /* inactive segments: dim down */
             .nautilus-path-button:not(.current-dir) label,
             .nautilus-path-button:not(.current-dir) image {
                 opacity: 0.55;
@@ -160,17 +175,31 @@ impl TemporalExplorerWindow {
             .nautilus-path-button:not(.current-dir):hover image {
                 opacity: 0.85;
             }
+            /* current segment: transparent background, full opacity */
             .nautilus-path-button.current-dir {
                 background: none;
                 box-shadow: none;
             }
+
+            /* ── Chevron separators ───────────────────────────────── */
             .nautilus-path-separator {
                 opacity: 0.35;
                 margin: 0 1px;
                 -gtk-icon-size: 12px;
             }
 
-            /* ── Grid view cells (Nautilus-style) ────────────────────────── */
+            /* ── Location entry (linked box – matches NautilusLocationEntry) ─ */
+            .location-bar {
+                min-width: 320px;
+            }
+            .location-bar entry {
+                border-radius: 9999px 0 0 9999px;
+            }
+            .location-bar button {
+                border-radius: 0 9999px 9999px 0;
+            }
+
+            /* ── Grid view cells ─────────────────────────────────────── */
             .nautilus-view-cell {
                 border-radius: 8px;
                 padding: 8px 6px 6px 6px;
@@ -189,7 +218,7 @@ impl TemporalExplorerWindow {
                 outline-color: @accent_bg_color;
             }
 
-            /* ── List view rows ──────────────────────────────────────────── */
+            /* ── List view rows ───────────────────────────────────────────── */
             .nautilus-list-row {
                 border-radius: 6px;
                 transition: background-color 120ms ease;
@@ -212,8 +241,7 @@ impl TemporalExplorerWindow {
         ");
         if let Some(display) = gtk::gdk::Display::default() {
             gtk::style_context_add_provider_for_display(
-                &display,
-                &provider,
+                &display, &provider,
                 gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
             );
         }
@@ -242,6 +270,66 @@ impl TemporalExplorerWindow {
         imp.commit_search_entry.connect_search_changed(glib::clone!(
             #[weak(rename_to = w)] self, move |e| w.on_search_changed(e.text().as_str())
         ));
+
+        // ── Nautilus toolbar_switcher: location entry wiring ──────────────
+        // Enter in location entry → navigate
+        imp.location_entry.connect_activate(glib::clone!(
+            #[weak(rename_to = w)] self, move |entry| {
+                let text = entry.text().to_string();
+                w.navigate_to_location_text(&text);
+                w.show_pathbar();
+            }
+        ));
+        // Escape in location entry → cancel (matches Nautilus)
+        let key_ctrl = gtk::EventControllerKey::new();
+        key_ctrl.connect_key_pressed(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_, key, _, _| {
+                if key == gtk::gdk::Key::Escape {
+                    w.show_pathbar();
+                    return glib::Propagation::Stop;
+                }
+                glib::Propagation::Proceed
+            }
+        ));
+        imp.location_entry.add_controller(key_ctrl);
+        // Cancel button → back to pathbar
+        imp.location_cancel_btn.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)] self, move |_| w.show_pathbar()
+        ));
+    }
+
+    // ── toolbar_switcher helpers (NautilusToolbar pattern) ─────────────────
+
+    fn show_pathbar(&self) {
+        self.imp().toolbar_switcher.set_visible_child_name("pathbar");
+    }
+
+    fn show_location_entry(&self) {
+        let imp = self.imp();
+        // Populate the entry with the current path text
+        let dir = imp.current_dir.borrow().clone();
+        let path_text = if dir.as_os_str().is_empty() {
+            String::new()
+        } else {
+            dir.to_string_lossy().to_string()
+        };
+        imp.location_entry.set_text(&path_text);
+        imp.toolbar_switcher.set_visible_child_name("location");
+        imp.location_entry.grab_focus();
+        imp.location_entry.select_region(0, -1);
+    }
+
+    /// Navigate to a path typed in the location entry.
+    /// The path is relative to the repo root; empty string = root.
+    fn navigate_to_location_text(&self, text: &str) {
+        let trimmed = text.trim().trim_matches('/');
+        let target = if trimmed.is_empty() {
+            PathBuf::new()
+        } else {
+            PathBuf::from(trimmed)
+        };
+        self.enter_dir(target);
     }
 
     // ── View mode toggle ───────────────────────────────────────────────────────
@@ -347,7 +435,9 @@ impl TemporalExplorerWindow {
         if query.is_empty() { self.populate_commit_list(&all); return; }
         let q = query.to_lowercase();
         let filtered: Vec<CommitInfo> = all.iter().filter(|c| {
-            c.summary.to_lowercase().contains(&q) || c.hash.starts_with(query) || c.author.to_lowercase().contains(&q)
+            c.summary.to_lowercase().contains(&q)
+                || c.hash.starts_with(query)
+                || c.author.to_lowercase().contains(&q)
         }).cloned().collect();
         drop(all);
         self.populate_commit_list(&filtered);
@@ -397,9 +487,7 @@ impl TemporalExplorerWindow {
             imp.history_forward.borrow_mut().push(cur);
             *imp.current_dir.borrow_mut() = dir.clone();
             let maybe_hash = imp.current_hash.borrow().clone();
-            if let Some(hash) = maybe_hash {
-                self.browse_dir_inner(&hash, &dir);
-            }
+            if let Some(hash) = maybe_hash { self.browse_dir_inner(&hash, &dir); }
             self.update_nav_buttons();
         }
     }
@@ -412,9 +500,7 @@ impl TemporalExplorerWindow {
             imp.history_back.borrow_mut().push(cur);
             *imp.current_dir.borrow_mut() = dir.clone();
             let maybe_hash = imp.current_hash.borrow().clone();
-            if let Some(hash) = maybe_hash {
-                self.browse_dir_inner(&hash, &dir);
-            }
+            if let Some(hash) = maybe_hash { self.browse_dir_inner(&hash, &dir); }
             self.update_nav_buttons();
         }
     }
@@ -432,32 +518,29 @@ impl TemporalExplorerWindow {
 
     fn browse_dir_inner(&self, hash: &str, dir: &PathBuf) {
         let imp = self.imp();
-
         let repo_ref = imp.repository.borrow();
         let repo = match repo_ref.as_ref() {
             Some(r) => r,
             None => { self.show_error_toast("No repository open."); return; }
         };
-
         let resolver = SnapshotResolver::new(repo);
         let all_nodes = match resolver.resolve_tree(hash) {
             Ok(n) => n,
             Err(e) => { self.show_error_toast(&format!("Cannot resolve snapshot: {e}")); return; }
         };
-
         let children = Self::direct_children(&all_nodes, dir);
         drop(repo_ref);
 
-        // Update subtitle with item count
-        let item_count = children.len();
-        let subtitle = if item_count == 1 {
-            "1 item".to_string()
-        } else {
-            format!("{item_count} items")
+        // subtitle = item count (Nautilus shows "N items" in the window title subtitle)
+        let subtitle = match children.len() {
+            1 => "1 item".to_string(),
+            n => format!("{n} items"),
         };
         imp.window_title.set_subtitle(&subtitle);
 
         self.update_address_bar(dir);
+        // Make sure we are on the pathbar page after every navigation
+        self.show_pathbar();
 
         let view_mode = *imp.view_mode.borrow();
         let widget: gtk::Widget = match view_mode {
@@ -511,10 +594,7 @@ impl TemporalExplorerWindow {
         hbox.add_css_class("nautilus-list-row");
 
         let icon_name = match node {
-            TreeNode::Dir(p) => {
-                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                folder_icon_symbolic(name)
-            }
+            TreeNode::Dir(p) => folder_icon_symbolic(p.file_name().and_then(|n| n.to_str()).unwrap_or("")),
             TreeNode::File(p) => mime_icon(p),
         };
         let icon = gtk::Image::from_icon_name(icon_name);
@@ -531,16 +611,11 @@ impl TemporalExplorerWindow {
             chevron.add_css_class("dim-label");
             chevron.set_pixel_size(12);
             hbox.append(&chevron);
-        } else {
-            // Show file extension as a type hint (Nautilus behaviour)
-            if let Some(ext) = node.path().extension().and_then(|e| e.to_str()) {
-                let type_label = gtk::Label::builder()
-                    .label(&ext.to_uppercase())
-                    .build();
-                type_label.add_css_class("caption");
-                type_label.add_css_class("dim-label");
-                hbox.append(&type_label);
-            }
+        } else if let Some(ext) = node.path().extension().and_then(|e| e.to_str()) {
+            let type_label = gtk::Label::builder().label(&ext.to_uppercase()).build();
+            type_label.add_css_class("caption");
+            type_label.add_css_class("dim-label");
+            hbox.append(&type_label);
         }
 
         gtk::ListBoxRow::builder().child(&hbox).build()
@@ -553,16 +628,11 @@ impl TemporalExplorerWindow {
             .vexpand(true).hexpand(true)
             .hscrollbar_policy(gtk::PolicyType::Never)
             .build();
-
         let flow = gtk::FlowBox::builder()
             .selection_mode(gtk::SelectionMode::Single)
             .homogeneous(true)
-            .column_spacing(6)
-            .row_spacing(6)
-            .margin_top(16)
-            .margin_bottom(16)
-            .margin_start(16)
-            .margin_end(16)
+            .column_spacing(6).row_spacing(6)
+            .margin_top(16).margin_bottom(16).margin_start(16).margin_end(16)
             .max_children_per_line(64)
             .min_children_per_line(1)
             .build();
@@ -603,19 +673,13 @@ impl TemporalExplorerWindow {
         let vbox = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(6)
-            .margin_top(6)
-            .margin_bottom(6)
-            .margin_start(6)
-            .margin_end(6)
+            .margin_top(6).margin_bottom(6).margin_start(6).margin_end(6)
             .width_request(96)
             .build();
         vbox.add_css_class("nautilus-view-cell");
 
         let icon_name = match node {
-            TreeNode::Dir(p) => {
-                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                folder_icon(name)
-            }
+            TreeNode::Dir(p) => folder_icon(p.file_name().and_then(|n| n.to_str()).unwrap_or("")),
             TreeNode::File(p) => mime_icon_full(p),
         };
         let icon = gtk::Image::from_icon_name(icon_name);
@@ -625,13 +689,10 @@ impl TemporalExplorerWindow {
 
         let name = node.path().file_name().and_then(|n| n.to_str()).unwrap_or("");
         let label = gtk::Label::builder()
-            .label(name)
-            .halign(gtk::Align::Center)
+            .label(name).halign(gtk::Align::Center)
             .justify(gtk::Justification::Center)
-            .wrap(true)
-            .wrap_mode(gtk::pango::WrapMode::WordChar)
-            .max_width_chars(12)
-            .lines(3)
+            .wrap(true).wrap_mode(gtk::pango::WrapMode::WordChar)
+            .max_width_chars(12).lines(3)
             .ellipsize(gtk::pango::EllipsizeMode::End)
             .build();
         label.add_css_class("caption");
@@ -659,48 +720,35 @@ impl TemporalExplorerWindow {
         dirs
     }
 
-    // ── Address bar ───────────────────────────────────────────────────────────
+    // ── Address bar (NautilusPathBar-style) ────────────────────────────────
 
     fn update_address_bar(&self, dir: &PathBuf) {
         let imp = self.imp();
         let bar = &imp.address_bar;
 
-        while let Some(child) = bar.first_child() {
-            bar.remove(&child);
-        }
+        // Clear old buttons
+        while let Some(child) = bar.first_child() { bar.remove(&child); }
 
-        struct PathComponent {
-            label: String,
-            icon: Option<&'static str>,
-            target_dir: PathBuf,
-        }
-
-        let mut components: Vec<PathComponent> = Vec::new();
         let repo_name = imp.repo_name.borrow().clone();
 
-        // Repo root is always the first breadcrumb
-        components.push(PathComponent {
-            label: repo_name,
-            icon: Some("folder-symbolic"),
-            target_dir: PathBuf::new(),
-        });
+        // Build list of (label, icon?, target_path)
+        struct Seg { label: String, icon: Option<&'static str>, target: PathBuf }
+        let mut segs: Vec<Seg> = Vec::new();
 
-        let mut accumulated = PathBuf::new();
-        for component in dir.components() {
-            let seg = component.as_os_str().to_string_lossy().to_string();
-            accumulated.push(&seg);
-            components.push(PathComponent {
-                label: seg,
-                icon: None,
-                target_dir: accumulated.clone(),
-            });
+        // Root = repo name
+        segs.push(Seg { label: repo_name, icon: Some("folder-symbolic"), target: PathBuf::new() });
+
+        let mut acc = PathBuf::new();
+        for comp in dir.components() {
+            let s = comp.as_os_str().to_string_lossy().to_string();
+            acc.push(&s);
+            segs.push(Seg { label: s, icon: None, target: acc.clone() });
         }
 
-        let total = components.len();
-        for (idx, component) in components.iter().enumerate() {
+        let total = segs.len();
+        for (idx, seg) in segs.iter().enumerate() {
             let is_current = idx == total - 1;
 
-            // Chevron separator (Nautilus uses go-next-symbolic between segments)
             if idx > 0 {
                 let sep = gtk::Image::from_icon_name("go-next-symbolic");
                 sep.add_css_class("nautilus-path-separator");
@@ -710,43 +758,44 @@ impl TemporalExplorerWindow {
             let btn = gtk::Button::new();
             btn.add_css_class("flat");
             btn.add_css_class("nautilus-path-button");
-            if is_current {
-                btn.add_css_class("current-dir");
-            }
+            if is_current { btn.add_css_class("current-dir"); }
 
-            let box_layout = gtk::Box::new(gtk::Orientation::Horizontal, 4);
-
-            if let Some(icon_name) = component.icon {
-                let img = gtk::Image::from_icon_name(icon_name);
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+            if let Some(ic) = seg.icon {
+                let img = gtk::Image::from_icon_name(ic);
                 img.set_pixel_size(16);
-                box_layout.append(&img);
+                row.append(&img);
             }
+            let lbl = gtk::Label::builder().label(&seg.label).single_line_mode(true).build();
+            row.append(&lbl);
+            btn.set_child(Some(&row));
 
-            let lbl = gtk::Label::builder()
-                .label(&component.label)
-                .single_line_mode(true)
-                .build();
-            box_layout.append(&lbl);
-            btn.set_child(Some(&box_layout));
-
-            let target = component.target_dir.clone();
-            btn.connect_clicked(glib::clone!(
-                #[weak(rename_to = window)] self,
-                move |_| window.enter_dir(target.clone())
-            ));
+            // Non-current buttons navigate on click
+            // Current dir button opens location entry (like Nautilus click-on-pathbar)
+            let target = seg.target.clone();
+            if is_current {
+                btn.connect_clicked(glib::clone!(
+                    #[weak(rename_to = window)] self,
+                    move |_| window.show_location_entry()
+                ));
+            } else {
+                btn.connect_clicked(glib::clone!(
+                    #[weak(rename_to = window)] self,
+                    move |_| window.enter_dir(target.clone())
+                ));
+            }
 
             bar.append(&btn);
         }
-
-        imp.address_bar.set_visible(true);
-        imp.window_title.set_visible(false);
     }
 
     // ── Panel helpers ─────────────────────────────────────────────────────────
 
     fn show_empty_state(&self) {
         let imp = self.imp();
-        imp.address_bar.set_visible(false);
+        imp.toolbar_switcher.set_visible_child_name("pathbar");
+        // clear address bar so it shows nothing in empty state
+        while let Some(child) = imp.address_bar.first_child() { imp.address_bar.remove(&child); }
         imp.window_title.set_visible(true);
         imp.nav_back_button.set_sensitive(false);
         imp.nav_forward_button.set_sensitive(false);
@@ -797,7 +846,6 @@ fn mime_icon(path: &std::path::Path) -> &'static str {
         Some("zip") | Some("tar") | Some("gz") | Some("xz")    => "application-zip-symbolic",
         Some("lock")                                           => "text-x-generic-symbolic",
         Some("in")                                             => "text-x-makefile-symbolic",
-        // Dotfiles / special names
         _ => match path.file_name().and_then(|n| n.to_str()) {
             Some(".gitignore") | Some(".gitattributes") | Some(".gitmodules") => "text-x-generic-symbolic",
             Some("Makefile") | Some("makefile") | Some("GNUmakefile")         => "text-x-makefile-symbolic",
