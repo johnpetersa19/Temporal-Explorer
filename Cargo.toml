@@ -6,9 +6,9 @@ edition = "2021"
 [dependencies]
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
 gtk = { version = "0.9", package = "gtk4", features = ["gnome_47"] }
-git2 = "0.21"
+git2 = "0.19"
 
 [dependencies.adw]
 package = "libadwaita"
-version = "0.9"
-features = ["v1_7"]
+version = "0.7"
+features = ["v1_6"]
