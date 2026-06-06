@@ -29,11 +29,11 @@ use crate::git_engine::{CommitInfo, HistoryReader, SnapshotResolver, TreeNode};
 
 // ── DebugRepository ───────────────────────────────────────────────────────────
 //
-// git2::Repository does not implement Debug, but the imp struct derives it via
-// #[derive(Debug, gtk::CompositeTemplate)].  We wrap the Repository in a
-// newtype that provides a trivial Debug impl so the derive macro is satisfied.
+// git2::Repository does not implement Debug, but the imp struct derives it.
+// pub(super) matches the effective visibility of the imp fields and silences
+// the private_interfaces warning.
 
-struct DebugRepository(git2::Repository);
+pub(super) struct DebugRepository(git2::Repository);
 
 impl std::fmt::Debug for DebugRepository {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -89,7 +89,7 @@ mod imp {
         pub all_commits: RefCell<Vec<CommitInfo>>,
         /// Path to the currently open repository.
         pub repo_path: RefCell<Option<PathBuf>>,
-        /// The open Repository wrapped in a Debug newtype so #[derive(Debug)]
+        /// The open Repository wrapped in DebugRepository so #[derive(Debug)]
         /// compiles.  Reused across commit selections to avoid reopening the
         /// repo on every click.
         pub repository: RefCell<Option<DebugRepository>>,
@@ -153,21 +153,18 @@ impl TemporalExplorerWindow {
     fn setup_callbacks(&self) {
         let imp = self.imp();
 
-        // "Open Repository" button
         imp.open_repo_button.connect_clicked(glib::clone!(
             #[weak(rename_to = window)]
             self,
             move |_| window.open_repository_dialog()
         ));
 
-        // Commit row selected
         imp.commit_list.connect_row_selected(glib::clone!(
             #[weak(rename_to = window)]
             self,
             move |_, row| window.on_commit_selected(row)
         ));
 
-        // Search entry changed
         imp.commit_search_entry.connect_search_changed(glib::clone!(
             #[weak(rename_to = window)]
             self,
@@ -200,10 +197,6 @@ impl TemporalExplorerWindow {
         );
     }
 
-    /// Opens the repository at `path`, populates the commit list and updates
-    /// the window title.  The [`git2::Repository`] handle (wrapped in
-    /// [`DebugRepository`]) is kept alive in `imp.repository` so it can be
-    /// reused on every commit selection without paying the open cost each time.
     fn load_repository(&self, path: PathBuf) {
         let imp = self.imp();
 
@@ -218,7 +211,6 @@ impl TemporalExplorerWindow {
                     }
                 };
 
-                // Update window title with the folder name
                 let repo_name = path
                     .file_name()
                     .and_then(|n| n.to_str())
@@ -227,16 +219,12 @@ impl TemporalExplorerWindow {
                 imp.window_title
                     .set_subtitle(&format!("{} commits", commits.len()));
 
-                // Store state — keep the Repository handle alive for reuse
                 *imp.repo_path.borrow_mut() = Some(path);
                 *imp.repository.borrow_mut() = Some(DebugRepository(reader.repo));
                 *imp.all_commits.borrow_mut() = commits.clone();
                 *imp.last_query.borrow_mut() = String::new();
 
-                // Populate the list
                 self.populate_commit_list(&commits);
-
-                // Reset right panel
                 imp.commit_info_bar.set_revealed(false);
                 self.show_empty_state();
             }
@@ -245,22 +233,17 @@ impl TemporalExplorerWindow {
 
     // ── Commit list helpers ───────────────────────────────────────────────────
 
-    /// Clears and repopulates `commit_list` from `commits`.
     fn populate_commit_list(&self, commits: &[CommitInfo]) {
         let imp = self.imp();
-
-        // Remove all existing rows
         while let Some(child) = imp.commit_list.first_child() {
             imp.commit_list.remove(&child);
         }
-
         for commit in commits {
             let row = self.build_commit_row(commit);
             imp.commit_list.append(&row);
         }
     }
 
-    /// Builds a single `gtk::ListBoxRow` for one commit.
     fn build_commit_row(&self, commit: &CommitInfo) -> gtk::ListBoxRow {
         let vbox = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -271,14 +254,12 @@ impl TemporalExplorerWindow {
             .margin_end(12)
             .build();
 
-        // Summary line
         let summary = gtk::Label::builder()
             .label(&commit.summary)
             .xalign(0.0)
             .ellipsize(gtk::pango::EllipsizeMode::End)
             .build();
 
-        // Hash + author line
         let meta = gtk::Label::builder()
             .label(&format!("{} · {}", &commit.hash[..8], commit.author))
             .xalign(0.0)
@@ -289,7 +270,6 @@ impl TemporalExplorerWindow {
         vbox.append(&summary);
         vbox.append(&meta);
 
-        // Store the full hash as widget name for retrieval on selection
         gtk::ListBoxRow::builder()
             .name(&commit.hash)
             .child(&vbox)
@@ -298,12 +278,9 @@ impl TemporalExplorerWindow {
 
     // ── Search ────────────────────────────────────────────────────────────────
 
-    /// Filters the commit list against summary, hash prefix and author.
-    /// Skips repopulation when the query has not actually changed.
     fn on_search_changed(&self, query: &str) {
         let imp = self.imp();
 
-        // Guard: skip if query is identical to the last one processed
         {
             let last = imp.last_query.borrow();
             if *last == query {
@@ -348,10 +325,8 @@ impl TemporalExplorerWindow {
             }
         };
 
-        // Retrieve the full hash stored as the widget name
         let hash = row.widget_name().to_string();
 
-        // Look up the CommitInfo for this hash
         let commit = {
             let all = imp.all_commits.borrow();
             all.iter().find(|c| c.hash == hash).cloned()
@@ -362,23 +337,17 @@ impl TemporalExplorerWindow {
             None => return,
         };
 
-        // Update the bottom action bar
         imp.commit_hash_label.set_label(&commit.hash[..12]);
         imp.commit_message_label.set_label(&commit.summary);
         imp.commit_date_label
             .set_label(&Self::format_timestamp(commit.timestamp));
         imp.commit_info_bar.set_revealed(true);
 
-        // Materialize the file tree using the already-open Repository handle
         self.show_file_tree(&hash);
     }
 
     // ── File tree rendering ───────────────────────────────────────────────────
 
-    /// Resolves `hash` against the cached open repository and renders the
-    /// resulting file tree in the right panel.
-    ///
-    /// Uses `imp.repository` directly — no repository re-open on each click.
     fn show_file_tree(&self, hash: &str) {
         let imp = self.imp();
 
@@ -400,7 +369,6 @@ impl TemporalExplorerWindow {
             }
         };
 
-        // Build a scrollable tree view in the right panel
         let scrolled = gtk::ScrolledWindow::builder()
             .vexpand(true)
             .hexpand(true)
@@ -413,8 +381,7 @@ impl TemporalExplorerWindow {
         list.add_css_class("boxed-list");
 
         for node in &nodes {
-            let row = Self::build_tree_row(node);
-            list.append(&row);
+            list.append(&Self::build_tree_row(node));
         }
 
         if nodes.is_empty() {
@@ -431,7 +398,6 @@ impl TemporalExplorerWindow {
         self.replace_right_panel(scrolled.upcast());
     }
 
-    /// Builds a single row for a [`TreeNode`].
     fn build_tree_row(node: &TreeNode) -> gtk::ListBoxRow {
         let hbox = gtk::Box::builder()
             .orientation(gtk::Orientation::Horizontal)
@@ -443,24 +409,15 @@ impl TemporalExplorerWindow {
             .build();
 
         let (icon_name, depth) = match node {
-            TreeNode::Dir(p) => (
-                "folder-symbolic",
-                p.components().count().saturating_sub(1),
-            ),
-            TreeNode::File(p) => (
-                "text-x-generic-symbolic",
-                p.components().count().saturating_sub(1),
-            ),
+            TreeNode::Dir(p) => ("folder-symbolic", p.components().count().saturating_sub(1)),
+            TreeNode::File(p) => ("text-x-generic-symbolic", p.components().count().saturating_sub(1)),
         };
 
-        // Indent based on depth
         let indent = gtk::Box::builder()
             .width_request((depth as i32) * 16)
             .build();
         hbox.append(&indent);
-
-        let icon = gtk::Image::from_icon_name(icon_name);
-        hbox.append(&icon);
+        hbox.append(&gtk::Image::from_icon_name(icon_name));
 
         let label_text = node
             .path()
@@ -480,19 +437,15 @@ impl TemporalExplorerWindow {
         }
 
         hbox.append(&label);
-
         gtk::ListBoxRow::builder().child(&hbox).build()
     }
 
     // ── Panel helpers ─────────────────────────────────────────────────────────
 
-    /// Shows the empty state placeholder in the right panel.
     fn show_empty_state(&self) {
         self.replace_right_panel(self.imp().empty_state.clone().upcast());
     }
 
-    /// Replaces the end child of the main [`gtk::Paned`] with `widget`.
-    ///
     /// Uses the `main_paned` TemplateChild directly — no fragile widget walking.
     fn replace_right_panel(&self, widget: gtk::Widget) {
         self.imp().main_paned.set_end_child(Some(&widget));
@@ -500,14 +453,12 @@ impl TemporalExplorerWindow {
 
     // ── Utilities ─────────────────────────────────────────────────────────────
 
-    /// Shows a brief error toast at the top of the window.
     fn show_error_toast(&self, message: &str) {
         let toast = adw::Toast::builder()
             .title(message)
             .timeout(4)
             .build();
 
-        // Walk up to the AdwToastOverlay if present; fall back to stderr.
         if let Some(overlay) = self
             .content()
             .and_then(|w| w.downcast::<adw::ToastOverlay>().ok())
@@ -518,7 +469,6 @@ impl TemporalExplorerWindow {
         }
     }
 
-    /// Formats a Unix timestamp into a human-readable date string.
     fn format_timestamp(ts: i64) -> String {
         if let Ok(dt) = glib::DateTime::from_unix_local(ts) {
             dt.format("%Y-%m-%d %H:%M").unwrap_or_default().to_string()
