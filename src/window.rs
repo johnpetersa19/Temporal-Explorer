@@ -30,11 +30,11 @@ use crate::git_engine::{CommitInfo, HistoryReader, SnapshotResolver, TreeNode};
 // ── ViewMode ──────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
-enum ViewMode { #[default] List, Grid }
+pub enum ViewMode { #[default] List, Grid }
 
 // ── DebugRepository ───────────────────────────────────────────────────────────
 
-pub(super) struct DebugRepository(git2::Repository);
+pub struct DebugRepository(pub git2::Repository);
 
 impl std::fmt::Debug for DebugRepository {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -60,6 +60,7 @@ mod imp {
         #[template_child] pub nav_back_button:     TemplateChild<gtk::Button>,
         #[template_child] pub nav_forward_button:  TemplateChild<gtk::Button>,
         #[template_child] pub view_toggle_button:  TemplateChild<gtk::Button>,
+        #[template_child] pub show_sidebar_button: TemplateChild<gtk::ToggleButton>,
         #[template_child] pub window_title:        TemplateChild<adw::WindowTitle>,
         #[template_child] pub address_bar:         TemplateChild<gtk::Box>,
 
@@ -69,7 +70,8 @@ mod imp {
 
         // Right panel
         #[template_child] pub empty_state:         TemplateChild<adw::StatusPage>,
-        #[template_child] pub main_paned:          TemplateChild<gtk::Paned>,
+        #[template_child] pub split_view:          TemplateChild<adw::OverlaySplitView>,
+        #[template_child] pub content_toolbar_view:TemplateChild<adw::ToolbarView>,
 
         // Bottom bar
         #[template_child] pub commit_info_bar:     TemplateChild<gtk::ActionBar>,
@@ -103,6 +105,7 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             self.obj().setup_callbacks();
+            self.obj().setup_styles();
         }
     }
 
@@ -126,6 +129,60 @@ glib::wrapper! {
 impl TemporalExplorerWindow {
     pub fn new<P: IsA<gtk::Application>>(application: &P) -> Self {
         glib::Object::builder().property("application", application).build()
+    }
+
+    // ── Styles ────────────────────────────────────────────────────────────────
+
+    fn setup_styles(&self) {
+        let provider = gtk::CssProvider::new();
+        provider.load_from_string("
+            .nautilus-pathbar {
+                background-color: color-mix(in srgb, currentColor 10%, transparent);
+                border-radius: 9px;
+                padding: 2px;
+            }
+            .nautilus-path-button {
+                margin: 3px;
+                min-width: 8px;
+                border-radius: 7px;
+                padding-top: 0px;
+                padding-bottom: 0px;
+            }
+            .nautilus-path-button label {
+                font-weight: bold;
+            }
+            .nautilus-path-button:not(:hover),
+            .nautilus-path-button.current-dir {
+                background: none;
+                box-shadow: none;
+            }
+            .nautilus-path-button:not(.current-dir):not(:backdrop):hover label,
+            .nautilus-path-button:not(.current-dir):not(:backdrop):hover image {
+                opacity: 1;
+            }
+            .nautilus-view-cell {
+                background-color: color-mix(in srgb, currentColor 4%, transparent);
+                border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+                border-radius: 12px;
+                padding: 10px;
+                transition: background-color 0.15s ease, border-color 0.15s ease;
+            }
+            .nautilus-view-cell:hover {
+                background-color: color-mix(in srgb, currentColor 8%, transparent);
+                border-color: color-mix(in srgb, currentColor 12%, transparent);
+            }
+            flowboxchild:selected .nautilus-view-cell {
+                background-color: color-mix(in srgb, var(--accent-bg-color, #3584e4) 20%, transparent);
+                border-color: var(--accent-bg-color, #3584e4);
+            }
+        ");
+        if let Some(display) = gtk::gdk::Display::default() {
+            gtk::style_context_add_provider_for_display(
+                &display,
+                &provider,
+                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+        }
     }
 
     // ── Signal wiring ─────────────────────────────────────────────────────────
@@ -406,7 +463,10 @@ impl TemporalExplorerWindow {
             .margin_top(6).margin_bottom(6).margin_start(12).margin_end(12)
             .build();
         let icon_name = match node {
-            TreeNode::Dir(_)  => "folder-symbolic",
+            TreeNode::Dir(p)  => {
+                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                folder_icon_symbolic(name)
+            }
             TreeNode::File(p) => mime_icon(p),
         };
         let icon = gtk::Image::from_icon_name(icon_name);
@@ -432,20 +492,20 @@ impl TemporalExplorerWindow {
             .hscrollbar_policy(gtk::PolicyType::Never)
             .build();
 
-        // Match Nautilus: tight spacing, no per-cell margins, homogeneous OFF
-        // so cells wrap naturally at their natural width (~80px).
+        // Match Nautilus: row/column spacing and padding
         let flow = gtk::FlowBox::builder()
             .selection_mode(gtk::SelectionMode::Single)
-            .homogeneous(false)
-            .column_spacing(0)
-            .row_spacing(0)
-            .margin_top(6)
-            .margin_bottom(6)
-            .margin_start(6)
-            .margin_end(6)
+            .homogeneous(true)
+            .column_spacing(16)
+            .row_spacing(16)
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
             .max_children_per_line(64)
             .min_children_per_line(1)
             .build();
+        flow.add_css_class("nautilus-grid-view");
 
         if children.is_empty() {
             let placeholder = gtk::Label::builder().label("Empty directory")
@@ -453,7 +513,15 @@ impl TemporalExplorerWindow {
             placeholder.add_css_class("dim-label");
             flow.insert(&placeholder, -1);
         } else {
-            for node in children { flow.insert(&Self::build_grid_cell(node), -1); }
+            for node in children {
+                let cell = Self::build_grid_cell(node);
+                let child = gtk::FlowBoxChild::builder()
+                    .child(&cell)
+                    .valign(gtk::Align::Start)
+                    .halign(gtk::Align::Center)
+                    .build();
+                flow.insert(&child, -1);
+            }
         }
 
         let children_clone = children.to_vec();
@@ -472,8 +540,8 @@ impl TemporalExplorerWindow {
     }
 
     fn build_grid_cell(node: &TreeNode) -> gtk::Box {
-        // Nautilus-style cell: 80px wide, 4px padding on each side,
-        // 64px icon, label up to 2 lines with ellipsis.
+        // Nautilus-style cell: 96px wide, 4px padding on each side,
+        // 64px icon, label up to 3 lines with ellipsis.
         let vbox = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(4)
@@ -481,11 +549,15 @@ impl TemporalExplorerWindow {
             .margin_bottom(4)
             .margin_start(4)
             .margin_end(4)
-            .width_request(80)
+            .width_request(96)
             .build();
+        vbox.add_css_class("nautilus-view-cell");
 
         let icon_name = match node {
-            TreeNode::Dir(_)  => "folder",
+            TreeNode::Dir(p)  => {
+                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                folder_icon(name)
+            }
             TreeNode::File(p) => mime_icon_full(p),
         };
         let icon = gtk::Image::from_icon_name(icon_name);
@@ -500,8 +572,8 @@ impl TemporalExplorerWindow {
             .justify(gtk::Justification::Center)
             .wrap(true)
             .wrap_mode(gtk::pango::WrapMode::WordChar)
-            .max_width_chars(10)
-            .lines(2)
+            .max_width_chars(12)
+            .lines(3)
             .ellipsize(gtk::pango::EllipsizeMode::End)
             .build();
         label.add_css_class("caption");
@@ -535,42 +607,161 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         let bar = &imp.address_bar;
 
-        while let Some(child) = bar.first_child() { bar.remove(&child); }
+        while let Some(child) = bar.first_child() {
+            bar.remove(&child);
+        }
 
-        let home_btn = gtk::Button::new();
-        home_btn.set_child(Some(&gtk::Image::from_icon_name("user-home-symbolic")));
-        home_btn.add_css_class("flat");
-        home_btn.connect_clicked(glib::clone!(
-            #[weak(rename_to = window)] self,
-            move |_| window.enter_dir(PathBuf::new())
-        ));
-        bar.append(&home_btn);
+        // Get translation for "Home" (translated to e.g. "Pasta pessoal" in Portuguese)
+        let get_home_label = || -> String {
+            let gtk_translation = gettextrs::dgettext("gtk40", "Home");
+            if gtk_translation != "Home" {
+                return gtk_translation;
+            }
+            let lang = std::env::var("LANG").unwrap_or_default();
+            if lang.starts_with("pt") {
+                "Pasta pessoal".to_string()
+            } else {
+                "Home".to_string()
+            }
+        };
 
-        let repo_name = imp.repo_name.borrow().clone();
-        let repo_btn = gtk::Button::builder().label(&repo_name).build();
-        repo_btn.add_css_class("flat");
-        repo_btn.connect_clicked(glib::clone!(
-            #[weak(rename_to = window)] self,
-            move |_| window.enter_dir(PathBuf::new())
-        ));
-        bar.append(&repo_btn);
+        struct PathComponent {
+            label: String,
+            icon: Option<String>,
+            target_dir: PathBuf,
+        }
 
-        let mut accumulated = PathBuf::new();
-        for component in dir.components() {
-            let seg = component.as_os_str().to_string_lossy().to_string();
-            accumulated.push(&seg);
+        let mut components = Vec::new();
+        let repo_path_opt = imp.repo_path.borrow().clone();
 
-            let sep = gtk::Label::builder().label(" / ").build();
-            sep.add_css_class("dim-label");
-            bar.append(&sep);
+        if let Some(ref repo_path) = repo_path_opt {
+            let absolute_path = repo_path.join(dir);
+            let home_dir = glib::home_dir();
 
-            let btn = gtk::Button::builder().label(&seg).build();
+            if absolute_path.starts_with(&home_dir) {
+                // Home directory component
+                components.push(PathComponent {
+                    label: get_home_label(),
+                    icon: Some("user-home-symbolic".to_string()),
+                    target_dir: PathBuf::new(),
+                });
+
+                if let Ok(relative_to_home) = absolute_path.strip_prefix(&home_dir) {
+                    let mut current_absolute = home_dir.clone();
+                    for seg in relative_to_home.components() {
+                        let seg_str = seg.as_os_str().to_string_lossy().to_string();
+                        current_absolute.push(&seg_str);
+
+                        let target = if current_absolute.starts_with(repo_path) {
+                            if let Ok(rel) = current_absolute.strip_prefix(repo_path) {
+                                rel.to_path_buf()
+                            } else {
+                                PathBuf::new()
+                            }
+                        } else {
+                            PathBuf::new()
+                        };
+
+                        components.push(PathComponent {
+                            label: seg_str,
+                            icon: None,
+                            target_dir: target,
+                        });
+                    }
+                }
+            } else {
+                // Fallback: Repository Root
+                let repo_name = imp.repo_name.borrow().clone();
+                components.push(PathComponent {
+                    label: repo_name,
+                    icon: Some("folder-symbolic".to_string()),
+                    target_dir: PathBuf::new(),
+                });
+
+                let mut accumulated = PathBuf::new();
+                for component in dir.components() {
+                    let seg = component.as_os_str().to_string_lossy().to_string();
+                    accumulated.push(&seg);
+                    components.push(PathComponent {
+                        label: seg,
+                        icon: None,
+                        target_dir: accumulated.clone(),
+                    });
+                }
+            }
+        } else {
+            let repo_name = imp.repo_name.borrow().clone();
+            components.push(PathComponent {
+                label: repo_name,
+                icon: Some("folder-symbolic".to_string()),
+                target_dir: PathBuf::new(),
+            });
+
+            let mut accumulated = PathBuf::new();
+            for component in dir.components() {
+                let seg = component.as_os_str().to_string_lossy().to_string();
+                accumulated.push(&seg);
+                components.push(PathComponent {
+                    label: seg,
+                    icon: None,
+                    target_dir: accumulated.clone(),
+                });
+            }
+        }
+
+        let total_components = components.len();
+        for (idx, component) in components.iter().enumerate() {
+            let is_current = idx == total_components - 1;
+
+            if idx > 0 {
+                let sep = gtk::Label::builder().label("/").build();
+                sep.add_css_class("dim-label");
+                sep.set_margin_start(2);
+                sep.set_margin_end(2);
+                bar.append(&sep);
+            }
+
+            let btn = gtk::Button::new();
             btn.add_css_class("flat");
-            let target = accumulated.clone();
+            btn.add_css_class("nautilus-path-button");
+            if is_current {
+                btn.add_css_class("current-dir");
+            }
+
+            if component.icon.is_some() {
+                let box_layout = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+                let img = gtk::Image::from_icon_name(component.icon.as_ref().unwrap());
+                if !is_current {
+                    img.add_css_class("dim-label");
+                }
+                box_layout.append(&img);
+
+                let lbl = gtk::Label::builder()
+                    .label(&component.label)
+                    .single_line_mode(true)
+                    .build();
+                if !is_current {
+                    lbl.add_css_class("dim-label");
+                }
+                box_layout.append(&lbl);
+                btn.set_child(Some(&box_layout));
+            } else {
+                let lbl = gtk::Label::builder()
+                    .label(&component.label)
+                    .single_line_mode(true)
+                    .build();
+                if !is_current {
+                    lbl.add_css_class("dim-label");
+                }
+                btn.set_child(Some(&lbl));
+            }
+
+            let target = component.target_dir.clone();
             btn.connect_clicked(glib::clone!(
                 #[weak(rename_to = window)] self,
                 move |_| window.enter_dir(target.clone())
             ));
+
             bar.append(&btn);
         }
 
@@ -590,7 +781,7 @@ impl TemporalExplorerWindow {
     }
 
     fn replace_right_panel(&self, widget: gtk::Widget) {
-        self.imp().main_paned.set_end_child(Some(&widget));
+        self.imp().content_toolbar_view.set_content(Some(&widget));
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────────
@@ -640,5 +831,33 @@ fn mime_icon_full(path: &std::path::Path) -> &'static str {
         Some("py")                                       => "text-x-python",
         Some("html")|Some("css")                         => "text-html",
         _                                                => "text-x-generic",
+    }
+}
+
+// ── Folder icon helpers ──────────────────────────────────────────────────────
+
+fn folder_icon(name: &str) -> &'static str {
+    match name.to_lowercase().as_str() {
+        "src" | "code" | "devel" | "development" | "projects" | "projetos" => "folder-development",
+        "doc" | "docs" | "documents" | "documentos" => "folder-documents",
+        "data" | "db" | "database" => "folder-documents",
+        "test" | "tests" | "spec" | "specs" => "folder-remote",
+        "images" | "img" | "pictures" | "imagens" => "folder-pictures",
+        "videos" | "video" => "folder-videos",
+        "music" | "audio" | "músicas" | "musicas" => "folder-music",
+        "download" | "downloads" => "folder-download",
+        _ => "folder",
+    }
+}
+
+fn folder_icon_symbolic(name: &str) -> &'static str {
+    match name.to_lowercase().as_str() {
+        "src" | "code" | "devel" | "development" | "projects" | "projetos" => "folder-development-symbolic",
+        "doc" | "docs" | "documents" | "documentos" => "folder-documents-symbolic",
+        "images" | "img" | "pictures" | "imagens" => "folder-pictures-symbolic",
+        "videos" | "video" => "folder-videos-symbolic",
+        "music" | "audio" | "músicas" | "musicas" => "folder-music-symbolic",
+        "download" | "downloads" => "folder-download-symbolic",
+        _ => "folder-symbolic",
     }
 }

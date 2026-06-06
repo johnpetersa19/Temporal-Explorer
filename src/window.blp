@@ -6,140 +6,145 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
   default-width: 1100;
   default-height: 700;
 
-  content: Adw.ToolbarView {
+  content: Adw.ToastOverlay toast_overlay {
+    child: Adw.OverlaySplitView split_view {
+      min-sidebar-width: 260;
+      max-sidebar-width: 320;
+      sidebar-width-fraction: 0.25;
+      show-sidebar: true;
 
-    [top]
-    Box {
-      orientation: vertical;
-      spacing: 0;
-
-      Adw.HeaderBar {
-
-        [start]
-        Button nav_back_button {
-          icon-name: "go-previous-symbolic";
-          tooltip-text: _("Back");
-          sensitive: false;
-          styles ["flat"]
+      sidebar: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {
+          title-widget: Adw.WindowTitle {
+            title: _("Timeline");
+          };
         }
 
-        [start]
-        Button nav_forward_button {
-          icon-name: "go-next-symbolic";
-          tooltip-text: _("Forward");
-          sensitive: false;
-          styles ["flat"]
-        }
-
-        [start]
-        Button open_repo_button {
-          icon-name: "folder-open-symbolic";
-          tooltip-text: _("Open Repository");
-          styles ["flat"]
-        }
-
-        [title]
-        Box address_bar {
-          orientation: horizontal;
+        content: Box {
+          orientation: vertical;
           spacing: 0;
-          hexpand: true;
-          visible: false;
-          styles ["linked"]
-        }
 
-        [title]
-        Adw.WindowTitle window_title {
-          title: _("Temporal Explorer");
-          subtitle: _("No repository selected");
-        }
+          SearchEntry commit_search_entry {
+            placeholder-text: _("Search commits…");
+            margin-start: 8;
+            margin-end: 8;
+            margin-top: 8;
+            margin-bottom: 8;
+          }
 
-        [end]
-        Button view_toggle_button {
-          icon-name: "view-grid-symbolic";
-          tooltip-text: _("Toggle View");
-          styles ["flat"]
-        }
+          ScrolledWindow {
+            vexpand: true;
+            hscrollbar-policy: never;
 
-        [end]
-        MenuButton {
-          primary: true;
-          icon-name: "open-menu-symbolic";
-          tooltip-text: _("Main Menu");
-          menu-model: primary_menu;
-        }
-      }
-    }
+            ListBox commit_list {
+              selection-mode: single;
+              styles ["navigation-sidebar"]
+            }
+          }
+        };
+      };
 
-    content: Gtk.Paned main_paned {
-      orientation: horizontal;
-      position: 280;
+      content: Adw.ToolbarView content_toolbar_view {
+        [top]
+        Adw.HeaderBar {
+          [start]
+          Button nav_back_button {
+            icon-name: "go-previous-symbolic";
+            tooltip-text: _("Back");
+            sensitive: false;
+            styles ["flat"]
+          }
 
-      [start]
-      Box {
-        orientation: vertical;
-        spacing: 0;
+          [start]
+          Button nav_forward_button {
+            icon-name: "go-next-symbolic";
+            tooltip-text: _("Forward");
+            sensitive: false;
+            styles ["flat"]
+          }
 
-        Label {
-          label: _("Timeline");
-          xalign: 0;
-          margin-top: 12;
-          margin-bottom: 8;
-          margin-start: 16;
-          margin-end: 16;
-          styles ["heading"]
-        }
+          [start]
+          Button open_repo_button {
+            icon-name: "folder-open-symbolic";
+            tooltip-text: _("Open Repository");
+            styles ["flat"]
+          }
 
-        SearchEntry commit_search_entry {
-          placeholder-text: _("Search commits…");
-          margin-start: 8;
-          margin-end: 8;
-          margin-bottom: 8;
-        }
+          [start]
+          ToggleButton show_sidebar_button {
+            icon-name: "sidebar-show-symbolic";
+            tooltip-text: _("Show Sidebar");
+            active: bind split_view.show-sidebar bidirectional;
+            styles ["flat"]
+          }
 
-        ScrolledWindow {
-          vexpand: true;
-          hscrollbar-policy: never;
+          [title]
+          Box address_bar {
+            orientation: horizontal;
+            spacing: 0;
+            halign: start;
+            valign: center;
+            hexpand: false;
+            visible: false;
+            styles ["nautilus-pathbar"]
+          }
 
-          ListBox commit_list {
-            selection-mode: single;
-            styles ["navigation-sidebar"]
+          [title]
+          Adw.WindowTitle window_title {
+            title: _("Temporal Explorer");
+            subtitle: _("No repository selected");
+          }
+
+          [end]
+          Button view_toggle_button {
+            icon-name: "view-grid-symbolic";
+            tooltip-text: _("Toggle View");
+            styles ["flat"]
+          }
+
+          [end]
+          MenuButton {
+            primary: true;
+            icon-name: "open-menu-symbolic";
+            tooltip-text: _("Main Menu");
+            menu-model: primary_menu;
           }
         }
-      }
 
-      [end]
-      Adw.StatusPage empty_state {
-        icon-name: "folder-symbolic";
-        title: _("No Snapshot Selected");
-        description: _("Open a Git repository and select a commit from the timeline to browse its file tree.");
-        vexpand: true;
-        hexpand: true;
-      }
+        content: Adw.StatusPage empty_state {
+          icon-name: "folder-symbolic";
+          title: _("No Snapshot Selected");
+          description: _("Open a Git repository and select a commit from the timeline to browse its file tree.");
+          vexpand: true;
+          hexpand: true;
+        };
+
+        [bottom]
+        Gtk.ActionBar commit_info_bar {
+          revealed: false;
+
+          [start]
+          Label commit_hash_label {
+            label: "";
+            styles ["monospace"]
+          }
+
+          [start]
+          Label commit_message_label {
+            label: "";
+            ellipsize: end;
+            max-width-chars: 60;
+          }
+
+          [end]
+          Label commit_date_label {
+            label: "";
+            styles ["dim-label"]
+          }
+        }
+      };
     };
-
-    [bottom]
-    Gtk.ActionBar commit_info_bar {
-      revealed: false;
-
-      [start]
-      Label commit_hash_label {
-        label: "";
-        styles ["monospace"]
-      }
-
-      [start]
-      Label commit_message_label {
-        label: "";
-        ellipsize: end;
-        max-width-chars: 60;
-      }
-
-      [end]
-      Label commit_date_label {
-        label: "";
-        styles ["dim-label"]
-      }
-    }
   };
 }
 
