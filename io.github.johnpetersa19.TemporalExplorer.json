@@ -4,8 +4,9 @@
     "runtime-version" : "48",
     "sdk" : "org.gnome.Sdk",
     "sdk-extensions" : [
-        "org.freedesktop.Sdk.Extension.rust-nightly//24.08"
+        "org.freedesktop.Sdk.Extension.rust-stable"
     ],
+    "base-sdk-version" : "25.08",
     "command" : "temporal-explorer",
     "finish-args" : [
         "--share=network",
@@ -16,7 +17,7 @@
         "--filesystem=host:ro"
     ],
     "build-options" : {
-        "append-path" : "/usr/lib/sdk/rust-nightly/bin",
+        "append-path" : "/usr/lib/sdk/rust-stable/bin",
         "build-args" : [
             "--share=network"
         ],
