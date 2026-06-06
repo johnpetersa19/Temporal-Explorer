@@ -144,9 +144,9 @@ impl TemporalExplorerWindow {
     fn setup_styles(&self) {
         let provider = gtk::CssProvider::new();
         provider.load_from_string("
-            /* ── Toolbar switcher (matches NautilusToolbar header_toolbar) ──── */
+            /* ── Toolbar box: use gap instead of the invalid 'spacing' property ─ */
             .header-toolbar-box {
-                spacing: 6;
+                gap: 6px;
             }
 
             /* ── Path bar pill container ─────────────────────────────── */
@@ -167,7 +167,6 @@ impl TemporalExplorerWindow {
             .nautilus-path-button label {
                 font-weight: 600;
             }
-            /* inactive segments: dim down */
             .nautilus-path-button:not(.current-dir) label,
             .nautilus-path-button:not(.current-dir) image {
                 opacity: 0.55;
@@ -176,7 +175,6 @@ impl TemporalExplorerWindow {
             .nautilus-path-button:not(.current-dir):hover image {
                 opacity: 0.85;
             }
-            /* current segment: transparent background, full opacity */
             .nautilus-path-button.current-dir {
                 background: none;
                 box-shadow: none;
@@ -189,7 +187,7 @@ impl TemporalExplorerWindow {
                 -gtk-icon-size: 12px;
             }
 
-            /* ── Location entry (linked box – matches NautilusLocationEntry) ─ */
+            /* ── Location entry ───────────────────────────────────────── */
             .location-bar {
                 min-width: 320px;
             }
@@ -281,11 +279,10 @@ impl TemporalExplorerWindow {
             }
         ));
 
-        // Escape in location entry → cancel (show pathbar).
-        // glib::clone! cannot be used here because connect_key_pressed requires
-        // a closure returning glib::Propagation (not ()), and the macro always
-        // wraps the body in a void outer closure, causing E0069.
-        // Solution: use a manual weak reference via downgrade/upgrade instead.
+        // Escape in location entry → cancel.
+        // glib::clone! cannot be used here: connect_key_pressed requires a
+        // closure returning glib::Propagation, but glib::clone! always wraps
+        // the body in a void outer closure, causing E0069. Use manual downgrade.
         let key_ctrl = gtk::EventControllerKey::new();
         let weak_self = self.downgrade();
         key_ctrl.connect_key_pressed(move |_, key, _, _| {
