@@ -78,19 +78,16 @@ mod imp {
         #[template_child] pub commit_date_label:   TemplateChild<gtk::Label>,
 
         // Runtime state
-        pub all_commits:  RefCell<Vec<CommitInfo>>,
-        pub repo_path:    RefCell<Option<PathBuf>>,
-        pub repository:   RefCell<Option<DebugRepository>>,
-        pub last_query:   RefCell<String>,
-        pub current_hash: RefCell<Option<String>>,
-        pub current_dir:  RefCell<PathBuf>,
-        /// Back/forward history stacks.
+        pub all_commits:     RefCell<Vec<CommitInfo>>,
+        pub repo_path:       RefCell<Option<PathBuf>>,
+        pub repository:      RefCell<Option<DebugRepository>>,
+        pub last_query:      RefCell<String>,
+        pub current_hash:    RefCell<Option<String>>,
+        pub current_dir:     RefCell<PathBuf>,
         pub history_back:    RefCell<Vec<PathBuf>>,
         pub history_forward: RefCell<Vec<PathBuf>>,
-        /// Current view mode.
-        pub view_mode: RefCell<ViewMode>,
-        /// Repo display name (used in address bar).
-        pub repo_name: RefCell<String>,
+        pub view_mode:       RefCell<ViewMode>,
+        pub repo_name:       RefCell<String>,
     }
 
     #[glib::object_subclass]
@@ -156,7 +153,7 @@ impl TemporalExplorerWindow {
         ));
     }
 
-    // ── View mode toggle ────────────────────────────────────────────────────
+    // ── View mode toggle ───────────────────────────────────────────────────────
 
     fn toggle_view_mode(&self) {
         let imp = self.imp();
@@ -170,8 +167,9 @@ impl TemporalExplorerWindow {
             ViewMode::Grid => "view-list-symbolic",
         };
         imp.view_toggle_button.set_icon_name(icon);
-        // Re-render current dir if we have one
-        if let Some(hash) = imp.current_hash.borrow().clone() {
+        // Extract owned values before re-borrowing inside browse_dir_inner
+        let maybe_hash = imp.current_hash.borrow().clone();
+        if let Some(hash) = maybe_hash {
             let dir = imp.current_dir.borrow().clone();
             self.browse_dir_inner(&hash, &dir);
         }
@@ -209,13 +207,13 @@ impl TemporalExplorerWindow {
                 let repo_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("Repository").to_string();
                 imp.window_title.set_title(&repo_name);
                 imp.window_title.set_subtitle(&format!("{} commits", commits.len()));
-                *imp.repo_name.borrow_mut() = repo_name;
-                *imp.repo_path.borrow_mut() = Some(path);
-                *imp.repository.borrow_mut() = Some(DebugRepository(reader.repo));
-                *imp.all_commits.borrow_mut() = commits.clone();
-                *imp.last_query.borrow_mut() = String::new();
+                *imp.repo_name.borrow_mut()    = repo_name;
+                *imp.repo_path.borrow_mut()    = Some(path);
+                *imp.repository.borrow_mut()   = Some(DebugRepository(reader.repo));
+                *imp.all_commits.borrow_mut()  = commits.clone();
+                *imp.last_query.borrow_mut()   = String::new();
                 *imp.current_hash.borrow_mut() = None;
-                *imp.current_dir.borrow_mut() = PathBuf::new();
+                *imp.current_dir.borrow_mut()  = PathBuf::new();
                 imp.history_back.borrow_mut().clear();
                 imp.history_forward.borrow_mut().clear();
                 self.populate_commit_list(&commits);
@@ -279,7 +277,7 @@ impl TemporalExplorerWindow {
         imp.commit_date_label.set_label(&Self::format_timestamp(commit.timestamp));
         imp.commit_info_bar.set_revealed(true);
         *imp.current_hash.borrow_mut() = Some(hash.clone());
-        *imp.current_dir.borrow_mut() = PathBuf::new();
+        *imp.current_dir.borrow_mut()  = PathBuf::new();
         imp.history_back.borrow_mut().clear();
         imp.history_forward.borrow_mut().clear();
         self.browse_dir(&hash, &PathBuf::new());
@@ -287,7 +285,6 @@ impl TemporalExplorerWindow {
 
     // ── Navigation ────────────────────────────────────────────────────────────
 
-    /// Enter a directory, pushing current to back-stack.
     fn enter_dir(&self, dir: PathBuf) {
         let imp = self.imp();
         let hash = match imp.current_hash.borrow().clone() { Some(h) => h, None => return };
@@ -306,7 +303,8 @@ impl TemporalExplorerWindow {
             let cur = imp.current_dir.borrow().clone();
             imp.history_forward.borrow_mut().push(cur);
             *imp.current_dir.borrow_mut() = dir.clone();
-            if let Some(hash) = imp.current_hash.borrow().clone() {
+            let maybe_hash = imp.current_hash.borrow().clone();
+            if let Some(hash) = maybe_hash {
                 self.browse_dir_inner(&hash, &dir);
             }
             self.update_nav_buttons();
@@ -320,7 +318,8 @@ impl TemporalExplorerWindow {
             let cur = imp.current_dir.borrow().clone();
             imp.history_back.borrow_mut().push(cur);
             *imp.current_dir.borrow_mut() = dir.clone();
-            if let Some(hash) = imp.current_hash.borrow().clone() {
+            let maybe_hash = imp.current_hash.borrow().clone();
+            if let Some(hash) = maybe_hash {
                 self.browse_dir_inner(&hash, &dir);
             }
             self.update_nav_buttons();
@@ -333,13 +332,11 @@ impl TemporalExplorerWindow {
         imp.nav_forward_button.set_sensitive(!imp.history_forward.borrow().is_empty());
     }
 
-    /// Public entry point — resets history when called from commit selection.
     fn browse_dir(&self, hash: &str, dir: &PathBuf) {
         self.browse_dir_inner(hash, dir);
         self.update_nav_buttons();
     }
 
-    /// Core render (no history mutation).
     fn browse_dir_inner(&self, hash: &str, dir: &PathBuf) {
         let imp = self.imp();
 
@@ -356,6 +353,8 @@ impl TemporalExplorerWindow {
         };
 
         let children = Self::direct_children(&all_nodes, dir);
+        // Drop repo borrow before calling update_address_bar (which may borrow other fields)
+        drop(repo_ref);
 
         self.update_address_bar(dir);
 
@@ -367,7 +366,7 @@ impl TemporalExplorerWindow {
         self.replace_right_panel(widget);
     }
 
-    // ── List view ────────────────────────────────────────────────────────────────
+    // ── List view ─────────────────────────────────────────────────────────────
 
     fn build_list_view(&self, children: &[TreeNode]) -> gtk::Widget {
         let scrolled = gtk::ScrolledWindow::builder()
@@ -409,7 +408,7 @@ impl TemporalExplorerWindow {
             .margin_top(6).margin_bottom(6).margin_start(12).margin_end(12)
             .build();
         let icon_name = match node {
-            TreeNode::Dir(_) => "folder-symbolic",
+            TreeNode::Dir(_)  => "folder-symbolic",
             TreeNode::File(p) => mime_icon(p),
         };
         let icon = gtk::Image::from_icon_name(icon_name);
@@ -427,7 +426,7 @@ impl TemporalExplorerWindow {
         gtk::ListBoxRow::builder().child(&hbox).build()
     }
 
-    // ── Grid view ────────────────────────────────────────────────────────────────
+    // ── Grid view ─────────────────────────────────────────────────────────────
 
     fn build_grid_view(&self, children: &[TreeNode]) -> gtk::Widget {
         let scrolled = gtk::ScrolledWindow::builder()
@@ -438,8 +437,7 @@ impl TemporalExplorerWindow {
         let flow = gtk::FlowBox::builder()
             .selection_mode(gtk::SelectionMode::Single)
             .homogeneous(true)
-            .column_spacing(4)
-            .row_spacing(4)
+            .column_spacing(4).row_spacing(4)
             .margin_top(12).margin_bottom(12)
             .margin_start(12).margin_end(12)
             .max_children_per_line(20)
@@ -452,9 +450,7 @@ impl TemporalExplorerWindow {
             placeholder.add_css_class("dim-label");
             flow.insert(&placeholder, -1);
         } else {
-            for node in children {
-                flow.insert(&Self::build_grid_cell(node), -1);
-            }
+            for node in children { flow.insert(&Self::build_grid_cell(node), -1); }
         }
 
         let children_clone = children.to_vec();
@@ -474,23 +470,18 @@ impl TemporalExplorerWindow {
 
     fn build_grid_cell(node: &TreeNode) -> gtk::Box {
         let vbox = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(6)
-            .margin_top(8).margin_bottom(8)
-            .margin_start(8).margin_end(8)
+            .orientation(gtk::Orientation::Vertical).spacing(6)
+            .margin_top(8).margin_bottom(8).margin_start(8).margin_end(8)
             .width_request(96)
             .build();
-
         let icon_name = match node {
-            TreeNode::Dir(_) => "folder",
+            TreeNode::Dir(_)  => "folder",
             TreeNode::File(p) => mime_icon_full(p),
         };
-
         let icon = gtk::Image::from_icon_name(icon_name);
         icon.set_pixel_size(48);
         icon.set_halign(gtk::Align::Center);
         vbox.append(&icon);
-
         let name = node.path().file_name().and_then(|n| n.to_str()).unwrap_or("");
         let label = gtk::Label::builder()
             .label(name)
@@ -498,8 +489,7 @@ impl TemporalExplorerWindow {
             .justify(gtk::Justification::Center)
             .wrap(true)
             .wrap_mode(gtk::pango::WrapMode::WordChar)
-            .max_width_chars(12)
-            .lines(2)
+            .max_width_chars(12).lines(2)
             .ellipsize(gtk::pango::EllipsizeMode::End)
             .build();
         label.add_css_class("caption");
@@ -507,11 +497,11 @@ impl TemporalExplorerWindow {
         vbox
     }
 
-    // ── Direct children helper ─────────────────────────────────────────────────
+    // ── Direct children helper ────────────────────────────────────────────────
 
     fn direct_children(nodes: &[TreeNode], parent_dir: &PathBuf) -> Vec<TreeNode> {
         let depth = if parent_dir.as_os_str().is_empty() { 1 } else { parent_dir.components().count() + 1 };
-        let mut dirs = Vec::new();
+        let mut dirs  = Vec::new();
         let mut files = Vec::new();
         for node in nodes {
             let p = node.path();
@@ -535,19 +525,13 @@ impl TemporalExplorerWindow {
 
         while let Some(child) = bar.first_child() { bar.remove(&child); }
 
-        // Home / repo root button with house icon
-        let home_btn = gtk::Button::builder().build();
-        let home_icon = gtk::Image::from_icon_name("user-home-symbolic");
-        home_btn.set_child(Some(&home_icon));
+        // Home button (house icon) — navigates to repo root
+        let home_btn = gtk::Button::new();
+        home_btn.set_child(Some(&gtk::Image::from_icon_name("user-home-symbolic")));
         home_btn.add_css_class("flat");
         home_btn.connect_clicked(glib::clone!(
             #[weak(rename_to = window)] self,
-            move |_| {
-                if let Some(hash) = window.imp().current_hash.borrow().clone() {
-                    window.enter_dir(PathBuf::new());
-                    let _ = hash;
-                }
-            }
+            move |_| window.enter_dir(PathBuf::new())
         ));
         bar.append(&home_btn);
 
@@ -557,11 +541,11 @@ impl TemporalExplorerWindow {
         repo_btn.add_css_class("flat");
         repo_btn.connect_clicked(glib::clone!(
             #[weak(rename_to = window)] self,
-            move |_| { window.enter_dir(PathBuf::new()); }
+            move |_| window.enter_dir(PathBuf::new())
         ));
         bar.append(&repo_btn);
 
-        // Path segments
+        // Sub-directory path segments
         let mut accumulated = PathBuf::new();
         for component in dir.components() {
             let seg = component.as_os_str().to_string_lossy().to_string();
@@ -620,34 +604,32 @@ impl TemporalExplorerWindow {
 
 // ── MIME icon helpers ─────────────────────────────────────────────────────────
 
-/// Symbolic icon for list view (small, monochrome).
 fn mime_icon(path: &std::path::Path) -> &'static str {
     match path.extension().and_then(|e| e.to_str()) {
-        Some("rs")                                  => "text-x-rust-symbolic",
+        Some("rs")                                       => "text-x-rust-symbolic",
         Some("toml")|Some("yaml")|Some("yml")|Some("json") => "text-x-script-symbolic",
-        Some("md")|Some("txt")                      => "text-x-generic-symbolic",
+        Some("md")|Some("txt")                           => "text-x-generic-symbolic",
         Some("png")|Some("jpg")|Some("jpeg")|Some("svg")|Some("webp") => "image-x-generic-symbolic",
         Some("mp3")|Some("ogg")|Some("flac")|Some("wav") => "audio-x-generic-symbolic",
-        Some("sh")|Some("bash")                     => "text-x-script-symbolic",
-        Some("c")|Some("h")|Some("cpp")|Some("hpp") => "text-x-csrc-symbolic",
-        Some("py")                                  => "text-x-python-symbolic",
-        Some("html")|Some("css")                    => "text-html-symbolic",
-        _                                           => "text-x-generic-symbolic",
+        Some("sh")|Some("bash")                          => "text-x-script-symbolic",
+        Some("c")|Some("h")|Some("cpp")|Some("hpp")      => "text-x-csrc-symbolic",
+        Some("py")                                       => "text-x-python-symbolic",
+        Some("html")|Some("css")                         => "text-html-symbolic",
+        _                                                => "text-x-generic-symbolic",
     }
 }
 
-/// Full (coloured) icon for grid view (48px).
 fn mime_icon_full(path: &std::path::Path) -> &'static str {
     match path.extension().and_then(|e| e.to_str()) {
-        Some("rs")                                  => "text-x-rust",
+        Some("rs")                                       => "text-x-rust",
         Some("toml")|Some("yaml")|Some("yml")|Some("json") => "text-x-script",
-        Some("md")|Some("txt")                      => "text-x-generic",
+        Some("md")|Some("txt")                           => "text-x-generic",
         Some("png")|Some("jpg")|Some("jpeg")|Some("svg")|Some("webp") => "image-x-generic",
         Some("mp3")|Some("ogg")|Some("flac")|Some("wav") => "audio-x-generic",
-        Some("sh")|Some("bash")                     => "text-x-script",
-        Some("c")|Some("h")|Some("cpp")|Some("hpp") => "text-x-csrc",
-        Some("py")                                  => "text-x-python",
-        Some("html")|Some("css")                    => "text-html",
-        _                                           => "text-x-generic",
+        Some("sh")|Some("bash")                          => "text-x-script",
+        Some("c")|Some("h")|Some("cpp")|Some("hpp")      => "text-x-csrc",
+        Some("py")                                       => "text-x-python",
+        Some("html")|Some("css")                         => "text-html",
+        _                                                => "text-x-generic",
     }
 }
