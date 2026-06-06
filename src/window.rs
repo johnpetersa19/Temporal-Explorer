@@ -272,7 +272,6 @@ impl TemporalExplorerWindow {
         ));
 
         // ── Nautilus toolbar_switcher: location entry wiring ──────────────
-        // Enter in location entry → navigate
         imp.location_entry.connect_activate(glib::clone!(
             #[weak(rename_to = w)] self, move |entry| {
                 let text = entry.text().to_string();
@@ -281,12 +280,13 @@ impl TemporalExplorerWindow {
             }
         ));
 
-        // Escape in location entry → cancel (matches Nautilus behaviour)
-        // The closure MUST return glib::Propagation, not ().
+        // Escape in location entry → cancel.
+        // The closure return type is annotated explicitly to avoid E0069
+        // when glib::clone! macro cannot infer glib::Propagation from context.
         let key_ctrl = gtk::EventControllerKey::new();
         key_ctrl.connect_key_pressed(glib::clone!(
             #[weak(rename_to = w)] self,
-            move |_, key, _, _| {
+            move |_, key, _, _| -> glib::Propagation {
                 if key == gtk::gdk::Key::Escape {
                     w.show_pathbar();
                     return glib::Propagation::Stop;
@@ -296,7 +296,6 @@ impl TemporalExplorerWindow {
         ));
         imp.location_entry.add_controller(key_ctrl);
 
-        // Cancel button → back to pathbar
         imp.location_cancel_btn.connect_clicked(glib::clone!(
             #[weak(rename_to = w)] self, move |_| w.show_pathbar()
         ));
@@ -310,7 +309,6 @@ impl TemporalExplorerWindow {
 
     fn show_location_entry(&self) {
         let imp = self.imp();
-        // Populate the entry with the current path text
         let dir = imp.current_dir.borrow().clone();
         let path_text = if dir.as_os_str().is_empty() {
             String::new()
@@ -323,8 +321,6 @@ impl TemporalExplorerWindow {
         imp.location_entry.select_region(0, -1);
     }
 
-    /// Navigate to a path typed in the location entry.
-    /// The path is relative to the repo root; empty string = root.
     fn navigate_to_location_text(&self, text: &str) {
         let trimmed = text.trim().trim_matches('/');
         let target = if trimmed.is_empty() {
@@ -534,7 +530,6 @@ impl TemporalExplorerWindow {
         let children = Self::direct_children(&all_nodes, dir);
         drop(repo_ref);
 
-        // subtitle = item count (Nautilus shows "N items" in the window title subtitle)
         let subtitle = match children.len() {
             1 => "1 item".to_string(),
             n => format!("{n} items"),
@@ -542,7 +537,6 @@ impl TemporalExplorerWindow {
         imp.window_title.set_subtitle(&subtitle);
 
         self.update_address_bar(dir);
-        // Make sure we are on the pathbar page after every navigation
         self.show_pathbar();
 
         let view_mode = *imp.view_mode.borrow();
@@ -729,16 +723,13 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         let bar = &imp.address_bar;
 
-        // Clear old buttons
         while let Some(child) = bar.first_child() { bar.remove(&child); }
 
         let repo_name = imp.repo_name.borrow().clone();
 
-        // Build list of (label, icon?, target_path)
         struct Seg { label: String, icon: Option<&'static str>, target: PathBuf }
         let mut segs: Vec<Seg> = Vec::new();
 
-        // Root = repo name
         segs.push(Seg { label: repo_name, icon: Some("folder-symbolic"), target: PathBuf::new() });
 
         let mut acc = PathBuf::new();
@@ -773,8 +764,6 @@ impl TemporalExplorerWindow {
             row.append(&lbl);
             btn.set_child(Some(&row));
 
-            // Non-current buttons navigate on click
-            // Current dir button opens location entry (like Nautilus click-on-pathbar)
             let target = seg.target.clone();
             if is_current {
                 btn.connect_clicked(glib::clone!(
@@ -797,7 +786,6 @@ impl TemporalExplorerWindow {
     fn show_empty_state(&self) {
         let imp = self.imp();
         imp.toolbar_switcher.set_visible_child_name("pathbar");
-        // clear address bar so it shows nothing in empty state
         while let Some(child) = imp.address_bar.first_child() { imp.address_bar.remove(&child); }
         imp.window_title.set_visible(true);
         imp.nav_back_button.set_sensitive(false);
