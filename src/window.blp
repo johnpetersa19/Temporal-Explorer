@@ -9,48 +9,52 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
   content: Adw.ToolbarView {
 
     [top]
-    Adw.HeaderBar {
-
-      [start]
-      Button back_button {
-        icon-name: "go-previous-symbolic";
-        tooltip-text: _("Go Back");
-        visible: false;
-        styles ["flat"]
-      }
-
-      [start]
-      Button open_repo_button {
-        icon-name: "folder-open-symbolic";
-        tooltip-text: _("Open Repository");
-        styles ["flat"]
-      }
-
-      [title]
-      Adw.WindowTitle window_title {
-        title: _("Temporal Explorer");
-        subtitle: _("No repository selected");
-      }
-
-      [end]
-      MenuButton {
-        primary: true;
-        icon-name: "open-menu-symbolic";
-        tooltip-text: _("Main Menu");
-        menu-model: primary_menu;
-      }
-    }
-
-    [top]
-    Box breadcrumb_bar {
-      orientation: horizontal;
+    Box {
+      orientation: vertical;
       spacing: 0;
-      margin-start: 8;
-      margin-end: 8;
-      margin-top: 4;
-      margin-bottom: 4;
-      visible: false;
-      styles ["linked"]
+
+      Adw.HeaderBar {
+
+        [start]
+        Button back_button {
+          icon-name: "go-previous-symbolic";
+          tooltip-text: _("Go Back");
+          visible: false;
+          styles ["flat"]
+        }
+
+        [start]
+        Button open_repo_button {
+          icon-name: "folder-open-symbolic";
+          tooltip-text: _("Open Repository");
+          styles ["flat"]
+        }
+
+        [title]
+        Adw.WindowTitle window_title {
+          title: _("Temporal Explorer");
+          subtitle: _("No repository selected");
+        }
+
+        [end]
+        MenuButton {
+          primary: true;
+          icon-name: "open-menu-symbolic";
+          tooltip-text: _("Main Menu");
+          menu-model: primary_menu;
+        }
+      }
+
+      Box breadcrumb_bar {
+        orientation: horizontal;
+        spacing: 0;
+        margin-start: 8;
+        margin-end: 8;
+        margin-top: 4;
+        margin-bottom: 4;
+        visible: false;
+        styles ["linked"]
+      }
     }
 
     content: Gtk.Paned main_paned {
