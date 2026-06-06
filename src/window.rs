@@ -27,11 +27,29 @@ use std::path::PathBuf;
 
 use crate::git_engine::{CommitInfo, HistoryReader, SnapshotResolver, TreeNode};
 
+// ── DebugRepository ───────────────────────────────────────────────────────────
+//
+// git2::Repository does not implement Debug, but the imp struct derives it via
+// #[derive(Debug, gtk::CompositeTemplate)].  We wrap the Repository in a
+// newtype that provides a trivial Debug impl so the derive macro is satisfied.
+
+struct DebugRepository(git2::Repository);
+
+impl std::fmt::Debug for DebugRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Repository").field(&"<git2::Repository>").finish()
+    }
+}
+
+impl std::ops::Deref for DebugRepository {
+    type Target = git2::Repository;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
 // ── Private implementation ────────────────────────────────────────────────────
 
 mod imp {
     use super::*;
-    use git2::Repository;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/window.ui")]
@@ -71,9 +89,10 @@ mod imp {
         pub all_commits: RefCell<Vec<CommitInfo>>,
         /// Path to the currently open repository.
         pub repo_path: RefCell<Option<PathBuf>>,
-        /// The open Repository — reused across commit selections to avoid
-        /// reopening the repo on every click.
-        pub repository: RefCell<Option<Repository>>,
+        /// The open Repository wrapped in a Debug newtype so #[derive(Debug)]
+        /// compiles.  Reused across commit selections to avoid reopening the
+        /// repo on every click.
+        pub repository: RefCell<Option<DebugRepository>>,
         /// Last search query — used to skip redundant repopulations.
         pub last_query: RefCell<String>,
     }
@@ -182,9 +201,9 @@ impl TemporalExplorerWindow {
     }
 
     /// Opens the repository at `path`, populates the commit list and updates
-    /// the window title.  The [`git2::Repository`] handle is kept open in
-    /// `imp.repository` so it can be reused on every commit selection without
-    /// paying the open cost each time.
+    /// the window title.  The [`git2::Repository`] handle (wrapped in
+    /// [`DebugRepository`]) is kept alive in `imp.repository` so it can be
+    /// reused on every commit selection without paying the open cost each time.
     fn load_repository(&self, path: PathBuf) {
         let imp = self.imp();
 
@@ -210,7 +229,7 @@ impl TemporalExplorerWindow {
 
                 // Store state — keep the Repository handle alive for reuse
                 *imp.repo_path.borrow_mut() = Some(path);
-                *imp.repository.borrow_mut() = Some(reader.repo);
+                *imp.repository.borrow_mut() = Some(DebugRepository(reader.repo));
                 *imp.all_commits.borrow_mut() = commits.clone();
                 *imp.last_query.borrow_mut() = String::new();
 
@@ -279,7 +298,7 @@ impl TemporalExplorerWindow {
 
     // ── Search ────────────────────────────────────────────────────────────────
 
-    /// Filters the commit list using [`HistoryReader::search_commits`].
+    /// Filters the commit list against summary, hash prefix and author.
     /// Skips repopulation when the query has not actually changed.
     fn on_search_changed(&self, query: &str) {
         let imp = self.imp();
@@ -300,7 +319,6 @@ impl TemporalExplorerWindow {
             return;
         }
 
-        // Delegate filtering to the engine (single source of truth)
         let q = query.to_lowercase();
         let filtered: Vec<CommitInfo> = all
             .iter()
