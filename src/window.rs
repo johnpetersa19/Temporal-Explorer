@@ -280,7 +280,9 @@ impl TemporalExplorerWindow {
                 w.show_pathbar();
             }
         ));
-        // Escape in location entry → cancel (matches Nautilus)
+
+        // Escape in location entry → cancel (matches Nautilus behaviour)
+        // The closure MUST return glib::Propagation, not ().
         let key_ctrl = gtk::EventControllerKey::new();
         key_ctrl.connect_key_pressed(glib::clone!(
             #[weak(rename_to = w)] self,
@@ -293,6 +295,7 @@ impl TemporalExplorerWindow {
             }
         ));
         imp.location_entry.add_controller(key_ctrl);
+
         // Cancel button → back to pathbar
         imp.location_cancel_btn.connect_clicked(glib::clone!(
             #[weak(rename_to = w)] self, move |_| w.show_pathbar()
