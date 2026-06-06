@@ -1,7 +1,7 @@
 pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
 gnome = import('gnome')
 
-# ── Blueprint ────────────────────────────────────────────────────────────────
+# ── Blueprint ───────────────────────────────────────────────────────────────
 # Compile .blp files to .ui before bundling resources.
 blueprint_compiler = find_program('blueprint-compiler', version: '>= 0.12')
 
@@ -14,7 +14,9 @@ blueprints = custom_target(
   ],
 )
 
-# ── GResources ───────────────────────────────────────────────────────────────
+# ── GResources ──────────────────────────────────────────────────────────────
+# source_dir includes the blueprint build output directory so that
+# glib-compile-resources can locate the generated window.ui file.
 gnome.compile_resources(
   'temporal-explorer',
   'temporal-explorer.gresource.xml',
@@ -22,9 +24,13 @@ gnome.compile_resources(
   install: true,
   install_dir: pkgdatadir,
   dependencies: blueprints,
+  source_dir: [
+    meson.current_source_dir(),
+    meson.current_build_dir(),
+  ],
 )
 
-# ── Config ───────────────────────────────────────────────────────────────────
+# ── Config ─────────────────────────────────────────────────────────────────
 conf = configuration_data()
 conf.set_quoted('VERSION', meson.project_version())
 conf.set_quoted('GETTEXT_PACKAGE', 'temporal-explorer')
@@ -44,7 +50,7 @@ run_command(
   check: true,
 )
 
-# ── Cargo / Rust ─────────────────────────────────────────────────────────────
+# ── Cargo / Rust ────────────────────────────────────────────────────────────
 cargo_bin  = find_program('cargo')
 cargo_opt  = ['--manifest-path', meson.project_source_root() / 'Cargo.toml']
 cargo_opt += ['--target-dir', meson.project_build_root() / 'src']
