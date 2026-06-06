@@ -20,6 +20,7 @@
 
 mod application;
 mod config;
+pub mod git_engine;
 mod window;
 
 use self::application::TemporalExplorerApplication;
