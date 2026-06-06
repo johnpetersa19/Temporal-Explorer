@@ -18,12 +18,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+use adw::prelude::AdwApplicationWindowExt;
 use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 use gtk::prelude::*;
 use std::cell::RefCell;
 use std::path::PathBuf;
-use std::rc::Rc;
 
 use crate::git_engine::{CommitInfo, HistoryReader, SnapshotResolver, TreeNode};
 
@@ -249,11 +249,10 @@ impl TemporalExplorerWindow {
         vbox.append(&meta);
 
         // Store the full hash as widget name for retrieval on selection
-        let row = gtk::ListBoxRow::builder()
+        gtk::ListBoxRow::builder()
             .name(&commit.hash)
             .child(&vbox)
-            .build();
-        row
+            .build()
     }
 
     // ── Search ────────────────────────────────────────────────────────────────
@@ -328,8 +327,6 @@ impl TemporalExplorerWindow {
     /// Resolves `hash` against the repository at `repo_path` and renders the
     /// resulting file tree in the right panel.
     fn show_file_tree(&self, repo_path: &std::path::Path, hash: &str) {
-        let imp = self.imp();
-
         let reader = match HistoryReader::open(repo_path) {
             Ok(r) => r,
             Err(e) => {
@@ -375,10 +372,6 @@ impl TemporalExplorerWindow {
         }
 
         scrolled.set_child(Some(&list));
-
-        // Replace the right panel content
-        // The right panel is the [end] child of the GtkPaned named main_paned.
-        // We retrieve it by walking the widget tree from the window content.
         self.replace_right_panel(scrolled.upcast());
     }
 
@@ -444,7 +437,7 @@ impl TemporalExplorerWindow {
 
     /// Replaces the [end] child of the main GtkPaned with `widget`.
     fn replace_right_panel(&self, widget: gtk::Widget) {
-        // Walk: ApplicationWindow → ToolbarView → content → Paned
+        // Walk: AdwApplicationWindow → ToolbarView → content → Paned
         if let Some(toolbar_view) = self
             .content()
             .and_then(|w| w.downcast::<adw::ToolbarView>().ok())
@@ -480,7 +473,6 @@ impl TemporalExplorerWindow {
 
     /// Formats a Unix timestamp into a human-readable date string.
     fn format_timestamp(ts: i64) -> String {
-        // glib::DateTime provides locale-aware formatting without extra deps.
         if let Ok(dt) = glib::DateTime::from_unix_local(ts) {
             dt.format("%Y-%m-%d %H:%M").unwrap_or_default().to_string()
         } else {
