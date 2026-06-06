@@ -1,6 +1,6 @@
 /* main.rs
  *
- * Copyright 2026 Unknown
+ * Copyright 2026 John Peter Sá
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,14 +42,10 @@ fn main() -> glib::ExitCode {
         .expect("Could not load resources");
     gio::resources_register(&resources);
 
-    // Create a new GtkApplication. The application manages our main loop,
-    // application windows, integration with the window manager/compositor, and
-    // desktop features such as file opening and single-instance applications.
-    let app = TemporalExplorerApplication::new("org.gnome.Example", &gio::ApplicationFlags::empty());
+    let app = TemporalExplorerApplication::new(
+        "io.github.johnpetersa19.TemporalExplorer",
+        &gio::ApplicationFlags::empty(),
+    );
 
-    // Run the application. This function will block until the application
-    // exits. Upon return, we have our exit code to return to the shell. (This
-    // is the code you see when you do `echo $?` after running a command in a
-    // terminal.
     app.run()
 }

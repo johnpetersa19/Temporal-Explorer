@@ -1,6 +1,6 @@
 /* window.rs
  *
- * Copyright 2026 Unknown
+ * Copyright 2026 John Peter Sá
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,9 +26,8 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/org/gnome/Example/window.ui")]
+    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/window.ui")]
     pub struct TemporalExplorerWindow {
-        // Template widgets
         #[template_child]
         pub label: TemplateChild<gtk::Label>,
     }
@@ -57,7 +56,8 @@ mod imp {
 
 glib::wrapper! {
     pub struct TemporalExplorerWindow(ObjectSubclass<imp::TemporalExplorerWindow>)
-        @extends gtk::Widget, gtk::Window, gtk::ApplicationWindow, adw::ApplicationWindow,        @implements gio::ActionGroup, gio::ActionMap;
+        @extends gtk::Widget, gtk::Window, gtk::ApplicationWindow, adw::ApplicationWindow,
+        @implements gio::ActionGroup, gio::ActionMap;
 }
 
 impl TemporalExplorerWindow {

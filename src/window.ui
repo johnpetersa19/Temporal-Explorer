@@ -3,7 +3,7 @@
   <requires lib="gtk" version="4.0"/>
   <requires lib="Adw" version="1.0"/>
   <template class="TemporalExplorerWindow" parent="AdwApplicationWindow">
-    <property name="title" translatable="yes">Temporal-Explorer</property>
+    <property name="title" translatable="yes">Temporal Explorer</property>
     <property name="default-width">800</property>
     <property name="default-height">600</property>
     <property name="content">
@@ -22,7 +22,7 @@
         </child>
         <property name="content">
           <object class="GtkLabel" id="label">
-            <property name="label" translatable="yes">Hello, World!</property>
+            <property name="label" translatable="yes">Temporal Explorer</property>
             <style>
               <class name="title-1"/>
             </style>
@@ -42,7 +42,7 @@
         <attribute name="action">app.shortcuts</attribute>
       </item>
       <item>
-        <attribute name="label" translatable="yes">_About Temporal-Explorer</attribute>
+        <attribute name="label" translatable="yes">_About Temporal Explorer</attribute>
         <attribute name="action">app.about</attribute>
       </item>
     </section>

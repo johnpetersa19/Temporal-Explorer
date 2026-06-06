@@ -1,6 +1,6 @@
 /* application.rs
  *
- * Copyright 2026 Unknown
+ * Copyright 2026 John Peter Sá
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,19 +49,12 @@ mod imp {
     }
 
     impl ApplicationImpl for TemporalExplorerApplication {
-        // We connect to the activate callback to create a window when the application
-        // has been launched. Additionally, this callback notifies us when the user
-        // tries to launch a "second instance" of the application. When they try
-        // to do that, we'll just present any existing window.
         fn activate(&self) {
             let application = self.obj();
-            // Get the current window or create one if necessary
             let window = application.active_window().unwrap_or_else(|| {
                 let window = TemporalExplorerWindow::new(&*application);
                 window.upcast()
             });
-
-            // Ask the window manager/compositor to present the window
             window.present();
         }
     }
@@ -81,7 +74,7 @@ impl TemporalExplorerApplication {
         glib::Object::builder()
             .property("application-id", application_id)
             .property("flags", flags)
-            .property("resource-base-path", "/org/gnome/Example")
+            .property("resource-base-path", "/io/github/johnpetersa19/TemporalExplorer")
             .build()
     }
 
@@ -98,14 +91,15 @@ impl TemporalExplorerApplication {
     fn show_about(&self) {
         let window = self.active_window().unwrap();
         let about = adw::AboutDialog::builder()
-            .application_name("Temporal-Explorer")
-            .application_icon("org.gnome.Example")
-            .developer_name("Unknown")
+            .application_name("Temporal Explorer")
+            .application_icon("io.github.johnpetersa19.TemporalExplorer")
+            .developer_name("John Peter Sá")
             .version(VERSION)
-            .developers(vec!["Unknown"])
-            // Translators: Replace "translator-credits" with your name/username, and optionally an email or URL.
+            .developers(vec!["John Peter Sá"])
             .translator_credits(&gettext("translator-credits"))
-            .copyright("© 2026 Unknown")
+            .copyright("© 2026 John Peter Sá")
+            .website("https://github.com/johnpetersa19/Temporal-Explorer")
+            .issue_url("https://github.com/johnpetersa19/Temporal-Explorer/issues")
             .build();
 
         about.present(Some(&window));
