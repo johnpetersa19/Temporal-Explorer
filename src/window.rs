@@ -167,7 +167,6 @@ impl TemporalExplorerWindow {
             ViewMode::Grid => "view-list-symbolic",
         };
         imp.view_toggle_button.set_icon_name(icon);
-        // Extract owned values before re-borrowing inside browse_dir_inner
         let maybe_hash = imp.current_hash.borrow().clone();
         if let Some(hash) = maybe_hash {
             let dir = imp.current_dir.borrow().clone();
@@ -353,7 +352,6 @@ impl TemporalExplorerWindow {
         };
 
         let children = Self::direct_children(&all_nodes, dir);
-        // Drop repo borrow before calling update_address_bar (which may borrow other fields)
         drop(repo_ref);
 
         self.update_address_bar(dir);
@@ -434,14 +432,19 @@ impl TemporalExplorerWindow {
             .hscrollbar_policy(gtk::PolicyType::Never)
             .build();
 
+        // Match Nautilus: tight spacing, no per-cell margins, homogeneous OFF
+        // so cells wrap naturally at their natural width (~80px).
         let flow = gtk::FlowBox::builder()
             .selection_mode(gtk::SelectionMode::Single)
-            .homogeneous(true)
-            .column_spacing(4).row_spacing(4)
-            .margin_top(12).margin_bottom(12)
-            .margin_start(12).margin_end(12)
-            .max_children_per_line(20)
-            .min_children_per_line(2)
+            .homogeneous(false)
+            .column_spacing(0)
+            .row_spacing(0)
+            .margin_top(6)
+            .margin_bottom(6)
+            .margin_start(6)
+            .margin_end(6)
+            .max_children_per_line(64)
+            .min_children_per_line(1)
             .build();
 
         if children.is_empty() {
@@ -469,19 +472,27 @@ impl TemporalExplorerWindow {
     }
 
     fn build_grid_cell(node: &TreeNode) -> gtk::Box {
+        // Nautilus-style cell: 80px wide, 4px padding on each side,
+        // 64px icon, label up to 2 lines with ellipsis.
         let vbox = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical).spacing(6)
-            .margin_top(8).margin_bottom(8).margin_start(8).margin_end(8)
-            .width_request(96)
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(4)
+            .margin_top(4)
+            .margin_bottom(4)
+            .margin_start(4)
+            .margin_end(4)
+            .width_request(80)
             .build();
+
         let icon_name = match node {
             TreeNode::Dir(_)  => "folder",
             TreeNode::File(p) => mime_icon_full(p),
         };
         let icon = gtk::Image::from_icon_name(icon_name);
-        icon.set_pixel_size(48);
+        icon.set_pixel_size(64);
         icon.set_halign(gtk::Align::Center);
         vbox.append(&icon);
+
         let name = node.path().file_name().and_then(|n| n.to_str()).unwrap_or("");
         let label = gtk::Label::builder()
             .label(name)
@@ -489,7 +500,8 @@ impl TemporalExplorerWindow {
             .justify(gtk::Justification::Center)
             .wrap(true)
             .wrap_mode(gtk::pango::WrapMode::WordChar)
-            .max_width_chars(12).lines(2)
+            .max_width_chars(10)
+            .lines(2)
             .ellipsize(gtk::pango::EllipsizeMode::End)
             .build();
         label.add_css_class("caption");
@@ -525,7 +537,6 @@ impl TemporalExplorerWindow {
 
         while let Some(child) = bar.first_child() { bar.remove(&child); }
 
-        // Home button (house icon) — navigates to repo root
         let home_btn = gtk::Button::new();
         home_btn.set_child(Some(&gtk::Image::from_icon_name("user-home-symbolic")));
         home_btn.add_css_class("flat");
@@ -535,7 +546,6 @@ impl TemporalExplorerWindow {
         ));
         bar.append(&home_btn);
 
-        // Repo name segment
         let repo_name = imp.repo_name.borrow().clone();
         let repo_btn = gtk::Button::builder().label(&repo_name).build();
         repo_btn.add_css_class("flat");
@@ -545,7 +555,6 @@ impl TemporalExplorerWindow {
         ));
         bar.append(&repo_btn);
 
-        // Sub-directory path segments
         let mut accumulated = PathBuf::new();
         for component in dir.components() {
             let seg = component.as_os_str().to_string_lossy().to_string();
