@@ -16,10 +16,18 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
       Adw.HeaderBar {
 
         [start]
-        Button back_button {
+        Button nav_back_button {
           icon-name: "go-previous-symbolic";
-          tooltip-text: _("Go Back");
-          visible: false;
+          tooltip-text: _("Back");
+          sensitive: false;
+          styles ["flat"]
+        }
+
+        [start]
+        Button nav_forward_button {
+          icon-name: "go-next-symbolic";
+          tooltip-text: _("Forward");
+          sensitive: false;
           styles ["flat"]
         }
 
@@ -31,9 +39,25 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
         }
 
         [title]
+        Box address_bar {
+          orientation: horizontal;
+          spacing: 0;
+          hexpand: true;
+          visible: false;
+          styles ["linked"]
+        }
+
+        [title]
         Adw.WindowTitle window_title {
           title: _("Temporal Explorer");
           subtitle: _("No repository selected");
+        }
+
+        [end]
+        Button view_toggle_button {
+          icon-name: "view-grid-symbolic";
+          tooltip-text: _("Toggle View");
+          styles ["flat"]
         }
 
         [end]
@@ -43,17 +67,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
           tooltip-text: _("Main Menu");
           menu-model: primary_menu;
         }
-      }
-
-      Box breadcrumb_bar {
-        orientation: horizontal;
-        spacing: 0;
-        margin-start: 8;
-        margin-end: 8;
-        margin-top: 4;
-        margin-bottom: 4;
-        visible: false;
-        styles ["linked"]
       }
     }
 
