@@ -22,6 +22,7 @@ use adw::prelude::AdwApplicationWindowExt;
 use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 use gtk::prelude::*;
+use glib::object::ObjectExt;
 use std::cell::RefCell;
 use std::path::PathBuf;
 
@@ -280,20 +281,22 @@ impl TemporalExplorerWindow {
             }
         ));
 
-        // Escape in location entry → cancel.
-        // The closure return type is annotated explicitly to avoid E0069
-        // when glib::clone! macro cannot infer glib::Propagation from context.
+        // Escape in location entry → cancel (show pathbar).
+        // glib::clone! cannot be used here because connect_key_pressed requires
+        // a closure returning glib::Propagation (not ()), and the macro always
+        // wraps the body in a void outer closure, causing E0069.
+        // Solution: use a manual weak reference via downgrade/upgrade instead.
         let key_ctrl = gtk::EventControllerKey::new();
-        key_ctrl.connect_key_pressed(glib::clone!(
-            #[weak(rename_to = w)] self,
-            move |_, key, _, _| -> glib::Propagation {
-                if key == gtk::gdk::Key::Escape {
+        let weak_self = self.downgrade();
+        key_ctrl.connect_key_pressed(move |_, key, _, _| {
+            if key == gtk::gdk::Key::Escape {
+                if let Some(w) = weak_self.upgrade() {
                     w.show_pathbar();
-                    return glib::Propagation::Stop;
                 }
-                glib::Propagation::Proceed
+                return glib::Propagation::Stop;
             }
-        ));
+            glib::Propagation::Proceed
+        });
         imp.location_entry.add_controller(key_ctrl);
 
         imp.location_cancel_btn.connect_clicked(glib::clone!(
