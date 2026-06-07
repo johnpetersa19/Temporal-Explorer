@@ -27,11 +27,28 @@
 //! - [`SnapshotResolver`]     – resolves a commit hash into a full tree.
 //! - [`SnapshotMaterializer`] – converts the resolved tree into [`TreeNode`]s.
 //! - [`TreeNode`]             – a single file or directory in a materialized snapshot.
-//! - [`DirCache`]             – LRU cache of (hash, dir) → Vec<TreeNode>.
+//! - [`DirCache`]             – LRU cache of (hash, dir) → Arc<Vec<TreeNode>>.
 
 use git2::{ObjectType, Repository};
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+// ── Limits ────────────────────────────────────────────────────────────────────
+
+/// Hard cap for [`HistoryReader::list_commits`] (non-paginated).
+/// Above this, callers should use [`HistoryReader::list_commits_paginated`].
+pub const LIST_COMMITS_MAX: usize = 50_000;
+
+/// Hard cap for a full recursive tree walk in [`SnapshotResolver::resolve_tree`].
+const MAX_FULL_TREE_ENTRIES: usize = 8_000;
+
+/// Maximum recursion depth for [`SnapshotMaterializer::materialize`].
+/// Prevents stack overflow on pathologically deep trees.
+const MAX_TREE_DEPTH: usize = 64;
+
+/// Number of cached directory listings in [`DirCache`].
+const DIR_CACHE_MAX_ENTRIES: usize = 32;
 
 // ── CommitInfo ────────────────────────────────────────────────────────────────
 
@@ -78,7 +95,12 @@ impl HistoryReader {
         })
     }
 
-    /// Returns all commits reachable from HEAD, sorted newest-first.
+    /// Returns up to [`LIST_COMMITS_MAX`] commits reachable from HEAD,
+    /// sorted newest-first.
+    ///
+    /// For repositories with more commits, use
+    /// [`list_commits_paginated`](Self::list_commits_paginated) to avoid
+    /// blocking the main thread with a large allocation.
     pub fn list_commits(&self) -> Result<Vec<CommitInfo>, git2::Error> {
         let mut walk = self.repo.revwalk()?;
         walk.push_head()?;
@@ -89,16 +111,22 @@ impl HistoryReader {
             let oid = oid?;
             let commit = self.repo.find_commit(oid)?;
             commits.push(CommitInfo::from_commit(&commit));
+            if commits.len() >= LIST_COMMITS_MAX {
+                break;
+            }
         }
         Ok(commits)
     }
 
-    /// Streams commits in pages of `page_size`, calling `on_page` for each batch.
+    /// Streams commits in pages of `page_size`, calling `on_page` for each
+    /// batch.  This never allocates more than `page_size` commits at a time
+    /// and is the recommended path for large repositories.
     pub fn list_commits_paginated(
         &self,
         page_size: usize,
         mut on_page: impl FnMut(Vec<CommitInfo>),
     ) -> Result<(), git2::Error> {
+        let page_size = page_size.max(1);
         let mut walk = self.repo.revwalk()?;
         walk.push_head()?;
         walk.set_sorting(git2::Sort::TIME)?;
@@ -118,14 +146,34 @@ impl HistoryReader {
         Ok(())
     }
 
-    /// Filters commits whose summary contains `query` (case-insensitive).
+    /// Searches commits reachable from HEAD whose summary or hash prefix
+    /// match `query` (case-insensitive).
+    ///
+    /// PERF: Filters *during* the revwalk, allocating only matching entries.
+    /// The old approach called `list_commits()` first, which wasted memory
+    /// proportional to the full history length before discarding non-matches.
     pub fn search_commits(&self, query: &str) -> Result<Vec<CommitInfo>, git2::Error> {
+        if query.is_empty() {
+            return self.list_commits();
+        }
         let q = query.to_lowercase();
-        Ok(self
-            .list_commits()?
-            .into_iter()
-            .filter(|c| c.summary.to_lowercase().contains(&q) || c.hash.starts_with(&q))
-            .collect())
+        let mut walk = self.repo.revwalk()?;
+        walk.push_head()?;
+        walk.set_sorting(git2::Sort::TIME)?;
+
+        let mut results = Vec::new();
+        for oid in walk {
+            let oid = oid?;
+            let commit = self.repo.find_commit(oid)?;
+            let info = CommitInfo::from_commit(&commit);
+            if info.summary.to_lowercase().contains(&q)
+                || info.hash.starts_with(query)
+                || info.author.to_lowercase().contains(&q)
+            {
+                results.push(info);
+            }
+        }
+        Ok(results)
     }
 }
 
@@ -156,20 +204,19 @@ impl TreeNode {
 
 // ── DirCache ──────────────────────────────────────────────────────────────────
 
-/// Maximum number of cached directory entries in [`DirCache`].
-const DIR_CACHE_MAX_ENTRIES: usize = 32;
-
 /// Simple LRU cache for directory listings keyed by `(commit_hash, dir_path)`.
 ///
 /// Avoids redundant `resolve_dir` calls when the user navigates back and
 /// forth between directories or switches commits that share the same subtree.
 ///
+/// Values are stored as `Arc<Vec<TreeNode>>` so cloning a cache hit is O(1)
+/// (pointer copy) regardless of directory size.
+///
 /// Capacity is fixed at [`DIR_CACHE_MAX_ENTRIES`].  When full, the
-/// least-recently-used entry is evicted.  A `VecDeque` is used so
-/// eviction is O(1).
+/// least-recently-used entry is evicted.  A `VecDeque` keeps eviction O(1).
 #[derive(Debug)]
 pub struct DirCache {
-    entries: VecDeque<((String, PathBuf), Vec<TreeNode>)>,
+    entries: VecDeque<((String, PathBuf), Arc<Vec<TreeNode>>)>,
 }
 
 impl DirCache {
@@ -180,23 +227,22 @@ impl DirCache {
         }
     }
 
-    /// Looks up `(hash, dir)`.  On a hit the entry is moved to the front
-    /// (most-recently-used position) and a clone of the nodes is returned.
-    pub fn get(&mut self, hash: &str, dir: &Path) -> Option<Vec<TreeNode>> {
+    /// Looks up `(hash, dir)`.  On a hit the entry is promoted to the
+    /// most-recently-used position and an `Arc` clone (O(1)) is returned.
+    pub fn get(&mut self, hash: &str, dir: &Path) -> Option<Arc<Vec<TreeNode>>> {
         let pos = self
             .entries
             .iter()
             .position(|((h, d), _)| h == hash && d == dir)?;
         let entry = self.entries.remove(pos).unwrap();
-        let nodes = entry.1.clone();
+        let arc = Arc::clone(&entry.1);
         self.entries.push_front(entry);
-        Some(nodes)
+        Some(arc)
     }
 
     /// Inserts or replaces the entry for `(hash, dir)`.  Evicts the LRU entry
     /// when the cache is at capacity.
     pub fn insert(&mut self, hash: String, dir: PathBuf, nodes: Vec<TreeNode>) {
-        // Evict existing entry for the same key to avoid duplicates.
         if let Some(pos) = self
             .entries
             .iter()
@@ -205,9 +251,9 @@ impl DirCache {
             self.entries.remove(pos);
         }
         if self.entries.len() >= DIR_CACHE_MAX_ENTRIES {
-            self.entries.pop_back(); // evict LRU
+            self.entries.pop_back();
         }
-        self.entries.push_front(((hash, dir), nodes));
+        self.entries.push_front(((hash, dir), Arc::new(nodes)));
     }
 
     /// Drops all cached entries.  Call when a new repository is opened.
@@ -250,7 +296,6 @@ impl<'repo> SnapshotResolver<'repo> {
         let commit = obj.peel_to_commit()?;
         let root_tree = commit.tree()?;
 
-        // Navigate down to the target sub-tree.
         let subtree = if dir.as_os_str().is_empty() {
             root_tree
         } else {
@@ -258,7 +303,6 @@ impl<'repo> SnapshotResolver<'repo> {
             self.repo.find_tree(entry.id())?
         };
 
-        // Collect only the direct children (no recursion).
         let mut nodes = Vec::new();
         for entry in subtree.iter() {
             let name = entry.name().unwrap_or("");
@@ -272,17 +316,16 @@ impl<'repo> SnapshotResolver<'repo> {
         Ok(nodes)
     }
 
-    /// Legacy full-tree walk.  **Capped at `MAX_FULL_TREE_ENTRIES` entries**
-    /// to prevent freezing on large monorepos.  Returns `Err` if the cap is
-    /// exceeded so callers can fall back to `resolve_dir`.
+    /// Legacy full-tree walk.  **Capped at [`MAX_FULL_TREE_ENTRIES`] entries**
+    /// and [`MAX_TREE_DEPTH`] levels to prevent freezing or stack overflow on
+    /// large monorepos.  Returns `Err` if either cap is exceeded so callers
+    /// can fall back to `resolve_dir`.
     pub fn resolve_tree(&self, revision: &str) -> Result<Vec<TreeNode>, git2::Error> {
-        const MAX_FULL_TREE_ENTRIES: usize = 8_000;
-
         let obj = self.repo.revparse_single(revision)?;
         let commit = obj.peel_to_commit()?;
         let tree = commit.tree()?;
         let materializer = SnapshotMaterializer::new(self.repo);
-        let nodes = materializer.materialize(&tree, PathBuf::new())?;
+        let nodes = materializer.materialize(&tree, PathBuf::new(), 0)?;
         if nodes.len() > MAX_FULL_TREE_ENTRIES {
             return Err(git2::Error::from_str(&format!(
                 "Tree too large for full walk ({} entries, limit {}). \
@@ -309,11 +352,24 @@ impl<'repo> SnapshotMaterializer<'repo> {
     }
 
     /// Recursively walks `tree` and returns a flat, depth-first list of nodes.
+    ///
+    /// `depth` tracks the current recursion level; callers pass `0`.
+    /// Returns `Err` if [`MAX_TREE_DEPTH`] is exceeded, preventing stack
+    /// overflow on pathologically deep repository trees.
     pub fn materialize(
         &self,
         tree: &git2::Tree<'_>,
         prefix: PathBuf,
+        depth: usize,
     ) -> Result<Vec<TreeNode>, git2::Error> {
+        if depth > MAX_TREE_DEPTH {
+            return Err(git2::Error::from_str(&format!(
+                "Tree depth limit ({MAX_TREE_DEPTH}) exceeded at '{}'. \
+                 Truncating subtree.",
+                prefix.display()
+            )));
+        }
+
         let mut nodes = Vec::new();
         for entry in tree.iter() {
             let name = entry.name().unwrap_or("");
@@ -325,7 +381,7 @@ impl<'repo> SnapshotMaterializer<'repo> {
                 Some(ObjectType::Tree) => {
                     nodes.push(TreeNode::Dir(path.clone()));
                     let subtree = self.repo.find_tree(entry.id())?;
-                    let mut children = self.materialize(&subtree, path)?;
+                    let mut children = self.materialize(&subtree, path, depth + 1)?;
                     nodes.append(&mut children);
                 }
                 _ => {}
