@@ -19,7 +19,9 @@
  */
 
 mod application;
+mod commit_controller;
 mod config;
+mod file_preview;
 pub mod git_engine;
 mod window;
 

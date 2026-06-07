@@ -23,10 +23,13 @@ use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 use gtk::prelude::*;
 use glib::object::ObjectExt;
+use gettextrs::gettext;
 use std::cell::RefCell;
 use std::path::PathBuf;
 
 use crate::git_engine::{CommitInfo, HistoryReader, SnapshotResolver, TreeNode};
+use crate::commit_controller;
+use crate::file_preview;
 
 // ── ViewMode ────────────────────────────────────────────────────────────────
 
@@ -356,7 +359,7 @@ impl TemporalExplorerWindow {
 
     fn open_repository_dialog(&self) {
         let dialog = gtk::FileDialog::builder()
-            .title("Open Git Repository")
+            .title(gettext("Open Git Repository"))
             .modal(true)
             .build();
         dialog.select_folder(
@@ -375,15 +378,24 @@ impl TemporalExplorerWindow {
     fn load_repository(&self, path: PathBuf) {
         let imp = self.imp();
         match HistoryReader::open(&path) {
-            Err(e) => self.show_error_toast(&format!("Failed to open repository: {e}")),
+            Err(e) => self.show_error_toast(&format!("{}: {e}", gettext("Failed to open repository"))),
             Ok(reader) => {
                 let commits = match reader.list_commits() {
                     Ok(c) => c,
-                    Err(e) => { self.show_error_toast(&format!("Failed to read history: {e}")); return; }
+                    Err(e) => {
+                        self.show_error_toast(&format!("{}: {e}", gettext("Failed to read history")));
+                        return;
+                    }
                 };
-                let repo_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("Repository").to_string();
+                let repo_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(&gettext("Repository"))
+                    .to_string();
                 imp.window_title.set_title(&repo_name);
-                imp.window_title.set_subtitle(&format!("{} commits", commits.len()));
+                imp.window_title.set_subtitle(
+                    &format!("{} {}", commits.len(), gettext("commits"))
+                );
                 *imp.repo_name.borrow_mut()    = repo_name;
                 *imp.repo_path.borrow_mut()    = Some(path);
                 *imp.repository.borrow_mut()   = Some(DebugRepository(reader.repo));
@@ -402,42 +414,33 @@ impl TemporalExplorerWindow {
         }
     }
 
-    // ── Commit list ───────────────────────────────────────────────────────────
+    // ── Commit list — delegates to commit_controller ──────────────────────────
 
     fn populate_commit_list(&self, commits: &[CommitInfo]) {
-        let imp = self.imp();
-        while let Some(child) = imp.commit_list.first_child() { imp.commit_list.remove(&child); }
-        for commit in commits { imp.commit_list.append(&self.build_commit_row(commit)); }
+        commit_controller::populate_commit_list(&self.imp().commit_list, commits);
     }
 
     fn build_commit_row(&self, commit: &CommitInfo) -> gtk::ListBoxRow {
-        let vbox = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical).spacing(2)
-            .margin_top(6).margin_bottom(6).margin_start(12).margin_end(12)
-            .build();
-        let summary = gtk::Label::builder().label(&commit.summary).xalign(0.0)
-            .ellipsize(gtk::pango::EllipsizeMode::End).build();
-        let meta = gtk::Label::builder()
-            .label(&format!("{} · {}", &commit.hash[..8], commit.author)).xalign(0.0).build();
-        meta.add_css_class("caption"); meta.add_css_class("dim-label");
-        vbox.append(&summary); vbox.append(&meta);
-        gtk::ListBoxRow::builder().name(&commit.hash).child(&vbox).build()
+        commit_controller::build_commit_row(commit)
     }
 
-    // ── Search ────────────────────────────────────────────────────────────────
+    // ── Search — delegates to commit_controller ───────────────────────────────
 
     fn on_search_changed(&self, query: &str) {
         let imp = self.imp();
         { let last = imp.last_query.borrow(); if *last == query { return; } }
         *imp.last_query.borrow_mut() = query.to_owned();
         let all = imp.all_commits.borrow();
-        if query.is_empty() { self.populate_commit_list(&all); return; }
-        let q = query.to_lowercase();
-        let filtered: Vec<CommitInfo> = all.iter().filter(|c| {
-            c.summary.to_lowercase().contains(&q)
-                || c.hash.starts_with(query)
-                || c.author.to_lowercase().contains(&q)
-        }).cloned().collect();
+        if query.is_empty() {
+            let owned: Vec<CommitInfo> = all.iter().cloned().collect();
+            drop(all);
+            self.populate_commit_list(&owned);
+            return;
+        }
+        let filtered: Vec<CommitInfo> = commit_controller::filter_commits(&all, query)
+            .into_iter()
+            .cloned()
+            .collect();
         drop(all);
         self.populate_commit_list(&filtered);
     }
@@ -520,20 +523,20 @@ impl TemporalExplorerWindow {
         let repo_ref = imp.repository.borrow();
         let repo = match repo_ref.as_ref() {
             Some(r) => r,
-            None => { self.show_error_toast("No repository open."); return; }
+            None => { self.show_error_toast(&gettext("No repository open.")); return; }
         };
         let resolver = SnapshotResolver::new(repo);
         let all_nodes = match resolver.resolve_tree(hash) {
             Ok(n) => n,
-            Err(e) => { self.show_error_toast(&format!("Cannot resolve snapshot: {e}")); return; }
+            Err(e) => {
+                self.show_error_toast(&format!("{}: {e}", gettext("Cannot resolve snapshot")));
+                return;
+            }
         };
         let children = Self::direct_children(&all_nodes, dir);
         drop(repo_ref);
 
-        let subtitle = match children.len() {
-            1 => "1 item".to_string(),
-            n => format!("{n} items"),
-        };
+        let subtitle = commit_controller::item_count_subtitle(children.len());
         imp.window_title.set_subtitle(&subtitle);
 
         self.update_address_bar(dir);
@@ -541,15 +544,15 @@ impl TemporalExplorerWindow {
 
         let view_mode = *imp.view_mode.borrow();
         let widget: gtk::Widget = match view_mode {
-            ViewMode::List => self.build_list_view(&children),
-            ViewMode::Grid => self.build_grid_view(&children),
+            ViewMode::List => self.build_list_view(&children, hash),
+            ViewMode::Grid => self.build_grid_view(&children, hash),
         };
         self.replace_right_panel(widget);
     }
 
     // ── List view ─────────────────────────────────────────────────────────────
 
-    fn build_list_view(&self, children: &[TreeNode]) -> gtk::Widget {
+    fn build_list_view(&self, children: &[TreeNode], hash: &str) -> gtk::Widget {
         let scrolled = gtk::ScrolledWindow::builder()
             .vexpand(true).hexpand(true)
             .hscrollbar_policy(gtk::PolicyType::Never)
@@ -560,8 +563,10 @@ impl TemporalExplorerWindow {
         list.add_css_class("boxed-list");
 
         if children.is_empty() {
-            let placeholder = gtk::Label::builder().label("Empty directory")
-                .margin_top(24).margin_bottom(24).build();
+            let placeholder = gtk::Label::builder()
+                .label(gettext("Empty directory"))
+                .margin_top(24).margin_bottom(24)
+                .build();
             placeholder.add_css_class("dim-label");
             list.append(&gtk::ListBoxRow::builder().child(&placeholder).build());
         } else {
@@ -569,12 +574,18 @@ impl TemporalExplorerWindow {
         }
 
         let children_clone = children.to_vec();
+        let hash_clone = hash.to_owned();
         list.connect_row_activated(glib::clone!(
             #[weak(rename_to = window)] self,
             move |_, row| {
                 let idx = row.index() as usize;
                 if let Some(node) = children_clone.get(idx) {
-                    if node.is_dir() { window.enter_dir(node.path().to_path_buf()); }
+                    if node.is_dir() {
+                        window.enter_dir(node.path().to_path_buf());
+                    } else {
+                        // Wire read_file() to the UI: open file preview dialog.
+                        window.open_file_preview(node.path(), &hash_clone);
+                    }
                 }
             }
         ));
@@ -620,7 +631,7 @@ impl TemporalExplorerWindow {
 
     // ── Grid view ─────────────────────────────────────────────────────────────
 
-    fn build_grid_view(&self, children: &[TreeNode]) -> gtk::Widget {
+    fn build_grid_view(&self, children: &[TreeNode], hash: &str) -> gtk::Widget {
         let scrolled = gtk::ScrolledWindow::builder()
             .vexpand(true).hexpand(true)
             .hscrollbar_policy(gtk::PolicyType::Never)
@@ -635,8 +646,10 @@ impl TemporalExplorerWindow {
             .build();
 
         if children.is_empty() {
-            let placeholder = gtk::Label::builder().label("Empty directory")
-                .margin_top(24).margin_bottom(24).build();
+            let placeholder = gtk::Label::builder()
+                .label(gettext("Empty directory"))
+                .margin_top(24).margin_bottom(24)
+                .build();
             placeholder.add_css_class("dim-label");
             flow.insert(&placeholder, -1);
         } else {
@@ -652,12 +665,18 @@ impl TemporalExplorerWindow {
         }
 
         let children_clone = children.to_vec();
+        let hash_clone = hash.to_owned();
         flow.connect_child_activated(glib::clone!(
             #[weak(rename_to = window)] self,
             move |_, child| {
                 let idx = child.index() as usize;
                 if let Some(node) = children_clone.get(idx) {
-                    if node.is_dir() { window.enter_dir(node.path().to_path_buf()); }
+                    if node.is_dir() {
+                        window.enter_dir(node.path().to_path_buf());
+                    } else {
+                        // Wire read_file() to the UI: open file preview dialog.
+                        window.open_file_preview(node.path(), &hash_clone);
+                    }
                 }
             }
         ));
@@ -695,6 +714,18 @@ impl TemporalExplorerWindow {
         label.add_css_class("caption");
         vbox.append(&label);
         vbox
+    }
+
+    // ── File preview — connects read_file() to the UI ─────────────────────────
+
+    fn open_file_preview(&self, path: &std::path::Path, hash: &str) {
+        let imp = self.imp();
+        let repo_ref = imp.repository.borrow();
+        let Some(repo) = repo_ref.as_ref() else {
+            self.show_error_toast(&gettext("No repository open."));
+            return;
+        };
+        file_preview::show_file_preview(self, repo, hash, path);
     }
 
     // ── Direct children helper ────────────────────────────────────────────────
