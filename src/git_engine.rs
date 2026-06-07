@@ -22,16 +22,16 @@
 //!
 //! # Module layout
 //!
-//! - [`HistoryReader`]       – opens a repository and iterates commits.
-//! - [`CommitInfo`]          – lightweight commit data for the UI list.
-//! - [`SnapshotResolver`]    – resolves a commit hash into a full tree.
-//! - [`SnapshotMaterializer`]– converts the resolved tree into [`TreeNode`]s.
-//! - [`TreeNode`]            – a single file or directory in a materialized snapshot.
+//! - [`HistoryReader`]        – opens a repository and iterates commits.
+//! - [`CommitInfo`]           – lightweight commit data for the UI list.
+//! - [`SnapshotResolver`]     – resolves a commit hash into a full tree.
+//! - [`SnapshotMaterializer`] – converts the resolved tree into [`TreeNode`]s.
+//! - [`TreeNode`]             – a single file or directory in a materialized snapshot.
 
 use git2::{ObjectType, Repository};
 use std::path::{Path, PathBuf};
 
-// ── CommitInfo ───────────────────────────────────────────────────────────────
+// ── CommitInfo ────────────────────────────────────────────────────────────────
 
 /// Lightweight representation of a single commit, used to populate the UI list.
 #[derive(Debug, Clone)]
@@ -61,7 +61,7 @@ impl CommitInfo {
     }
 }
 
-// ── HistoryReader ────────────────────────────────────────────────────────────
+// ── HistoryReader ──────────────────────────────────────────────────────────────
 
 /// Opens a Git repository and provides access to its commit history.
 ///
@@ -83,6 +83,10 @@ impl HistoryReader {
     }
 
     /// Returns all commits reachable from HEAD, sorted newest-first.
+    ///
+    /// PERF: For very large repositories this walks the full graph.
+    /// Callers should run this on a background thread and stream results
+    /// back to the UI via a channel (see `list_commits_paginated`).
     pub fn list_commits(&self) -> Result<Vec<CommitInfo>, git2::Error> {
         let mut walk = self.repo.revwalk()?;
         walk.push_head()?;
@@ -97,6 +101,40 @@ impl HistoryReader {
         Ok(commits)
     }
 
+    /// Streams commits in pages of `page_size`, calling `on_page` for each
+    /// batch.  This lets the UI show the first page instantly while the rest
+    /// of the history loads lazily.
+    ///
+    /// # Perf notes
+    /// - `page_size` of 500 is a good default: fast first-paint, low overhead.
+    /// - The callback receives an owned `Vec` so the UI can push it into a
+    ///   `RefCell<Vec<CommitInfo>>` without waiting for the full walk.
+    /// - Run this inside `gio::spawn_blocking` or `std::thread::spawn` to
+    ///   avoid blocking the GTK main loop.
+    pub fn list_commits_paginated(
+        &self,
+        page_size: usize,
+        mut on_page: impl FnMut(Vec<CommitInfo>),
+    ) -> Result<(), git2::Error> {
+        let mut walk = self.repo.revwalk()?;
+        walk.push_head()?;
+        walk.set_sorting(git2::Sort::TIME)?;
+
+        let mut page: Vec<CommitInfo> = Vec::with_capacity(page_size);
+        for oid in walk {
+            let oid = oid?;
+            let commit = self.repo.find_commit(oid)?;
+            page.push(CommitInfo::from_commit(&commit));
+            if page.len() >= page_size {
+                on_page(std::mem::replace(&mut page, Vec::with_capacity(page_size)));
+            }
+        }
+        if !page.is_empty() {
+            on_page(page);
+        }
+        Ok(())
+    }
+
     /// Filters commits whose summary contains `query` (case-insensitive).
     pub fn search_commits(&self, query: &str) -> Result<Vec<CommitInfo>, git2::Error> {
         let q = query.to_lowercase();
@@ -108,7 +146,7 @@ impl HistoryReader {
     }
 }
 
-// ── TreeNode ─────────────────────────────────────────────────────────────────
+// ── TreeNode ───────────────────────────────────────────────────────────────────
 
 /// A single node in a materialized snapshot tree.
 #[derive(Debug, Clone)]
@@ -133,7 +171,7 @@ impl TreeNode {
     }
 }
 
-// ── SnapshotResolver ─────────────────────────────────────────────────────────
+// ── SnapshotResolver ───────────────────────────────────────────────────────────
 
 /// Resolves a commit hash (or any Git revision string) into a raw Git tree.
 ///
@@ -150,14 +188,49 @@ impl<'repo> SnapshotResolver<'repo> {
     }
 
     /// Resolves `revision` (hash, branch, tag, `HEAD~3`, …) and materializes
-    /// the corresponding file tree.
+    /// only the **direct children** of `dir` in the corresponding commit tree.
     ///
-    /// Returns a flat, depth-first ordered list of [`TreeNode`]s.
+    /// PERF: Instead of walking the entire tree, this function only descends
+    /// the path components of `dir`, avoiding O(n) scans on large monorepos.
+    /// The old `resolve_tree` (full recursive walk) is kept for compatibility
+    /// but callers should prefer `resolve_dir`.
+    pub fn resolve_dir(
+        &self,
+        revision: &str,
+        dir: &Path,
+    ) -> Result<Vec<TreeNode>, git2::Error> {
+        let obj = self.repo.revparse_single(revision)?;
+        let commit = obj.peel_to_commit()?;
+        let root_tree = commit.tree()?;
+
+        // Navigate down to the target sub-tree.
+        let subtree = if dir.as_os_str().is_empty() {
+            root_tree
+        } else {
+            let entry = root_tree.get_path(dir)?;
+            self.repo.find_tree(entry.id())?
+        };
+
+        // Collect only the direct children (no recursion).
+        let mut nodes = Vec::new();
+        for entry in subtree.iter() {
+            let name = entry.name().unwrap_or("");
+            let path = dir.join(name);
+            match entry.kind() {
+                Some(ObjectType::Blob) => nodes.push(TreeNode::File(path)),
+                Some(ObjectType::Tree) => nodes.push(TreeNode::Dir(path)),
+                _ => {}
+            }
+        }
+        Ok(nodes)
+    }
+
+    /// Legacy full-tree walk.  Kept for compatibility; prefer `resolve_dir`
+    /// for interactive browsing as it is O(directory size) instead of O(repo size).
     pub fn resolve_tree(&self, revision: &str) -> Result<Vec<TreeNode>, git2::Error> {
         let obj = self.repo.revparse_single(revision)?;
         let commit = obj.peel_to_commit()?;
         let tree = commit.tree()?;
-
         let materializer = SnapshotMaterializer::new(self.repo);
         materializer.materialize(&tree, PathBuf::new())
     }
@@ -167,10 +240,9 @@ impl<'repo> SnapshotResolver<'repo> {
 
 /// Converts a raw Git tree object into a navigable list of [`TreeNode`]s.
 ///
-/// This is the core of the Temporal Explorer engine.  It walks the tree
-/// recursively, turning every blob into a [`TreeNode::File`] and every
-/// sub-tree into a [`TreeNode::Dir`], preserving the original directory
-/// structure of the chosen revision.
+/// This is retained for cases where a full recursive walk is explicitly
+/// needed (e.g., search across all files in a commit). For interactive
+/// directory browsing use [`SnapshotResolver::resolve_dir`] instead.
 pub struct SnapshotMaterializer<'repo> {
     repo: &'repo Repository,
 }
@@ -190,11 +262,9 @@ impl<'repo> SnapshotMaterializer<'repo> {
         prefix: PathBuf,
     ) -> Result<Vec<TreeNode>, git2::Error> {
         let mut nodes = Vec::new();
-
         for entry in tree.iter() {
             let name = entry.name().unwrap_or("");
             let path = prefix.join(name);
-
             match entry.kind() {
                 Some(ObjectType::Blob) => {
                     nodes.push(TreeNode::File(path));
@@ -209,13 +279,12 @@ impl<'repo> SnapshotMaterializer<'repo> {
                 _ => {}
             }
         }
-
         Ok(nodes)
     }
 
     /// Reads the raw byte content of a file at `path` in the given `revision`.
     ///
-    /// Useful for a future file-preview panel.
+    /// Useful for file-preview panels.
     pub fn read_file(
         &self,
         revision: &str,

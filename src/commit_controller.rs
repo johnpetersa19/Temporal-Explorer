@@ -21,7 +21,7 @@
 //! Commit list controller.
 //!
 //! Responsible for building GTK widgets that represent commits in the
-//! sidebar list and for filtering them. Extracted from `window.rs` to
+//! sidebar list and for filtering them.  Extracted from `window.rs` to
 //! keep the main window module focused on layout and wiring.
 
 use gettextrs::gettext;
@@ -68,10 +68,26 @@ pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
 /// Populates `list_box` with rows for each commit in `commits`.
 ///
 /// All existing children are removed before inserting new rows.
+///
+/// PERF: For very large commit lists (10k+) consider switching to
+/// `GtkListView` with a `GtkFilterListModel` + `GtkSortListModel`
+/// to get O(1) row recycling. This `ListBox` approach creates one
+/// widget per commit and is best kept below ~5 000 entries by
+/// limiting `commits` with `list_commits_paginated`.
 pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
+    // FIX: use child.unparent() to avoid borrow conflict with list_box
     while let Some(child) = list_box.first_child() {
-        list_box.remove(&child);
+        child.unparent();
     }
+    for commit in commits {
+        list_box.append(&build_commit_row(commit));
+    }
+}
+
+/// Appends a batch of new commits to `list_box` WITHOUT clearing existing
+/// rows.  Use this when streaming pages from `list_commits_paginated` so
+/// the first page is visible while later pages are still loading.
+pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     for commit in commits {
         list_box.append(&build_commit_row(commit));
     }
