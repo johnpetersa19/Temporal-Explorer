@@ -11,7 +11,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
       min-sidebar-width: 260;
       max-sidebar-width: 320;
       sidebar-width-fraction: 0.25;
-      show-sidebar: true;
 
       sidebar: Adw.ToolbarView {
         [top]
@@ -151,23 +150,26 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             tooltip-text: _("Main Menu");
             menu-model: primary_menu;
           }
+        }
 
-          /* window_title is kept for the empty state subtitle — hidden when
-             a directory is being browsed, shown when no commit is selected */
-          [title]
+        content: Box {
+          orientation: vertical;
+
+          /* window_title is shown when no commit is selected and the
+             empty_state is visible; hidden otherwise from Rust code. */
           Adw.WindowTitle window_title {
             title: _("Temporal Explorer");
             subtitle: _("No repository selected");
             visible: false;
           }
-        }
 
-        content: Adw.StatusPage empty_state {
-          icon-name: "folder-symbolic";
-          title: _("No Snapshot Selected");
-          description: _("Open a Git repository and select a commit from the timeline to browse its file tree.");
-          vexpand: true;
-          hexpand: true;
+          Adw.StatusPage empty_state {
+            icon-name: "folder-symbolic";
+            title: _("No Snapshot Selected");
+            description: _("Open a Git repository and select a commit from the timeline to browse its file tree.");
+            vexpand: true;
+            hexpand: true;
+          }
         };
 
         [bottom]
