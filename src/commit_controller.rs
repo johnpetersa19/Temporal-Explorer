@@ -129,6 +129,11 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
 
 /// Filters `commits` by `query` (case-insensitive match on summary, hash
 /// prefix, or author).
+///
+/// Kept como API pública para uso futuro (exportação, cópia para clipboard, etc.).
+/// O caminho de busca interativa em `window.rs` executa essa lógica off-thread
+/// diretamente para suporte a cancelamento.
+#[allow(dead_code)]
 pub fn filter_commits<'a>(commits: &'a [CommitInfo], query: &str) -> Vec<&'a CommitInfo> {
     if query.is_empty() {
         return commits.iter().collect();
