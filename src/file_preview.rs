@@ -30,7 +30,7 @@
 use gettextrs::gettext;
 use gtk::prelude::*;
 use gtk::glib;
-use libadwaita::prelude::AdwWindowExt;
+use adw::prelude::AdwWindowExt;
 use std::path::Path;
 use crate::git_engine::SnapshotMaterializer;
 
