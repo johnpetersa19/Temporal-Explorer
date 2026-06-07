@@ -743,7 +743,8 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         let bar = &imp.address_bar;
 
-        while let Some(child) = bar.first_child() { bar.remove(&child); }
+        // FIX: use child.unparent() instead of bar.remove(&child) to avoid borrow conflict
+        while let Some(child) = bar.first_child() { child.unparent(); }
 
         let repo_name = imp.repo_name.borrow().clone();
 
@@ -806,7 +807,8 @@ impl TemporalExplorerWindow {
     fn show_empty_state(&self) {
         let imp = self.imp();
         imp.toolbar_switcher.set_visible_child_name("pathbar");
-        while let Some(child) = imp.address_bar.first_child() { imp.address_bar.remove(&child); }
+        // FIX: use child.unparent() instead of address_bar.remove(&child) to avoid borrow conflict
+        while let Some(child) = imp.address_bar.first_child() { child.unparent(); }
         imp.window_title.set_visible(true);
         imp.nav_back_button.set_sensitive(false);
         imp.nav_forward_button.set_sensitive(false);
@@ -814,7 +816,10 @@ impl TemporalExplorerWindow {
     }
 
     fn replace_right_panel(&self, widget: gtk::Widget) {
-        self.imp().content_toolbar_view.set_content(Some(&widget));
+        let tv = &self.imp().content_toolbar_view;
+        // FIX: explicitly detach previous widget before setting new content
+        tv.set_content(gtk::Widget::NONE);
+        tv.set_content(Some(&widget));
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────────
