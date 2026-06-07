@@ -66,12 +66,6 @@ impl CommitInfo {
 // ── HistoryReader ──────────────────────────────────────────────────────────────
 
 /// Opens a Git repository and provides access to its commit history.
-///
-/// # Example
-/// ```no_run
-/// let reader = HistoryReader::open(std::path::Path::new("/path/to/repo")).unwrap();
-/// let commits = reader.list_commits().unwrap();
-/// ```
 pub struct HistoryReader {
     pub repo: Repository,
 }
@@ -85,10 +79,6 @@ impl HistoryReader {
     }
 
     /// Returns all commits reachable from HEAD, sorted newest-first.
-    ///
-    /// PERF: For very large repositories this walks the full graph.
-    /// Callers should run this on a background thread and stream results
-    /// back to the UI via a channel (see `list_commits_paginated`).
     pub fn list_commits(&self) -> Result<Vec<CommitInfo>, git2::Error> {
         let mut walk = self.repo.revwalk()?;
         walk.push_head()?;
@@ -103,16 +93,7 @@ impl HistoryReader {
         Ok(commits)
     }
 
-    /// Streams commits in pages of `page_size`, calling `on_page` for each
-    /// batch.  This lets the UI show the first page instantly while the rest
-    /// of the history loads lazily.
-    ///
-    /// # Perf notes
-    /// - `page_size` of 500 is a good default: fast first-paint, low overhead.
-    /// - The callback receives an owned `Vec` so the UI can push it into a
-    ///   `RefCell<Vec<CommitInfo>>` without waiting for the full walk.
-    /// - Run this inside `gio::spawn_blocking` or `std::thread::spawn` to
-    ///   avoid blocking the GTK main loop.
+    /// Streams commits in pages of `page_size`, calling `on_page` for each batch.
     pub fn list_commits_paginated(
         &self,
         page_size: usize,
@@ -138,10 +119,6 @@ impl HistoryReader {
     }
 
     /// Filters commits whose summary contains `query` (case-insensitive).
-    ///
-    /// PERF: This is a pure in-memory scan over already-loaded commits.
-    /// Call it from a background thread for large repos; see
-    /// `window::on_search_changed` for the non-blocking pattern.
     pub fn search_commits(&self, query: &str) -> Result<Vec<CommitInfo>, git2::Error> {
         let q = query.to_lowercase();
         Ok(self
@@ -179,16 +156,19 @@ impl TreeNode {
 
 // ── DirCache ──────────────────────────────────────────────────────────────────
 
+/// Maximum number of cached directory entries in [`DirCache`].
+const DIR_CACHE_MAX_ENTRIES: usize = 32;
+
 /// Simple LRU cache for directory listings keyed by `(commit_hash, dir_path)`.
 ///
 /// Avoids redundant `resolve_dir` calls when the user navigates back and
 /// forth between directories or switches commits that share the same subtree.
 ///
-/// Capacity is fixed at `MAX_ENTRIES`.  When full, the least-recently-used
-/// entry is evicted.  A `VecDeque` is used so eviction is O(1).
+/// Capacity is fixed at [`DIR_CACHE_MAX_ENTRIES`].  When full, the
+/// least-recently-used entry is evicted.  A `VecDeque` is used so
+/// eviction is O(1).
+#[derive(Debug)]
 pub struct DirCache {
-    /// Maximum number of cached entries.
-    const MAX_ENTRIES: usize = 32;
     entries: VecDeque<((String, PathBuf), Vec<TreeNode>)>,
 }
 
@@ -196,7 +176,7 @@ impl DirCache {
     /// Creates a new, empty cache.
     pub fn new() -> Self {
         Self {
-            entries: VecDeque::with_capacity(Self::MAX_ENTRIES),
+            entries: VecDeque::with_capacity(DIR_CACHE_MAX_ENTRIES),
         }
     }
 
@@ -224,7 +204,7 @@ impl DirCache {
         {
             self.entries.remove(pos);
         }
-        if self.entries.len() >= Self::MAX_ENTRIES {
+        if self.entries.len() >= DIR_CACHE_MAX_ENTRIES {
             self.entries.pop_back(); // evict LRU
         }
         self.entries.push_front(((hash, dir), nodes));
@@ -245,9 +225,6 @@ impl Default for DirCache {
 // ── SnapshotResolver ───────────────────────────────────────────────────────────
 
 /// Resolves a commit hash (or any Git revision string) into a raw Git tree.
-///
-/// This is a thin wrapper that validates the revision and hands the tree
-/// to [`SnapshotMaterializer`] for further processing.
 pub struct SnapshotResolver<'repo> {
     repo: &'repo Repository,
 }
@@ -258,13 +235,12 @@ impl<'repo> SnapshotResolver<'repo> {
         Self { repo }
     }
 
-    /// Resolves `revision` (hash, branch, tag, `HEAD~3`, …) and materializes
-    /// only the **direct children** of `dir` in the corresponding commit tree.
+    /// Resolves `revision` and materializes only the **direct children** of
+    /// `dir` in the corresponding commit tree.
     ///
-    /// PERF: Instead of walking the entire tree, this function only descends
-    /// the path components of `dir`, avoiding O(n) scans on large monorepos.
-    /// The old `resolve_tree` (full recursive walk) is kept for compatibility
-    /// but callers should prefer `resolve_dir`.
+    /// PERF: Only descends the path components of `dir`, avoiding O(n) scans
+    /// on large monorepos.  Prefer this over `resolve_tree` for all interactive
+    /// directory browsing.
     pub fn resolve_dir(
         &self,
         revision: &str,
@@ -297,12 +273,8 @@ impl<'repo> SnapshotResolver<'repo> {
     }
 
     /// Legacy full-tree walk.  **Capped at `MAX_FULL_TREE_ENTRIES` entries**
-    /// to prevent freezing on large monorepos (e.g. the Linux kernel has
-    /// >70 000 files per commit).  Returns `Err` if the cap is exceeded so
-    /// callers can fall back to `resolve_dir` for interactive browsing.
-    ///
-    /// Prefer `resolve_dir` for all interactive use; reserve this for
-    /// explicit full-tree search operations.
+    /// to prevent freezing on large monorepos.  Returns `Err` if the cap is
+    /// exceeded so callers can fall back to `resolve_dir`.
     pub fn resolve_tree(&self, revision: &str) -> Result<Vec<TreeNode>, git2::Error> {
         const MAX_FULL_TREE_ENTRIES: usize = 8_000;
 
@@ -326,10 +298,6 @@ impl<'repo> SnapshotResolver<'repo> {
 // ── SnapshotMaterializer ─────────────────────────────────────────────────────
 
 /// Converts a raw Git tree object into a navigable list of [`TreeNode`]s.
-///
-/// This is retained for cases where a full recursive walk is explicitly
-/// needed (e.g., search across all files in a commit). For interactive
-/// directory browsing use [`SnapshotResolver::resolve_dir`] instead.
 pub struct SnapshotMaterializer<'repo> {
     repo: &'repo Repository,
 }
@@ -341,8 +309,6 @@ impl<'repo> SnapshotMaterializer<'repo> {
     }
 
     /// Recursively walks `tree` and returns a flat, depth-first list of nodes.
-    ///
-    /// `prefix` is the accumulated path from the repository root to `tree`.
     pub fn materialize(
         &self,
         tree: &git2::Tree<'_>,
@@ -362,7 +328,6 @@ impl<'repo> SnapshotMaterializer<'repo> {
                     let mut children = self.materialize(&subtree, path)?;
                     nodes.append(&mut children);
                 }
-                // Submodules (Commit) and other exotic objects are skipped.
                 _ => {}
             }
         }
@@ -370,8 +335,6 @@ impl<'repo> SnapshotMaterializer<'repo> {
     }
 
     /// Reads the raw byte content of a file at `path` in the given `revision`.
-    ///
-    /// Useful for file-preview panels.
     pub fn read_file(
         &self,
         revision: &str,

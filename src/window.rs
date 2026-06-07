@@ -103,16 +103,13 @@ mod imp {
         pub view_mode:        RefCell<ViewMode>,
         pub repo_name:        RefCell<String>,
 
-        // PERF: LRU cache for (hash, dir) → Vec<TreeNode> to avoid
-        // redundant git2 lookups on back/forward navigation.
+        // PERF: LRU cache for (hash, dir) → Vec<TreeNode>.
         pub dir_cache:        RefCell<DirCache>,
 
-        // PERF: search debounce timer handle
+        // PERF: search debounce timer handle.
         pub search_debounce:  RefCell<Option<glib::SourceId>>,
 
         // PERF: cancellation token for the in-flight search background task.
-        // When the user types faster than the search completes, the old task
-        // is cancelled before the new one starts.
         pub search_cancel:    RefCell<Option<Arc<AtomicBool>>>,
     }
 
@@ -278,14 +275,12 @@ impl TemporalExplorerWindow {
             #[weak(rename_to = w)] self, move |_, row| w.on_commit_selected(row)
         ));
 
-        // PERF: debounce search — fire only after 200 ms of inactivity
-        // instead of re-filtering on every keystroke.
+        // PERF: debounce search — fire only after 200 ms of inactivity.
         imp.commit_search_entry.connect_search_changed(glib::clone!(
             #[weak(rename_to = w)] self,
             move |e| {
                 let query = e.text().to_string();
                 let imp = w.imp();
-                // Cancel any pending debounce timer.
                 if let Some(id) = imp.search_debounce.borrow_mut().take() {
                     id.remove();
                 }
@@ -305,7 +300,6 @@ impl TemporalExplorerWindow {
             }
         ));
 
-        // Nautilus toolbar_switcher: location entry wiring
         imp.location_entry.connect_activate(glib::clone!(
             #[weak(rename_to = w)] self, move |entry| {
                 let text = entry.text().to_string();
@@ -314,7 +308,6 @@ impl TemporalExplorerWindow {
             }
         ));
 
-        // Escape in location entry → cancel.
         let key_ctrl = gtk::EventControllerKey::new();
         let weak_self = self.downgrade();
         key_ctrl.connect_key_pressed(move |_, key, _, _| {
@@ -333,7 +326,7 @@ impl TemporalExplorerWindow {
         ));
     }
 
-    // ── toolbar_switcher helpers (NautilusToolbar pattern) ─────────────────
+    // ── toolbar_switcher helpers ───────────────────────────────────────────
 
     fn show_pathbar(&self) {
         self.imp().toolbar_switcher.set_visible_child_name("pathbar");
@@ -409,7 +402,6 @@ impl TemporalExplorerWindow {
         match HistoryReader::open(&path) {
             Err(e) => self.show_error_toast(&format!("{}: {e}", gettext("Failed to open repository"))),
             Ok(reader) => {
-                // Reset UI state eagerly so the sidebar is visible immediately.
                 let repo_name = path
                     .file_name()
                     .and_then(|n| n.to_str())
@@ -418,7 +410,7 @@ impl TemporalExplorerWindow {
                 imp.window_title.set_title(&repo_name);
                 imp.window_title.set_subtitle(&gettext("Loading…"));
                 *imp.repo_name.borrow_mut()    = repo_name;
-                *imp.repo_path.borrow_mut()    = Some(path);
+                *imp.repo_path.borrow_mut()    = Some(path.clone());
                 *imp.repository.borrow_mut()   = Some(DebugRepository(reader.repo));
                 *imp.all_commits.borrow_mut()  = Vec::new();
                 *imp.last_query.borrow_mut()   = String::new();
@@ -428,71 +420,65 @@ impl TemporalExplorerWindow {
                 imp.history_forward.borrow_mut().clear();
                 imp.nav_back_button.set_sensitive(false);
                 imp.nav_forward_button.set_sensitive(false);
-                // Clear the snapshot cache when loading a new repo.
                 imp.dir_cache.borrow_mut().clear();
-                // Clear the list before streaming.
                 commit_controller::populate_commit_list(&imp.commit_list, &[]);
                 imp.commit_info_bar.set_revealed(false);
                 self.show_empty_state();
 
-                // PERF: load commits in a background thread in pages of 500
-                // so the first batch appears almost instantly even for repos
-                // with 100k+ commits.  Each page is sent to the main loop via
-                // a `glib::MainContext` channel.
-                let repo_path_for_thread = imp.repo_path.borrow().clone().unwrap();
-                let (sender, receiver) =
-                    glib::MainContext::channel::<Vec<CommitInfo>>(glib::Priority::DEFAULT);
+                // PERF: load commits in a background thread via std::sync::mpsc
+                // (glib::MainContext::channel was removed in glib 0.20).
+                // Pages are forwarded to the GTK main loop using
+                // glib::idle_add_local_once so widget mutations always happen
+                // on the main thread.
+                let (tx, rx) = std::sync::mpsc::channel::<Vec<CommitInfo>>();
 
                 std::thread::spawn(move || {
-                    if let Ok(bg_reader) = HistoryReader::open(&repo_path_for_thread) {
+                    if let Ok(bg_reader) = HistoryReader::open(&path) {
                         let _ = bg_reader.list_commits_paginated(500, |page| {
-                            let _ = sender.send(page);
+                            let _ = tx.send(page);
                         });
                     }
                 });
 
-                receiver.attach(
-                    None,
-                    glib::clone!(
-                        #[weak(rename_to = w)] self,
-                        #[upgrade_or] glib::ControlFlow::Break,
-                        move |page| {
-                            let imp = w.imp();
-                            // Append to the list without clearing it.
-                            commit_controller::append_commit_batch(&imp.commit_list, &page);
-                            let mut all = imp.all_commits.borrow_mut();
-                            all.extend(page);
-                            let count = all.len();
-                            drop(all);
-                            imp.window_title.set_subtitle(
-                                &format!("{} {}", count, gettext("commits"))
-                            );
+                // Poll the channel from the main loop until the sender is dropped.
+                let weak_self = self.downgrade();
+                glib::idle_add_local(move || {
+                    match rx.try_recv() {
+                        Ok(page) => {
+                            if let Some(w) = weak_self.upgrade() {
+                                let imp = w.imp();
+                                commit_controller::append_commit_batch(&imp.commit_list, &page);
+                                let mut all = imp.all_commits.borrow_mut();
+                                all.extend(page);
+                                let count = all.len();
+                                drop(all);
+                                imp.window_title.set_subtitle(
+                                    &format!("{} {}", count, gettext("commits"))
+                                );
+                            }
                             glib::ControlFlow::Continue
                         }
-                    ),
-                );
+                        Err(std::sync::mpsc::TryRecvError::Empty) => {
+                            // No page ready yet — yield and come back next idle.
+                            glib::ControlFlow::Continue
+                        }
+                        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                            // Sender dropped: background thread finished.
+                            glib::ControlFlow::Break
+                        }
+                    }
+                });
             }
         }
     }
 
-    // ── Commit list — delegates to commit_controller ──────────────────────────
+    // ── Commit list ───────────────────────────────────────────────────────────
 
     fn populate_commit_list(&self, commits: &[CommitInfo]) {
         commit_controller::populate_commit_list(&self.imp().commit_list, commits);
     }
 
     // ── Search — off-thread filtering with per-query cancellation ─────────────
-    //
-    // Strategy:
-    //   1. Each new search cancels any in-flight task by flipping a shared
-    //      AtomicBool cancellation flag to `true`.
-    //   2. A new background thread is spawned to filter `all_commits`.
-    //   3. Results are sent back to the GTK main loop via a one-shot channel.
-    //   4. If the task sees the flag is `true` before it finishes, it exits
-    //      early and the results are discarded.
-    //
-    // This keeps the GTK main loop completely unblocked regardless of corpus
-    // size.
 
     fn on_search_changed(&self, query: &str) {
         let imp = self.imp();
@@ -510,21 +496,18 @@ impl TemporalExplorerWindow {
         let all: Vec<CommitInfo> = imp.all_commits.borrow().clone();
         let query_owned = query.to_owned();
 
-        // Fast-path: empty query — no thread needed, just repopulate.
+        // Fast-path: empty query — no thread needed.
         if query_owned.is_empty() {
             self.populate_commit_list(&all);
             return;
         }
 
-        let (sender, receiver) =
-            glib::MainContext::channel::<Vec<CommitInfo>>(glib::Priority::DEFAULT);
+        let (tx, rx) = std::sync::mpsc::channel::<Vec<CommitInfo>>();
 
         std::thread::spawn(move || {
             let q = query_owned.to_lowercase();
             let mut results = Vec::new();
             for commit in &all {
-                // Check cancellation every iteration to exit fast when
-                // the user has already typed another character.
                 if cancel.load(Ordering::Relaxed) { return; }
                 if commit.summary.to_lowercase().contains(&q)
                     || commit.hash.starts_with(&query_owned)
@@ -533,20 +516,22 @@ impl TemporalExplorerWindow {
                     results.push(commit.clone());
                 }
             }
-            let _ = sender.send(results);
+            let _ = tx.send(results);
         });
 
-        receiver.attach(
-            None,
-            glib::clone!(
-                #[weak(rename_to = w)] self,
-                #[upgrade_or] glib::ControlFlow::Break,
-                move |results| {
-                    w.populate_commit_list(&results);
+        let weak_self = self.downgrade();
+        glib::idle_add_local(move || {
+            match rx.try_recv() {
+                Ok(results) => {
+                    if let Some(w) = weak_self.upgrade() {
+                        w.populate_commit_list(&results);
+                    }
                     glib::ControlFlow::Break
                 }
-            ),
-        );
+                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => glib::ControlFlow::Break,
+            }
+        });
     }
 
     // ── Commit selected ───────────────────────────────────────────────────────
@@ -636,14 +621,10 @@ impl TemporalExplorerWindow {
                 None => { self.show_error_toast(&gettext("No repository open.")); return; }
             };
 
-            // PERF: use resolve_dir (O(dir size)) instead of resolve_tree
-            // (O(repo size)).  This avoids walking the full tree on every
-            // directory navigation in large monorepos.
             let resolver = SnapshotResolver::new(repo);
             match resolver.resolve_dir(hash, dir.as_path()) {
                 Ok(n) => {
                     drop(repo_ref);
-                    // Store in cache for fast back/forward navigation.
                     imp.dir_cache.borrow_mut().insert(
                         hash.to_owned(),
                         dir.clone(),
@@ -847,7 +828,7 @@ impl TemporalExplorerWindow {
         vbox
     }
 
-    // ── File preview — connects read_file() to the UI ─────────────────────────
+    // ── File preview ──────────────────────────────────────────────────────────
 
     fn open_file_preview(&self, path: &std::path::Path, hash: &str) {
         let imp = self.imp();
@@ -859,13 +840,12 @@ impl TemporalExplorerWindow {
         file_preview::show_file_preview(self, repo, hash, path);
     }
 
-    // ── Address bar (NautilusPathBar-style) ────────────────────────────────
+    // ── Address bar ────────────────────────────────────────────────────────
 
     fn update_address_bar(&self, dir: &PathBuf) {
         let imp = self.imp();
         let bar = &imp.address_bar;
 
-        // FIX: use child.unparent() to avoid borrow conflict with bar
         while let Some(child) = bar.first_child() { child.unparent(); }
 
         let repo_name = imp.repo_name.borrow().clone();
@@ -929,7 +909,6 @@ impl TemporalExplorerWindow {
     fn show_empty_state(&self) {
         let imp = self.imp();
         imp.toolbar_switcher.set_visible_child_name("pathbar");
-        // FIX: use child.unparent() to avoid borrow conflict
         while let Some(child) = imp.address_bar.first_child() { child.unparent(); }
         imp.window_title.set_visible(true);
         imp.nav_back_button.set_sensitive(false);
@@ -939,7 +918,6 @@ impl TemporalExplorerWindow {
 
     fn replace_right_panel(&self, widget: gtk::Widget) {
         let tv = &self.imp().content_toolbar_view;
-        // FIX: explicitly detach previous widget before setting new content
         tv.set_content(gtk::Widget::NONE);
         tv.set_content(Some(&widget));
     }

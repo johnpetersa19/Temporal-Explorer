@@ -25,14 +25,11 @@
 //! keep the main window module focused on layout and wiring.
 
 use gettextrs::gettext;
+use gtk::glib;
 use gtk::prelude::*;
 use crate::git_engine::CommitInfo;
 
 /// Builds a [`gtk::ListBoxRow`] that represents a single commit entry.
-///
-/// The row contains:
-/// - A summary label (first line of the commit message).
-/// - A meta label with the abbreviated hash and author name.
 pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
     let vbox = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
@@ -72,10 +69,6 @@ pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
 /// PERF: Rows are inserted in idle callbacks batched at `BATCH_SIZE`
 /// entries per frame so the GTK main loop stays responsive even when
 /// rebuilding the sidebar with 10k+ filtered results.
-///
-/// For very large commit lists (100k+) consider switching to
-/// `GtkListView` with a `GtkFilterListModel` + `GtkSortListModel`
-/// to get O(1) row recycling.
 pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     // Remove all existing rows first.
     while let Some(child) = list_box.first_child() {
@@ -86,8 +79,6 @@ pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
         return;
     }
 
-    // Insert rows in idle batches so each frame costs at most BATCH_SIZE
-    // widget creations.  This keeps scrolling and input responsive.
     const BATCH_SIZE: usize = 500;
 
     // Fast path: small lists fit in a single synchronous pass.
@@ -109,10 +100,9 @@ pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
 /// Schedules one idle callback that inserts up to `BATCH_SIZE` rows,
 /// then re-schedules itself if more rows remain.
 fn schedule_batch(
-    list_weak: glib::WeakRef<gtk::ListBox>,
+    list_weak: glib::object::WeakRef<gtk::ListBox>,
     remaining: std::rc::Rc<std::cell::RefCell<Vec<CommitInfo>>>,
 ) {
-    use gtk::glib;
     const BATCH_SIZE: usize = 500;
 
     glib::idle_add_local_once(move || {
@@ -130,9 +120,7 @@ fn schedule_batch(
     });
 }
 
-/// Appends a batch of new commits to `list_box` WITHOUT clearing existing
-/// rows.  Use this when streaming pages from `list_commits_paginated` so
-/// the first page is visible while later pages are still loading.
+/// Appends a batch of new commits to `list_box` WITHOUT clearing existing rows.
 pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     for commit in commits {
         list_box.append(&build_commit_row(commit));
@@ -141,8 +129,6 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
 
 /// Filters `commits` by `query` (case-insensitive match on summary, hash
 /// prefix, or author).
-///
-/// Returns the full slice unchanged when `query` is empty.
 pub fn filter_commits<'a>(commits: &'a [CommitInfo], query: &str) -> Vec<&'a CommitInfo> {
     if query.is_empty() {
         return commits.iter().collect();
@@ -163,7 +149,6 @@ pub fn item_count_subtitle(n: usize) -> String {
     if n == 1 {
         gettext("1 item")
     } else {
-        // translators: {n} is the number of items
         format!("{n} {}", gettext("items"))
     }
 }
