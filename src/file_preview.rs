@@ -38,12 +38,6 @@ use crate::git_engine::SnapshotMaterializer;
 const MAX_PREVIEW_BYTES: usize = 64 * 1024;
 
 /// Shows a modal dialog previewing the content of `file_path` at `revision`.
-///
-/// # Arguments
-/// * `parent`    – the transient parent window for the dialog.
-/// * `repo`      – the open git2 repository.
-/// * `revision`  – any git revision string (hash, branch, tag, `HEAD~n`, …).
-/// * `file_path` – repository-relative path to the file.
 pub fn show_file_preview(
     parent: &impl IsA<gtk::Window>,
     repo: &git2::Repository,
@@ -70,12 +64,8 @@ pub fn show_file_preview(
 
             let preview_bytes = &bytes[..bytes.len().min(MAX_PREVIEW_BYTES)];
 
-            // Heuristic binary detection: presence of null bytes.
             if preview_bytes.contains(&0u8) {
-                (
-                    name,
-                    gettext("Binary file — preview not available."),
-                )
+                (name, gettext("Binary file — preview not available."))
             } else {
                 let mut text = String::from_utf8_lossy(preview_bytes).into_owned();
                 if bytes.len() > MAX_PREVIEW_BYTES {
@@ -95,7 +85,6 @@ pub fn show_file_preview(
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-/// Creates and presents the Adwaita preview dialog.
 fn build_preview_dialog(
     parent: &impl IsA<gtk::Window>,
     title: &str,
@@ -103,58 +92,7 @@ fn build_preview_dialog(
     revision: &str,
     file_path: &Path,
 ) {
-    let dialog = adw::Window::builder()
-        .title(title)
-        .transient_for(parent)
-        .modal(true)
-        .default_width(760)
-        .default_height(540)
-        .build();
-
-    let toolbar_view = adw::ToolbarView::new();
-
-    // ── Header bar ────────────────────────────────────────────────────────
-    let header = adw::HeaderBar::new();
-    let win_title = adw::WindowTitle::builder()
-        .title(title)
-        .subtitle(&format!(
-            "{}…",
-            &revision[..revision.len().min(12)]
-        ))
-        .build();
-    header.set_title_widget(Some(&win_title));
-
-    // Copy-to-clipboard button
-    let copy_btn = gtk::Button::builder()
-        .icon_name("edit-copy-symbolic")
-        .tooltip_text(gettext("Copy content"))
-        .build();
-    copy_btn.add_css_class("flat");
-    let text_clone = body_text.to_owned();
-    copy_btn.connect_clicked(move |btn| {
-        if let Some(display) = gtk::gdk::Display::default() {
-            display.clipboard().set_text(&text_clone);
-            btn.set_icon_name("object-select-symbolic");
-            // Reset icon after 2 s
-            let btn_weak = btn.downgrade();
-            glib::timeout_add_seconds_local(2, move || {
-                if let Some(b) = btn_weak.upgrade() {
-                    b.set_icon_name("edit-copy-symbolic");
-                }
-                glib::ControlFlow::Break
-            });
-        }
-    });
-    header.pack_end(&copy_btn);
-
-    toolbar_view.add_top_bar(&header);
-
-    // ── Scrollable text view ──────────────────────────────────────────────
-    let scrolled = gtk::ScrolledWindow::builder()
-        .vexpand(true)
-        .hexpand(true)
-        .build();
-
+    // 1. Build all leaf widgets first (no parents yet)
     let text_view = gtk::TextView::builder()
         .editable(false)
         .cursor_visible(false)
@@ -167,11 +105,41 @@ fn build_preview_dialog(
         .build();
     text_view.buffer().set_text(body_text);
 
-    scrolled.set_child(Some(&text_view));
-    toolbar_view.set_content(Some(&scrolled));
+    let scrolled = gtk::ScrolledWindow::builder()
+        .vexpand(true)
+        .hexpand(true)
+        .child(&text_view)
+        .build();
 
-    // ── Status bar ────────────────────────────────────────────────────────
-    let action_bar = gtk::ActionBar::new();
+    let copy_btn = gtk::Button::builder()
+        .icon_name("edit-copy-symbolic")
+        .tooltip_text(gettext("Copy content"))
+        .build();
+    copy_btn.add_css_class("flat");
+    let text_clone = body_text.to_owned();
+    copy_btn.connect_clicked(move |btn| {
+        if let Some(display) = gtk::gdk::Display::default() {
+            display.clipboard().set_text(&text_clone);
+            btn.set_icon_name("object-select-symbolic");
+            let btn_weak = btn.downgrade();
+            glib::timeout_add_seconds_local(2, move || {
+                if let Some(b) = btn_weak.upgrade() {
+                    b.set_icon_name("edit-copy-symbolic");
+                }
+                glib::ControlFlow::Break
+            });
+        }
+    });
+
+    let win_title = adw::WindowTitle::builder()
+        .title(title)
+        .subtitle(&format!("{}…", &revision[..revision.len().min(12)]))
+        .build();
+
+    let header = adw::HeaderBar::new();
+    header.set_title_widget(Some(&win_title));
+    header.pack_end(&copy_btn);
+
     let path_label = gtk::Label::builder()
         .label(file_path.to_string_lossy().as_ref())
         .selectable(true)
@@ -179,14 +147,31 @@ fn build_preview_dialog(
         .build();
     path_label.add_css_class("caption");
     path_label.add_css_class("dim-label");
+
+    let action_bar = gtk::ActionBar::new();
     action_bar.pack_start(&path_label);
+
+    // 2. Assemble ToolbarView — set content BEFORE adding top/bottom bars
+    //    so that `scrolled` has no parent when passed to set_content.
+    let toolbar_view = adw::ToolbarView::builder()
+        .content(&scrolled)
+        .build();
+    toolbar_view.add_top_bar(&header);
     toolbar_view.add_bottom_bar(&action_bar);
 
-    dialog.set_content(Some(&toolbar_view));
+    // 3. Set the fully-assembled toolbar_view as the dialog content
+    let dialog = adw::Window::builder()
+        .title(title)
+        .transient_for(parent)
+        .modal(true)
+        .default_width(760)
+        .default_height(540)
+        .content(&toolbar_view)
+        .build();
+
     dialog.present();
 }
 
-/// Formats a byte count as a human-readable string (KiB / MiB).
 fn format_size(bytes: usize) -> String {
     if bytes >= 1024 * 1024 {
         format!("{:.1} MiB", bytes as f64 / (1024.0 * 1024.0))

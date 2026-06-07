@@ -146,12 +146,10 @@ impl TemporalExplorerWindow {
 
     fn setup_styles(&self) {
         let provider = gtk::CssProvider::new();
+        // Note: GTK CSS does not support the `gap` property on GtkBox.
+        // Spacing on Box widgets is set via the `spacing` property in code.
+        // Only valid GTK CSS properties are used here.
         provider.load_from_string("
-            /* ── Toolbar box: use gap instead of the invalid 'spacing' property ─ */
-            .header-toolbar-box {
-                gap: 6px;
-            }
-
             /* ── Path bar pill container ─────────────────────────────── */
             .nautilus-pathbar {
                 background-color: color-mix(in srgb, currentColor 8%, transparent);
