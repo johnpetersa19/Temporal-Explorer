@@ -30,7 +30,6 @@
 use gettextrs::gettext;
 use gtk::prelude::*;
 use gtk::glib;
-use adw::prelude::AdwWindowExt;
 use std::path::Path;
 use crate::git_engine::SnapshotMaterializer;
 
@@ -151,8 +150,8 @@ fn build_preview_dialog(
     let action_bar = gtk::ActionBar::new();
     action_bar.pack_start(&path_label);
 
-    // 2. Assemble ToolbarView — set content BEFORE adding top/bottom bars
-    //    so that `scrolled` has no parent when passed to set_content.
+    // 2. Assemble ToolbarView — content set via builder so `scrolled` has no
+    //    parent yet when passed in, avoiding the gtk_widget_get_parent assertion.
     let toolbar_view = adw::ToolbarView::builder()
         .content(&scrolled)
         .build();
