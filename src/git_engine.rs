@@ -27,8 +27,10 @@
 //! - [`SnapshotResolver`]     – resolves a commit hash into a full tree.
 //! - [`SnapshotMaterializer`] – converts the resolved tree into [`TreeNode`]s.
 //! - [`TreeNode`]             – a single file or directory in a materialized snapshot.
+//! - [`DirCache`]             – LRU cache of (hash, dir) → Vec<TreeNode>.
 
 use git2::{ObjectType, Repository};
+use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 
 // ── CommitInfo ────────────────────────────────────────────────────────────────
@@ -136,6 +138,10 @@ impl HistoryReader {
     }
 
     /// Filters commits whose summary contains `query` (case-insensitive).
+    ///
+    /// PERF: This is a pure in-memory scan over already-loaded commits.
+    /// Call it from a background thread for large repos; see
+    /// `window::on_search_changed` for the non-blocking pattern.
     pub fn search_commits(&self, query: &str) -> Result<Vec<CommitInfo>, git2::Error> {
         let q = query.to_lowercase();
         Ok(self
@@ -168,6 +174,71 @@ impl TreeNode {
     /// Returns `true` if this node is a directory.
     pub fn is_dir(&self) -> bool {
         matches!(self, TreeNode::Dir(_))
+    }
+}
+
+// ── DirCache ──────────────────────────────────────────────────────────────────
+
+/// Simple LRU cache for directory listings keyed by `(commit_hash, dir_path)`.
+///
+/// Avoids redundant `resolve_dir` calls when the user navigates back and
+/// forth between directories or switches commits that share the same subtree.
+///
+/// Capacity is fixed at `MAX_ENTRIES`.  When full, the least-recently-used
+/// entry is evicted.  A `VecDeque` is used so eviction is O(1).
+pub struct DirCache {
+    /// Maximum number of cached entries.
+    const MAX_ENTRIES: usize = 32;
+    entries: VecDeque<((String, PathBuf), Vec<TreeNode>)>,
+}
+
+impl DirCache {
+    /// Creates a new, empty cache.
+    pub fn new() -> Self {
+        Self {
+            entries: VecDeque::with_capacity(Self::MAX_ENTRIES),
+        }
+    }
+
+    /// Looks up `(hash, dir)`.  On a hit the entry is moved to the front
+    /// (most-recently-used position) and a clone of the nodes is returned.
+    pub fn get(&mut self, hash: &str, dir: &Path) -> Option<Vec<TreeNode>> {
+        let pos = self
+            .entries
+            .iter()
+            .position(|((h, d), _)| h == hash && d == dir)?;
+        let entry = self.entries.remove(pos).unwrap();
+        let nodes = entry.1.clone();
+        self.entries.push_front(entry);
+        Some(nodes)
+    }
+
+    /// Inserts or replaces the entry for `(hash, dir)`.  Evicts the LRU entry
+    /// when the cache is at capacity.
+    pub fn insert(&mut self, hash: String, dir: PathBuf, nodes: Vec<TreeNode>) {
+        // Evict existing entry for the same key to avoid duplicates.
+        if let Some(pos) = self
+            .entries
+            .iter()
+            .position(|((h, d), _)| *h == hash && *d == dir)
+        {
+            self.entries.remove(pos);
+        }
+        if self.entries.len() >= Self::MAX_ENTRIES {
+            self.entries.pop_back(); // evict LRU
+        }
+        self.entries.push_front(((hash, dir), nodes));
+    }
+
+    /// Drops all cached entries.  Call when a new repository is opened.
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
+}
+
+impl Default for DirCache {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -225,14 +296,30 @@ impl<'repo> SnapshotResolver<'repo> {
         Ok(nodes)
     }
 
-    /// Legacy full-tree walk.  Kept for compatibility; prefer `resolve_dir`
-    /// for interactive browsing as it is O(directory size) instead of O(repo size).
+    /// Legacy full-tree walk.  **Capped at `MAX_FULL_TREE_ENTRIES` entries**
+    /// to prevent freezing on large monorepos (e.g. the Linux kernel has
+    /// >70 000 files per commit).  Returns `Err` if the cap is exceeded so
+    /// callers can fall back to `resolve_dir` for interactive browsing.
+    ///
+    /// Prefer `resolve_dir` for all interactive use; reserve this for
+    /// explicit full-tree search operations.
     pub fn resolve_tree(&self, revision: &str) -> Result<Vec<TreeNode>, git2::Error> {
+        const MAX_FULL_TREE_ENTRIES: usize = 8_000;
+
         let obj = self.repo.revparse_single(revision)?;
         let commit = obj.peel_to_commit()?;
         let tree = commit.tree()?;
         let materializer = SnapshotMaterializer::new(self.repo);
-        materializer.materialize(&tree, PathBuf::new())
+        let nodes = materializer.materialize(&tree, PathBuf::new())?;
+        if nodes.len() > MAX_FULL_TREE_ENTRIES {
+            return Err(git2::Error::from_str(&format!(
+                "Tree too large for full walk ({} entries, limit {}). \
+                 Use resolve_dir for interactive browsing.",
+                nodes.len(),
+                MAX_FULL_TREE_ENTRIES
+            )));
+        }
+        Ok(nodes)
     }
 }
 

@@ -69,19 +69,65 @@ pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
 ///
 /// All existing children are removed before inserting new rows.
 ///
-/// PERF: For very large commit lists (10k+) consider switching to
+/// PERF: Rows are inserted in idle callbacks batched at `BATCH_SIZE`
+/// entries per frame so the GTK main loop stays responsive even when
+/// rebuilding the sidebar with 10k+ filtered results.
+///
+/// For very large commit lists (100k+) consider switching to
 /// `GtkListView` with a `GtkFilterListModel` + `GtkSortListModel`
-/// to get O(1) row recycling. This `ListBox` approach creates one
-/// widget per commit and is best kept below ~5 000 entries by
-/// limiting `commits` with `list_commits_paginated`.
+/// to get O(1) row recycling.
 pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
-    // FIX: use child.unparent() to avoid borrow conflict with list_box
+    // Remove all existing rows first.
     while let Some(child) = list_box.first_child() {
         child.unparent();
     }
-    for commit in commits {
-        list_box.append(&build_commit_row(commit));
+
+    if commits.is_empty() {
+        return;
     }
+
+    // Insert rows in idle batches so each frame costs at most BATCH_SIZE
+    // widget creations.  This keeps scrolling and input responsive.
+    const BATCH_SIZE: usize = 500;
+
+    // Fast path: small lists fit in a single synchronous pass.
+    if commits.len() <= BATCH_SIZE {
+        for commit in commits {
+            list_box.append(&build_commit_row(commit));
+        }
+        return;
+    }
+
+    // Large lists: schedule batches over multiple idle iterations.
+    let owned: Vec<CommitInfo> = commits.to_vec();
+    let list_weak = list_box.downgrade();
+    let remaining = std::rc::Rc::new(std::cell::RefCell::new(owned));
+
+    schedule_batch(list_weak, remaining);
+}
+
+/// Schedules one idle callback that inserts up to `BATCH_SIZE` rows,
+/// then re-schedules itself if more rows remain.
+fn schedule_batch(
+    list_weak: glib::WeakRef<gtk::ListBox>,
+    remaining: std::rc::Rc<std::cell::RefCell<Vec<CommitInfo>>>,
+) {
+    use gtk::glib;
+    const BATCH_SIZE: usize = 500;
+
+    glib::idle_add_local_once(move || {
+        let Some(list_box) = list_weak.upgrade() else { return };
+        let mut rem = remaining.borrow_mut();
+        let end = BATCH_SIZE.min(rem.len());
+        for commit in rem.drain(..end) {
+            list_box.append(&build_commit_row(&commit));
+        }
+        let still_pending = !rem.is_empty();
+        drop(rem);
+        if still_pending {
+            schedule_batch(list_weak, remaining.clone());
+        }
+    });
 }
 
 /// Appends a batch of new commits to `list_box` WITHOUT clearing existing

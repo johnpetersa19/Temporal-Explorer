@@ -26,8 +26,9 @@ use glib::object::ObjectExt;
 use gettextrs::gettext;
 use std::cell::RefCell;
 use std::path::PathBuf;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
-use crate::git_engine::{CommitInfo, HistoryReader, SnapshotResolver, TreeNode};
+use crate::git_engine::{CommitInfo, DirCache, HistoryReader, SnapshotResolver, TreeNode};
 use crate::commit_controller;
 use crate::file_preview;
 
@@ -102,8 +103,17 @@ mod imp {
         pub view_mode:        RefCell<ViewMode>,
         pub repo_name:        RefCell<String>,
 
+        // PERF: LRU cache for (hash, dir) → Vec<TreeNode> to avoid
+        // redundant git2 lookups on back/forward navigation.
+        pub dir_cache:        RefCell<DirCache>,
+
         // PERF: search debounce timer handle
         pub search_debounce:  RefCell<Option<glib::SourceId>>,
+
+        // PERF: cancellation token for the in-flight search background task.
+        // When the user types faster than the search completes, the old task
+        // is cancelled before the new one starts.
+        pub search_cancel:    RefCell<Option<Arc<AtomicBool>>>,
     }
 
     #[glib::object_subclass]
@@ -418,6 +428,8 @@ impl TemporalExplorerWindow {
                 imp.history_forward.borrow_mut().clear();
                 imp.nav_back_button.set_sensitive(false);
                 imp.nav_forward_button.set_sensitive(false);
+                // Clear the snapshot cache when loading a new repo.
+                imp.dir_cache.borrow_mut().clear();
                 // Clear the list before streaming.
                 commit_controller::populate_commit_list(&imp.commit_list, &[]);
                 imp.commit_info_bar.set_revealed(false);
@@ -469,25 +481,72 @@ impl TemporalExplorerWindow {
         commit_controller::populate_commit_list(&self.imp().commit_list, commits);
     }
 
-    // ── Search — delegates to commit_controller ───────────────────────────────
+    // ── Search — off-thread filtering with per-query cancellation ─────────────
+    //
+    // Strategy:
+    //   1. Each new search cancels any in-flight task by flipping a shared
+    //      AtomicBool cancellation flag to `true`.
+    //   2. A new background thread is spawned to filter `all_commits`.
+    //   3. Results are sent back to the GTK main loop via a one-shot channel.
+    //   4. If the task sees the flag is `true` before it finishes, it exits
+    //      early and the results are discarded.
+    //
+    // This keeps the GTK main loop completely unblocked regardless of corpus
+    // size.
 
     fn on_search_changed(&self, query: &str) {
         let imp = self.imp();
         { let last = imp.last_query.borrow(); if *last == query { return; } }
         *imp.last_query.borrow_mut() = query.to_owned();
-        let all = imp.all_commits.borrow();
-        if query.is_empty() {
-            let owned: Vec<CommitInfo> = all.iter().cloned().collect();
-            drop(all);
-            self.populate_commit_list(&owned);
+
+        // Cancel any in-flight search.
+        if let Some(old_cancel) = imp.search_cancel.borrow().as_ref() {
+            old_cancel.store(true, Ordering::Relaxed);
+        }
+
+        let cancel = Arc::new(AtomicBool::new(false));
+        *imp.search_cancel.borrow_mut() = Some(Arc::clone(&cancel));
+
+        let all: Vec<CommitInfo> = imp.all_commits.borrow().clone();
+        let query_owned = query.to_owned();
+
+        // Fast-path: empty query — no thread needed, just repopulate.
+        if query_owned.is_empty() {
+            self.populate_commit_list(&all);
             return;
         }
-        let filtered: Vec<CommitInfo> = commit_controller::filter_commits(&all, query)
-            .into_iter()
-            .cloned()
-            .collect();
-        drop(all);
-        self.populate_commit_list(&filtered);
+
+        let (sender, receiver) =
+            glib::MainContext::channel::<Vec<CommitInfo>>(glib::Priority::DEFAULT);
+
+        std::thread::spawn(move || {
+            let q = query_owned.to_lowercase();
+            let mut results = Vec::new();
+            for commit in &all {
+                // Check cancellation every iteration to exit fast when
+                // the user has already typed another character.
+                if cancel.load(Ordering::Relaxed) { return; }
+                if commit.summary.to_lowercase().contains(&q)
+                    || commit.hash.starts_with(&query_owned)
+                    || commit.author.to_lowercase().contains(&q)
+                {
+                    results.push(commit.clone());
+                }
+            }
+            let _ = sender.send(results);
+        });
+
+        receiver.attach(
+            None,
+            glib::clone!(
+                #[weak(rename_to = w)] self,
+                #[upgrade_or] glib::ControlFlow::Break,
+                move |results| {
+                    w.populate_commit_list(&results);
+                    glib::ControlFlow::Break
+                }
+            ),
+        );
     }
 
     // ── Commit selected ───────────────────────────────────────────────────────
@@ -565,26 +624,42 @@ impl TemporalExplorerWindow {
 
     fn browse_dir_inner(&self, hash: &str, dir: &PathBuf) {
         let imp = self.imp();
-        let repo_ref = imp.repository.borrow();
-        let repo = match repo_ref.as_ref() {
-            Some(r) => r,
-            None => { self.show_error_toast(&gettext("No repository open.")); return; }
-        };
 
-        // PERF: use resolve_dir (O(dir size)) instead of resolve_tree (O(repo size))
-        // This avoids walking the full tree on every directory navigation.
-        let resolver = SnapshotResolver::new(repo);
-        let children = match resolver.resolve_dir(hash, dir.as_path()) {
-            Ok(n) => n,
-            Err(e) => {
-                self.show_error_toast(&format!("{}: {e}", gettext("Cannot resolve snapshot")));
-                return;
+        // PERF: check LRU cache before hitting git2.
+        let cached = imp.dir_cache.borrow_mut().get(hash, dir.as_path());
+        let mut children = if let Some(nodes) = cached {
+            nodes
+        } else {
+            let repo_ref = imp.repository.borrow();
+            let repo = match repo_ref.as_ref() {
+                Some(r) => r,
+                None => { self.show_error_toast(&gettext("No repository open.")); return; }
+            };
+
+            // PERF: use resolve_dir (O(dir size)) instead of resolve_tree
+            // (O(repo size)).  This avoids walking the full tree on every
+            // directory navigation in large monorepos.
+            let resolver = SnapshotResolver::new(repo);
+            match resolver.resolve_dir(hash, dir.as_path()) {
+                Ok(n) => {
+                    drop(repo_ref);
+                    // Store in cache for fast back/forward navigation.
+                    imp.dir_cache.borrow_mut().insert(
+                        hash.to_owned(),
+                        dir.clone(),
+                        n.clone(),
+                    );
+                    n
+                }
+                Err(e) => {
+                    drop(repo_ref);
+                    self.show_error_toast(&format!("{}: {e}", gettext("Cannot resolve snapshot")));
+                    return;
+                }
             }
         };
-        drop(repo_ref);
 
         // Sort: dirs first, then files, both alphabetically.
-        let mut children = children;
         let name = |n: &TreeNode| n.path().file_name().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
         children.sort_by(|a, b| {
             match (a.is_dir(), b.is_dir()) {
