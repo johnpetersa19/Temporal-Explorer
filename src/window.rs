@@ -103,7 +103,7 @@ mod imp {
         pub view_mode:        RefCell<ViewMode>,
         pub repo_name:        RefCell<String>,
 
-        // PERF: LRU cache for (hash, dir) → Vec<TreeNode>.
+        // PERF: LRU cache for (hash, dir) → Arc<Vec<TreeNode>>.
         pub dir_cache:        RefCell<DirCache>,
 
         // PERF: search debounce timer handle.
@@ -611,9 +611,10 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
 
         // PERF: check LRU cache before hitting git2.
-        let cached = imp.dir_cache.borrow_mut().get(hash, dir.as_path());
-        let mut children = if let Some(nodes) = cached {
-            nodes
+        // DirCache::get returns Arc<Vec<TreeNode>>; deref to get a plain Vec
+        // so the type matches the else-branch below.
+        let mut children: Vec<TreeNode> = if let Some(arc) = imp.dir_cache.borrow_mut().get(hash, dir.as_path()) {
+            (*arc).clone()
         } else {
             let repo_ref = imp.repository.borrow();
             let repo = match repo_ref.as_ref() {
