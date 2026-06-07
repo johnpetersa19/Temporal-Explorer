@@ -283,9 +283,6 @@ impl TemporalExplorerWindow {
         ));
 
         // Escape in location entry → cancel.
-        // glib::clone! cannot be used here: connect_key_pressed requires a
-        // closure returning glib::Propagation, but glib::clone! always wraps
-        // the body in a void outer closure, causing E0069. Use manual downgrade.
         let key_ctrl = gtk::EventControllerKey::new();
         let weak_self = self.downgrade();
         key_ctrl.connect_key_pressed(move |_, key, _, _| {
@@ -418,10 +415,6 @@ impl TemporalExplorerWindow {
 
     fn populate_commit_list(&self, commits: &[CommitInfo]) {
         commit_controller::populate_commit_list(&self.imp().commit_list, commits);
-    }
-
-    fn build_commit_row(&self, commit: &CommitInfo) -> gtk::ListBoxRow {
-        commit_controller::build_commit_row(commit)
     }
 
     // ── Search — delegates to commit_controller ───────────────────────────────
@@ -583,7 +576,6 @@ impl TemporalExplorerWindow {
                     if node.is_dir() {
                         window.enter_dir(node.path().to_path_buf());
                     } else {
-                        // Wire read_file() to the UI: open file preview dialog.
                         window.open_file_preview(node.path(), &hash_clone);
                     }
                 }
@@ -674,7 +666,6 @@ impl TemporalExplorerWindow {
                     if node.is_dir() {
                         window.enter_dir(node.path().to_path_buf());
                     } else {
-                        // Wire read_file() to the UI: open file preview dialog.
                         window.open_file_preview(node.path(), &hash_clone);
                     }
                 }
