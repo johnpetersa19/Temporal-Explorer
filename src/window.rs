@@ -611,10 +611,19 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
 
         // PERF: check LRU cache before hitting git2.
-        // DirCache::get returns Arc<Vec<TreeNode>>; deref to get a plain Vec
-        // so the type matches the else-branch below.
-        let mut children: Vec<TreeNode> = if let Some(arc) = imp.dir_cache.borrow_mut().get(hash, dir.as_path()) {
-            (*arc).clone()
+        // Extract the cached Arc (if any) and immediately drop the borrow so
+        // the RefCell is free for the insert() call in the else-branch below.
+        // Keeping the borrow_mut() live across the whole if/else would cause a
+        // "RefCell already borrowed" panic when the else-branch tries to
+        // borrow_mut() again for insert().
+        let cached: Option<Vec<TreeNode>> = imp
+            .dir_cache
+            .borrow_mut()
+            .get(hash, dir.as_path())
+            .map(|arc| (*arc).clone());
+
+        let mut children: Vec<TreeNode> = if let Some(nodes) = cached {
+            nodes
         } else {
             let repo_ref = imp.repository.borrow();
             let repo = match repo_ref.as_ref() {
@@ -626,6 +635,8 @@ impl TemporalExplorerWindow {
             match resolver.resolve_dir(hash, dir.as_path()) {
                 Ok(n) => {
                     drop(repo_ref);
+                    // borrow_mut() is safe here: the cache borrow from above
+                    // was already dropped before this point.
                     imp.dir_cache.borrow_mut().insert(
                         hash.to_owned(),
                         dir.clone(),
