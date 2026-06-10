@@ -32,6 +32,17 @@
 //! | Commit list / search        | [`crate::commit_controller`]  |
 //! | File content preview dialog | [`crate::file_preview`]       |
 //! | Git history / tree reads    | [`crate::git_engine`]         |
+//!
+//! ## Search scope limitation
+//!
+//! The search (`on_search_changed`) filters the `all_commits` in-memory
+//! cache.  Commits that have not yet been received from the background
+//! pagination thread will not appear in search results.
+//!
+//! **Mitigation implemented here:** the `commit_search_entry` is set
+//! insensitive (greyed-out) while `loading_commits` is `true`.  It is
+//! re-enabled only after the background thread finishes delivering all
+//! pages, ensuring that every search is always a complete search.
 
 use adw::prelude::AdwApplicationWindowExt;
 use adw::subclass::prelude::*;
@@ -39,7 +50,7 @@ use gtk::{gio, glib};
 use gtk::prelude::*;
 use glib::object::ObjectExt;
 use gettextrs::gettext;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
@@ -119,6 +130,13 @@ mod imp {
         pub history_forward:  RefCell<Vec<PathBuf>>,
         pub view_mode:        RefCell<ViewMode>,
         pub repo_name:        RefCell<String>,
+
+        // SEARCH: tracks whether the background pagination thread is still
+        // running.  While `true` the `commit_search_entry` is kept
+        // insensitive so the user cannot search an incomplete dataset.
+        // Set to `true` in `load_repository`, reset to `false` in the idle
+        // loop once the channel is `Disconnected`.
+        pub loading_commits:  Cell<bool>,
 
         // PERF: LRU cache for (hash, dir) → Arc<Vec<TreeNode>>.
         pub dir_cache:        RefCell<DirCache>,
@@ -438,6 +456,15 @@ impl TemporalExplorerWindow {
                 imp.commit_info_bar.set_revealed(false);
                 self.show_empty_state();
 
+                // SEARCH: disable the search entry while commits are being
+                // loaded so the user cannot search an incomplete dataset.
+                // The tooltip explains the temporary restriction.
+                imp.loading_commits.set(true);
+                imp.commit_search_entry.set_sensitive(false);
+                imp.commit_search_entry.set_tooltip_text(Some(
+                    &gettext("Search will be available once all commits are loaded"),
+                ));
+
                 // PERF: load commits in a background thread via std::sync::mpsc
                 // (glib::MainContext::channel was removed in glib 0.20).
                 // Pages are forwarded to the GTK main loop using
@@ -477,6 +504,18 @@ impl TemporalExplorerWindow {
                         }
                         Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                             // Sender dropped: background thread finished.
+                            // SEARCH: all commits are now in memory — re-enable
+                            // the search entry and clear the loading tooltip.
+                            if let Some(w) = weak_self.upgrade() {
+                                let imp = w.imp();
+                                imp.loading_commits.set(false);
+                                imp.commit_search_entry.set_sensitive(true);
+                                imp.commit_search_entry.set_tooltip_text(None);
+                                let count = imp.all_commits.borrow().len();
+                                imp.window_title.set_subtitle(
+                                    &format!("{} {}", count, gettext("commits"))
+                                );
+                            }
                             glib::ControlFlow::Break
                         }
                     }
@@ -492,9 +531,28 @@ impl TemporalExplorerWindow {
     }
 
     // ── Search — off-thread filtering with per-query cancellation ─────────────
+    //
+    // NOTE — search scope limitation:
+    // This function filters `all_commits`, which is the in-memory cache built
+    // incrementally by the background pagination thread.  Commits that have
+    // not yet arrived will not appear in search results.
+    //
+    // This is NOT a practical concern during normal use because
+    // `commit_search_entry` is kept insensitive while `loading_commits` is
+    // `true` (see `load_repository`).  The guard-clause below is a
+    // belt-and-suspenders safety net for any code path that could call
+    // `on_search_changed` before loading finishes (e.g. a future keyboard
+    // shortcut or programmatic trigger).
 
     fn on_search_changed(&self, query: &str) {
         let imp = self.imp();
+
+        // SEARCH: belt-and-suspenders guard — do nothing while commits are
+        // still loading so we never surface incomplete results.
+        if imp.loading_commits.get() {
+            return;
+        }
+
         { let last = imp.last_query.borrow(); if *last == query { return; } }
         *imp.last_query.borrow_mut() = query.to_owned();
 
