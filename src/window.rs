@@ -77,10 +77,10 @@ pub enum ViewMode { #[default] List, Grid }
 
 /// Which page of the sidebar `timeline_stack` is currently visible.
 ///
-/// Visibility is `pub(crate)` so the `imp` submodule can name the type
-/// in its `pub` field without triggering the `private_interfaces` lint.
+/// Declared `pub` so the `pub` field in `imp::TemporalExplorerWindow`
+/// does not trigger the `private_interfaces` lint.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub(crate) enum TimelineLevel {
+pub enum TimelineLevel {
     /// Top level: list of years.
     #[default]
     Years,
