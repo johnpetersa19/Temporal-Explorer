@@ -45,43 +45,23 @@ use gettextrs::gettext;
 use gtk::glib;
 use gtk::prelude::*;
 use crate::git_engine::CommitInfo;
+use crate::timeline_filter;
 
 // ── Tuning constants ─────────────────────────────────────────────────────────
 
 /// Rows inserted per idle frame during a **full list rebuild**.
-///
-/// 150 rows × ~45 µs/row (widget construction + layout) ≈ 6.75 ms —
-/// just under the 6.9 ms budget for a 144 Hz display.
-/// Increase to 200 on 60 Hz displays if you want faster initial fill;
-/// decrease to 80 if construction cost is higher (complex themes).
 const POPULATE_BATCH: usize = 150;
 
 /// Rows inserted per idle frame during **live background appending**.
-///
-/// Smaller than `POPULATE_BATCH` because the list is already visible
-/// while streaming, so any per-frame spike is immediately noticeable.
 const APPEND_BATCH: usize = 100;
 
 /// Maximum number of widget rows [`populate_commit_list`] will render.
-///
-/// `gtk::ListBox` allocates a live widget for every child regardless of
-/// scroll position.  Beyond ~5 000 rows the memory overhead and layout
-/// cost become significant.  When the list is truncated a hint row is
-/// appended instructing the user to search.
-///
-/// The full `all_commits` dataset in `window.rs` is **never** truncated;
-/// only the sidebar widget count is capped.
 const MAX_RENDERED_ROWS: usize = 5_000;
 
 /// Hard cap on the total number of widget rows during live appending.
-///
-/// Prevents unbounded widget growth on repositories with tens of thousands
-/// of commits (e.g. the Linux kernel).  Appending stops silently once the
-/// `gtk::ListBox` child count reaches this value; search still works on the
-/// complete in-memory dataset.
 const HARD_APPEND_CAP: usize = 15_000;
 
-// ── Row builder ─────────────────────────────────────────────────────────────
+// ── Row builders ─────────────────────────────────────────────────────────────
 
 /// Builds a [`gtk::ListBoxRow`] that represents a single commit entry.
 pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
@@ -116,6 +96,90 @@ pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
         .build()
 }
 
+/// Builds a row representing a **year** in the timeline drill-down.
+///
+/// `name` is set to the year as a decimal string so the selection handler
+/// can read it back with `row.widget_name()`.
+pub fn build_year_row(year: i32, count: usize) -> gtk::ListBoxRow {
+    let hbox = gtk::Box::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .spacing(0)
+        .margin_top(8)
+        .margin_bottom(8)
+        .margin_start(16)
+        .margin_end(12)
+        .build();
+
+    let label = gtk::Label::builder()
+        .label(&year.to_string())
+        .xalign(0.0)
+        .hexpand(true)
+        .build();
+    label.add_css_class("heading");
+
+    let badge = gtk::Label::builder()
+        .label(&count.to_string())
+        .xalign(1.0)
+        .build();
+    badge.add_css_class("caption");
+    badge.add_css_class("dim-label");
+
+    let chevron = gtk::Image::from_icon_name("go-next-symbolic");
+    chevron.set_pixel_size(12);
+    chevron.set_margin_start(4);
+    chevron.add_css_class("dim-label");
+
+    hbox.append(&label);
+    hbox.append(&badge);
+    hbox.append(&chevron);
+
+    gtk::ListBoxRow::builder()
+        .name(&year.to_string())
+        .child(&hbox)
+        .build()
+}
+
+/// Builds a row representing a **month** inside a selected year.
+///
+/// `name` is set to the 1-based month number as a string.
+pub fn build_month_row(month: u32, count: usize) -> gtk::ListBoxRow {
+    let hbox = gtk::Box::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .spacing(0)
+        .margin_top(8)
+        .margin_bottom(8)
+        .margin_start(16)
+        .margin_end(12)
+        .build();
+
+    let label = gtk::Label::builder()
+        .label(timeline_filter::month_name(month))
+        .xalign(0.0)
+        .hexpand(true)
+        .build();
+
+    let badge = gtk::Label::builder()
+        .label(&count.to_string())
+        .xalign(1.0)
+        .build();
+    badge.add_css_class("caption");
+    badge.add_css_class("dim-label");
+
+    let chevron = gtk::Image::from_icon_name("go-next-symbolic");
+    chevron.set_pixel_size(12);
+    chevron.set_margin_start(4);
+    chevron.add_css_class("dim-label");
+
+    hbox.append(&label);
+    hbox.append(&badge);
+    hbox.append(&chevron);
+
+    gtk::ListBoxRow::builder()
+        .name(&month.to_string())
+        .child(&hbox)
+        .build()
+}
+
 /// Builds a special "truncated" hint row shown when the list exceeds
 /// [`MAX_RENDERED_ROWS`].  The row is not selectable.
 fn build_truncation_hint_row(total: usize, rendered: usize) -> gtk::ListBoxRow {
@@ -147,19 +211,7 @@ fn build_truncation_hint_row(total: usize, rendered: usize) -> gtk::ListBoxRow {
 // ── Public API ──────────────────────────────────────────────────────────────
 
 /// Populates `list_box` with rows for each commit in `commits`.
-///
-/// All existing children are removed before inserting new rows.
-///
-/// # Performance
-///
-/// * Rows are inserted in idle callbacks batched at [`POPULATE_BATCH`]
-///   entries per frame, keeping the GTK main loop responsive.
-/// * At most [`MAX_RENDERED_ROWS`] widget rows are created.  If `commits`
-///   is larger a truncation hint row is appended so the user knows to
-///   search.  The search path in `window.rs` always operates on the full
-///   `all_commits` in-memory dataset — not on the widget list.
 pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
-    // Remove all existing rows first.
     while let Some(child) = list_box.first_child() {
         child.unparent();
     }
@@ -172,7 +224,6 @@ pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     let render_count = total.min(MAX_RENDERED_ROWS);
     let truncated = total > MAX_RENDERED_ROWS;
 
-    // Fast path: tiny list, single synchronous pass.
     if render_count <= POPULATE_BATCH {
         for commit in &commits[..render_count] {
             list_box.append(&build_commit_row(commit));
@@ -183,35 +234,38 @@ pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
         return;
     }
 
-    // Slow path: schedule batches over multiple idle frames.
     let owned: Vec<CommitInfo> = commits[..render_count].to_vec();
     let list_weak = list_box.downgrade();
     let remaining = std::rc::Rc::new(std::cell::RefCell::new(owned));
-
     schedule_batch_populate(list_weak, remaining, total, truncated);
 }
 
+/// Populates `list_box` with year rows derived from `commits`.
+pub fn populate_year_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
+    while let Some(child) = list_box.first_child() {
+        child.unparent();
+    }
+    for (year, count) in timeline_filter::years_in_range(commits) {
+        list_box.append(&build_year_row(year, count));
+    }
+}
+
+/// Populates `list_box` with month rows for `year` derived from `commits`.
+pub fn populate_month_list(list_box: &gtk::ListBox, commits: &[CommitInfo], year: i32) {
+    while let Some(child) = list_box.first_child() {
+        child.unparent();
+    }
+    for (month, count) in timeline_filter::months_for_year(commits, year) {
+        list_box.append(&build_month_row(month, count));
+    }
+}
+
 /// Appends a batch of new commits to `list_box` WITHOUT clearing existing rows.
-///
-/// Used by the background pagination loop in `window.rs` to stream commits
-/// into the sidebar as they arrive from the background thread.
-///
-/// # Performance
-///
-/// * Insertion is spread over idle frames at [`APPEND_BATCH`] rows/frame
-///   so the list is always responsive during live loading.
-/// * Appending stops once the widget count reaches [`HARD_APPEND_CAP`]
-///   to prevent unbounded memory growth.  The full commit dataset in
-///   `window.rs` is not affected — search remains complete.
 pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     if commits.is_empty() {
         return;
     }
 
-    // Count current children to honour HARD_APPEND_CAP.
-    // gtk::ListBox does not expose a child count directly; we track it by
-    // iterating once.  This is O(n) but called at most once per 500-commit
-    // page, so the amortised cost is negligible.
     let current_count = {
         let mut n = 0usize;
         let mut child = list_box.first_child();
@@ -223,12 +277,9 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     };
 
     if current_count >= HARD_APPEND_CAP {
-        // Widget cap reached — stop appending rows silently.
-        // The caller (window.rs) still stores commits in `all_commits`.
         return;
     }
 
-    // How many more rows may we append?
     let headroom = HARD_APPEND_CAP.saturating_sub(current_count);
     let to_append: Vec<CommitInfo> = commits.iter().take(headroom).cloned().collect();
 
@@ -236,7 +287,6 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
         return;
     }
 
-    // Fast path: fits in one batch.
     if to_append.len() <= APPEND_BATCH {
         for commit in &to_append {
             list_box.append(&build_commit_row(commit));
@@ -244,7 +294,6 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
         return;
     }
 
-    // Slow path: stream over idle frames.
     let list_weak = list_box.downgrade();
     let remaining = std::rc::Rc::new(std::cell::RefCell::new(to_append));
     schedule_batch_append(list_weak, remaining);
@@ -252,9 +301,6 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
 
 // ── Internal idle-batch helpers ───────────────────────────────────────────────
 
-/// Drives the idle-batch loop for [`populate_commit_list`].
-/// Appends [`POPULATE_BATCH`] rows per frame; when exhausted, optionally
-/// appends the truncation hint.
 fn schedule_batch_populate(
     list_weak: glib::object::WeakRef<gtk::ListBox>,
     remaining: std::rc::Rc<std::cell::RefCell<Vec<CommitInfo>>>,
@@ -274,14 +320,11 @@ fn schedule_batch_populate(
         if still_pending {
             schedule_batch_populate(list_weak, remaining.clone(), total, truncated);
         } else if truncated {
-            // All rendered rows are done; now append the hint.
             list_box.append(&build_truncation_hint_row(total, MAX_RENDERED_ROWS));
         }
     });
 }
 
-/// Drives the idle-batch loop for [`append_commit_batch`].
-/// Appends [`APPEND_BATCH`] rows per frame.
 fn schedule_batch_append(
     list_weak: glib::object::WeakRef<gtk::ListBox>,
     remaining: std::rc::Rc<std::cell::RefCell<Vec<CommitInfo>>>,
@@ -303,12 +346,6 @@ fn schedule_batch_append(
 
 // ── Search / filter helpers ───────────────────────────────────────────────────
 
-/// Filters `commits` by `query` (case-insensitive match on summary, hash
-/// prefix, or author).
-///
-/// Kept as public API for future use (export, clipboard copy, etc.).
-/// The interactive search path in `window.rs` runs this logic off-thread
-/// with cancellation support.
 #[allow(dead_code)]
 pub fn filter_commits<'a>(commits: &'a [CommitInfo], query: &str) -> Vec<&'a CommitInfo> {
     if query.is_empty() {

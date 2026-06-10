@@ -15,7 +15,16 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
       sidebar: Adw.ToolbarView {
         [top]
         Adw.HeaderBar {
-          title-widget: Adw.WindowTitle {
+          /* Back button — shown only when drilling into months or commits */
+          [start]
+          Button timeline_back_button {
+            icon-name: "go-previous-symbolic";
+            tooltip-text: _("Back");
+            visible: false;
+            styles ["flat"]
+          }
+
+          title-widget: Adw.WindowTitle timeline_header_title {
             title: _("Timeline");
           };
         }
@@ -24,6 +33,7 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
           orientation: vertical;
           spacing: 0;
 
+          /* Search bar — only meaningful at the commits level */
           SearchEntry commit_search_entry {
             placeholder-text: _("Search commits…");
             margin-start: 8;
@@ -32,13 +42,52 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             margin-bottom: 8;
           }
 
-          ScrolledWindow {
+          /* ── Timeline drill-down stack ──────────────────────────────── */
+          Stack timeline_stack {
             vexpand: true;
-            hscrollbar-policy: never;
+            transition-type: slide-left-right;
+            transition-duration: 200;
 
-            ListBox commit_list {
-              selection-mode: single;
-              styles ["navigation-sidebar"]
+            /* Level 0 — year list */
+            StackPage {
+              name: "years";
+              child: ScrolledWindow {
+                vexpand: true;
+                hscrollbar-policy: never;
+
+                ListBox year_list {
+                  selection-mode: single;
+                  styles ["navigation-sidebar"]
+                }
+              };
+            }
+
+            /* Level 1 — month list for selected year */
+            StackPage {
+              name: "months";
+              child: ScrolledWindow {
+                vexpand: true;
+                hscrollbar-policy: never;
+
+                ListBox month_list {
+                  selection-mode: single;
+                  styles ["navigation-sidebar"]
+                }
+              };
+            }
+
+            /* Level 2 — commit list for selected month */
+            StackPage {
+              name: "commits";
+              child: ScrolledWindow {
+                vexpand: true;
+                hscrollbar-policy: never;
+
+                ListBox commit_list {
+                  selection-mode: single;
+                  styles ["navigation-sidebar"]
+                }
+              };
             }
           }
         };
@@ -47,7 +96,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
       content: Adw.ToolbarView content_toolbar_view {
         [top]
         Adw.HeaderBar {
-          /* ── Start buttons (match NautilusToolbar [start] widgets) ──── */
           [start]
           Button nav_back_button {
             icon-name: "go-previous-symbolic";
@@ -79,16 +127,12 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             styles ["flat"]
           }
 
-          /* ── [title]: toolbar_switcher Stack — mirrors NautilusToolbar ─── */
           [title]
           Box {
             orientation: horizontal;
             spacing: 6;
             styles ["header-toolbar-box"]
 
-            /* The Stack has two pages, exactly like NautilusToolbar:
-               "pathbar"  – the breadcrumb pill bar
-               "location" – the linked Entry + cancel button */
             Stack toolbar_switcher {
               valign: center;
               hexpand: true;
@@ -102,7 +146,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
                   vscrollbar-policy: never;
                   propagate-natural-width: true;
 
-                  /* The pill container — styled as .nautilus-pathbar */
                   Box address_bar {
                     orientation: horizontal;
                     spacing: 0;
@@ -135,7 +178,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             }
           }
 
-          /* ── End buttons ──────────────────────────────────────── */
           [end]
           Button view_toggle_button {
             icon-name: "view-grid-symbolic";
@@ -155,8 +197,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
         content: Box {
           orientation: vertical;
 
-          /* window_title is shown when no commit is selected and the
-             empty_state is visible; hidden otherwise from Rust code. */
           Adw.WindowTitle window_title {
             title: _("Temporal Explorer");
             subtitle: _("No repository selected");
