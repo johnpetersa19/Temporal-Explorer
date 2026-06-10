@@ -47,6 +47,8 @@ pub type OnOpenFile = Box<dyn Fn(&std::path::Path, &str) + 'static>;
 ///
 /// `on_enter_dir` is called when the user double-clicks / activates a
 /// directory row.  `on_open_file` is called for file rows.
+/// Submodule entries reuse `on_enter_dir` — the caller navigates into
+/// the submodule path the same way it navigates into a directory.
 ///
 /// Returns a [`gtk::Widget`] (upcast from [`gtk::ScrolledWindow`]) ready
 /// to be inserted as the right-panel content.
@@ -87,7 +89,7 @@ pub fn build_list_view(
         move |_, row| {
             let idx = row.index() as usize;
             if let Some(node) = children_clone.get(idx) {
-                if node.is_dir() {
+                if node.is_dir() || node.is_submodule() {
                     on_enter_dir(node.path().to_path_buf());
                 } else {
                     on_open_file(node.path(), &hash_clone);
@@ -102,7 +104,13 @@ pub fn build_list_view(
 
 /// Builds a single [`gtk::ListBoxRow`] for a [`TreeNode`].
 ///
-/// Layout: `[icon] [name label] [chevron or ext badge]`
+/// Layout: `[icon] [name label] [chevron / submodule badge / ext badge]`
+///
+/// | Variant | Icon | Right badge |
+/// |---|---|---|
+/// | `Dir` | `folder-*-symbolic` | `go-next-symbolic` chevron |
+/// | `Submodule` | `folder-remote-symbolic` | `vcs-branch-symbolic` chain badge |
+/// | `File` | mime icon | extension label |
 pub fn build_file_row(node: &TreeNode) -> gtk::ListBoxRow {
     let hbox = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
@@ -119,6 +127,9 @@ pub fn build_file_row(node: &TreeNode) -> gtk::ListBoxRow {
             folder_icon_symbolic(p.file_name().and_then(|n| n.to_str()).unwrap_or(""))
         }
         TreeNode::File(p) => mime_icon(p),
+        // Submodules use the "remote folder" symbolic icon so they are
+        // visually distinct from plain directories at a glance.
+        TreeNode::Submodule(_) => "folder-remote-symbolic",
     };
     let icon = gtk::Image::from_icon_name(icon_name);
     icon.set_pixel_size(16);
@@ -142,6 +153,12 @@ pub fn build_file_row(node: &TreeNode) -> gtk::ListBoxRow {
         chevron.add_css_class("dim-label");
         chevron.set_pixel_size(12);
         hbox.append(&chevron);
+    } else if node.is_submodule() {
+        // Show a small chain/branch icon to signal "this is a submodule".
+        let badge = gtk::Image::from_icon_name("vcs-branch-symbolic");
+        badge.add_css_class("dim-label");
+        badge.set_pixel_size(12);
+        hbox.append(&badge);
     } else if let Some(ext) = node.path().extension().and_then(|e| e.to_str()) {
         let type_label = gtk::Label::builder()
             .label(&ext.to_uppercase())

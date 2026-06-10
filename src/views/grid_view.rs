@@ -47,6 +47,8 @@ pub type OnOpenFile = Box<dyn Fn(&std::path::Path, &str) + 'static>;
 ///
 /// `on_enter_dir` is called when the user double-clicks / activates a
 /// directory cell.  `on_open_file` is called for file cells.
+/// Submodule entries reuse `on_enter_dir` — the caller navigates into
+/// the submodule path the same way it navigates into a directory.
 ///
 /// Returns a [`gtk::Widget`] (upcast from [`gtk::ScrolledWindow`]) ready
 /// to be inserted as the right-panel content.
@@ -101,7 +103,7 @@ pub fn build_grid_view(
         move |_, child| {
             let idx = child.index() as usize;
             if let Some(node) = children_clone.get(idx) {
-                if node.is_dir() {
+                if node.is_dir() || node.is_submodule() {
                     on_enter_dir(node.path().to_path_buf());
                 } else {
                     on_open_file(node.path(), &hash_clone);
@@ -123,6 +125,12 @@ pub fn build_grid_view(
 /// │  [name label]│
 /// └──────────────┘
 /// ```
+///
+/// | Variant | Icon |
+/// |---|---|
+/// | `Dir` | `folder-*` (64 px) |
+/// | `Submodule` | `folder-remote` (64 px) |
+/// | `File` | full mime icon (64 px) |
 pub fn build_grid_cell(node: &TreeNode) -> gtk::Box {
     let vbox = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
@@ -140,6 +148,8 @@ pub fn build_grid_cell(node: &TreeNode) -> gtk::Box {
             folder_icon(p.file_name().and_then(|n| n.to_str()).unwrap_or(""))
         }
         TreeNode::File(p) => mime_icon_full(p),
+        // Submodules use the full-colour "folder-remote" icon at grid size.
+        TreeNode::Submodule(_) => "folder-remote",
     };
     let icon = gtk::Image::from_icon_name(icon_name);
     icon.set_pixel_size(64);
