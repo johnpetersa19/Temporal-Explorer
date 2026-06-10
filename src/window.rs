@@ -423,7 +423,7 @@ impl TemporalExplorerWindow {
             .modal(true)
             .build();
         dialog.select_folder(
-            Some(self), gio::Cancellable::NONE,
+            Some(self), None::<&gio::Cancellable>,
             glib::clone!(
                 #[weak(rename_to = w)] self,
                 move |result| {
@@ -826,7 +826,7 @@ impl TemporalExplorerWindow {
 
     fn replace_right_panel(&self, widget: gtk::Widget) {
         let tv = &self.imp().content_toolbar_view;
-        tv.set_content(gtk::Widget::NONE);
+        tv.set_content(None::<&gtk::Widget>);
         tv.set_content(Some(&widget));
     }
 
