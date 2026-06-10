@@ -27,9 +27,10 @@
 //!                          a specific year, newest first.
 //! * [`commits_for_month`]— slice of commits matching a (year, month) pair.
 //!
-//! All functions are pure (no GTK, no side-effects) so they can be tested
+//! All functions are pure (no GTK side-effects) so they can be tested
 //! without a display connection.
 
+use gtk::glib;
 use crate::git_engine::CommitInfo;
 
 /// Decode a Unix timestamp into (year, month_1_12) in local time.
@@ -51,7 +52,6 @@ pub fn years_in_range(commits: &[CommitInfo]) -> Vec<(i32, usize)> {
             *map.entry(y).or_insert(0) += 1;
         }
     }
-    // Reverse so newest year is first.
     let mut v: Vec<(i32, usize)> = map.into_iter().collect();
     v.sort_by(|a, b| b.0.cmp(&a.0));
     v
@@ -85,7 +85,7 @@ pub fn commits_for_month(commits: &[CommitInfo], year: i32, month: u32) -> Vec<C
         .collect()
 }
 
-/// Human-readable month name (abbreviated, locale-independent fallback).
+/// Human-readable month name (locale-independent fallback).
 pub fn month_name(month: u32) -> &'static str {
     match month {
         1  => "January",
