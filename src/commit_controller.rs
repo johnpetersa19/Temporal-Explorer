@@ -40,14 +40,26 @@
 //!
 //! Row insertion is always **batched across idle frames** ([`POPULATE_BATCH`] /
 //! `APPEND_BATCH` rows per frame) so the GTK main loop never stalls.
+//!
+//! # Stale-batch cancellation
+//!
+//! Each call to [`populate_commit_list`] increments an **`AtomicU64` generation
+//! counter** stored as `GObject` data on the `ListBox` itself. Every idle
+//! frame checks that its captured generation still matches the counter before
+//! touching any widget. If the counter has advanced (because a new populate
+//! call cleared and rebuilt the list), the frame becomes a no-op and exits.
+//! This prevents GTK use-after-free crashes (`gtk_widget_insert_after`
+//! assertion failures) that occur when stale batches try to append to a
+//! `ListBox` whose children were already `unparent()`-ed by a later call.
 
 use gettextrs::gettext;
 use gtk::glib;
 use gtk::prelude::*;
 use crate::git_engine::CommitInfo;
 use crate::timeline_filter;
+use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
 
-// ── Tuning constants ───────────────────────────────────────────────────────────────
+// ── Tuning constants ────────────────────────────────────────────────────────
 
 /// Rows inserted per idle frame during a **full list rebuild**.
 const POPULATE_BATCH: usize = 150;
@@ -65,7 +77,38 @@ const MAX_RENDERED_ROWS: usize = 5_000;
 #[allow(dead_code)]
 const HARD_APPEND_CAP: usize = 15_000;
 
-// ── Row builders ──────────────────────────────────────────────────────────────
+// ── Generation counter helpers ────────────────────────────────────────────
+//
+// We store an Arc<AtomicU64> in a thread-local keyed by the ListBox pointer
+// address. This avoids GObject qdata FFI entirely.
+
+use std::collections::HashMap;
+use std::cell::RefCell;
+
+thread_local! {
+    /// Maps ListBox raw pointer address → generation counter.
+    static GENERATIONS: RefCell<HashMap<usize, Arc<AtomicU64>>> = RefCell::new(HashMap::new());
+}
+
+/// Returns the generation counter for `list_box`, creating it if absent.
+fn get_or_create_generation(list_box: &gtk::ListBox) -> Arc<AtomicU64> {
+    let key = list_box.as_ptr() as usize;
+    GENERATIONS.with(|map| {
+        map.borrow_mut()
+            .entry(key)
+            .or_insert_with(|| Arc::new(AtomicU64::new(0)))
+            .clone()
+    })
+}
+
+/// Increments the generation for `list_box` and returns the new value.
+/// Call this at the start of every populate to invalidate pending batches.
+fn next_generation(list_box: &gtk::ListBox) -> u64 {
+    let counter = get_or_create_generation(list_box);
+    counter.fetch_add(1, Ordering::Relaxed) + 1
+}
+
+// ── Row builders ──────────────────────────────────────────────────────
 
 /// Builds a [`gtk::ListBoxRow`] that represents a single commit entry.
 pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
@@ -210,7 +253,15 @@ fn build_truncation_hint_row(total: usize, rendered: usize) -> gtk::ListBoxRow {
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /// Populates `list_box` with rows for each commit in `commits`.
+///
+/// Increments the generation counter on `list_box` so that any idle frames
+/// still running from a previous call will detect the stale generation and
+/// abort, preventing use-after-free crashes in GTK widget internals.
 pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
+    // Advance generation — invalidates all pending idle batches for this list.
+    let gen = next_generation(list_box);
+    let gen_counter = get_or_create_generation(list_box);
+
     while let Some(child) = list_box.first_child() {
         child.unparent();
     }
@@ -234,7 +285,7 @@ pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     let owned: Vec<CommitInfo> = commits[..render_count].to_vec();
     let list_weak = list_box.downgrade();
     let remaining = std::rc::Rc::new(std::cell::RefCell::new(owned));
-    schedule_batch_populate(list_weak, remaining, total, truncated);
+    schedule_batch_populate(list_weak, remaining, total, truncated, gen, gen_counter);
 }
 
 /// Populates `list_box` with year rows derived from `commits`.
@@ -293,16 +344,24 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     schedule_batch_append(list_weak, remaining);
 }
 
-// ── Internal idle-batch helpers ───────────────────────────────────────────────
+// ── Internal idle-batch helpers ──────────────────────────────────────────────
 
 fn schedule_batch_populate(
     list_weak: glib::object::WeakRef<gtk::ListBox>,
     remaining: std::rc::Rc<std::cell::RefCell<Vec<CommitInfo>>>,
     total: usize,
     truncated: bool,
+    gen: u64,
+    gen_counter: Arc<AtomicU64>,
 ) {
     glib::idle_add_local_once(move || {
+        // Abort if a newer populate call has superseded this batch.
+        if gen_counter.load(Ordering::Relaxed) != gen {
+            return;
+        }
+
         let Some(list_box) = list_weak.upgrade() else { return };
+
         let mut rem = remaining.borrow_mut();
         let end = POPULATE_BATCH.min(rem.len());
         for commit in rem.drain(..end) {
@@ -312,7 +371,7 @@ fn schedule_batch_populate(
         drop(rem);
 
         if still_pending {
-            schedule_batch_populate(list_weak, remaining.clone(), total, truncated);
+            schedule_batch_populate(list_weak, remaining.clone(), total, truncated, gen, gen_counter);
         } else if truncated {
             list_box.append(&build_truncation_hint_row(total, MAX_RENDERED_ROWS));
         }
@@ -340,7 +399,7 @@ fn schedule_batch_append(
     });
 }
 
-// ── Search / filter helpers ─────────────────────────────────────────────────
+// ── Search / filter helpers ───────────────────────────────────────────────
 
 #[allow(dead_code)]
 pub fn filter_commits<'a>(commits: &'a [CommitInfo], query: &str) -> Vec<&'a CommitInfo> {
