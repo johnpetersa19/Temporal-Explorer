@@ -32,14 +32,14 @@
 //!
 //! * [`MAX_RENDERED_ROWS`]: cap on rows rendered by [`populate_commit_list`].
 //!   Rows beyond the cap are not rendered; a hint tells the user to search.
-//! * [`HARD_APPEND_CAP`]: safety limit for live-append during background
+//! * `HARD_APPEND_CAP`: safety limit for live-append during background
 //!   loading, preventing unbounded growth on kernel-sized repositories.
 //!
 //! Both caps affect only the **visible widget list** — `all_commits` in
 //! `window.rs` always holds the full dataset and search operates on it.
 //!
 //! Row insertion is always **batched across idle frames** ([`POPULATE_BATCH`] /
-//! [`APPEND_BATCH`] rows per frame) so the GTK main loop never stalls.
+//! `APPEND_BATCH` rows per frame) so the GTK main loop never stalls.
 
 use gettextrs::gettext;
 use gtk::glib;
@@ -47,21 +47,25 @@ use gtk::prelude::*;
 use crate::git_engine::CommitInfo;
 use crate::timeline_filter;
 
-// ── Tuning constants ─────────────────────────────────────────────────────────
+// ── Tuning constants ───────────────────────────────────────────────────────────────
 
 /// Rows inserted per idle frame during a **full list rebuild**.
 const POPULATE_BATCH: usize = 150;
 
 /// Rows inserted per idle frame during **live background appending**.
+/// Reserved for the future `gtk::ListView` migration.
+#[allow(dead_code)]
 const APPEND_BATCH: usize = 100;
 
 /// Maximum number of widget rows [`populate_commit_list`] will render.
 const MAX_RENDERED_ROWS: usize = 5_000;
 
 /// Hard cap on the total number of widget rows during live appending.
+/// Reserved for the future `gtk::ListView` migration.
+#[allow(dead_code)]
 const HARD_APPEND_CAP: usize = 15_000;
 
-// ── Row builders ─────────────────────────────────────────────────────────────
+// ── Row builders ──────────────────────────────────────────────────────────────
 
 /// Builds a [`gtk::ListBoxRow`] that represents a single commit entry.
 pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
@@ -97,9 +101,6 @@ pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
 }
 
 /// Builds a row representing a **year** in the timeline drill-down.
-///
-/// `name` is set to the year as a decimal string so the selection handler
-/// can read it back with `row.widget_name()`.
 pub fn build_year_row(year: i32, count: usize) -> gtk::ListBoxRow {
     let hbox = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
@@ -140,8 +141,6 @@ pub fn build_year_row(year: i32, count: usize) -> gtk::ListBoxRow {
 }
 
 /// Builds a row representing a **month** inside a selected year.
-///
-/// `name` is set to the 1-based month number as a string.
 pub fn build_month_row(month: u32, count: usize) -> gtk::ListBoxRow {
     let hbox = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
@@ -208,7 +207,7 @@ fn build_truncation_hint_row(total: usize, rendered: usize) -> gtk::ListBoxRow {
         .build()
 }
 
-// ── Public API ──────────────────────────────────────────────────────────────
+// ── Public API ───────────────────────────────────────────────────────────────
 
 /// Populates `list_box` with rows for each commit in `commits`.
 pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
@@ -216,9 +215,7 @@ pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
         child.unparent();
     }
 
-    if commits.is_empty() {
-        return;
-    }
+    if commits.is_empty() { return; }
 
     let total = commits.len();
     let render_count = total.min(MAX_RENDERED_ROWS);
@@ -261,10 +258,11 @@ pub fn populate_month_list(list_box: &gtk::ListBox, commits: &[CommitInfo], year
 }
 
 /// Appends a batch of new commits to `list_box` WITHOUT clearing existing rows.
+///
+/// Reserved for the future `gtk::ListView` migration.
+#[allow(dead_code)]
 pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
-    if commits.is_empty() {
-        return;
-    }
+    if commits.is_empty() { return; }
 
     let current_count = {
         let mut n = 0usize;
@@ -276,16 +274,12 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
         n
     };
 
-    if current_count >= HARD_APPEND_CAP {
-        return;
-    }
+    if current_count >= HARD_APPEND_CAP { return; }
 
     let headroom = HARD_APPEND_CAP.saturating_sub(current_count);
     let to_append: Vec<CommitInfo> = commits.iter().take(headroom).cloned().collect();
 
-    if to_append.is_empty() {
-        return;
-    }
+    if to_append.is_empty() { return; }
 
     if to_append.len() <= APPEND_BATCH {
         for commit in &to_append {
@@ -325,6 +319,8 @@ fn schedule_batch_populate(
     });
 }
 
+/// Reserved for the future `gtk::ListView` migration.
+#[allow(dead_code)]
 fn schedule_batch_append(
     list_weak: glib::object::WeakRef<gtk::ListBox>,
     remaining: std::rc::Rc<std::cell::RefCell<Vec<CommitInfo>>>,
@@ -344,7 +340,7 @@ fn schedule_batch_append(
     });
 }
 
-// ── Search / filter helpers ───────────────────────────────────────────────────
+// ── Search / filter helpers ─────────────────────────────────────────────────
 
 #[allow(dead_code)]
 pub fn filter_commits<'a>(commits: &'a [CommitInfo], query: &str) -> Vec<&'a CommitInfo> {

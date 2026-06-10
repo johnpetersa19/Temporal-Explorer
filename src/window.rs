@@ -76,8 +76,11 @@ pub enum ViewMode { #[default] List, Grid }
 // ── TimelineLevel ────────────────────────────────────────────────────────────
 
 /// Which page of the sidebar `timeline_stack` is currently visible.
+///
+/// Visibility is `pub(super)` so the `imp` submodule can name the type
+/// in its `pub` field without triggering the `private_interfaces` lint.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
-enum TimelineLevel {
+pub(super) enum TimelineLevel {
     /// Top level: list of years.
     #[default]
     Years,
@@ -433,7 +436,6 @@ impl TemporalExplorerWindow {
 
     // ── Timeline drill-down ──────────────────────────────────────────────────
 
-    /// Switches the sidebar to the `Years` page and updates header chrome.
     fn show_year_list(&self) {
         let imp = self.imp();
         *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
@@ -444,7 +446,6 @@ impl TemporalExplorerWindow {
         imp.commit_search_entry.set_visible(false);
     }
 
-    /// Called when the user selects a year row.
     fn on_year_selected(&self, row: &gtk::ListBoxRow) {
         let year: i32 = row.widget_name().parse().unwrap_or(0);
         let imp = self.imp();
@@ -460,12 +461,9 @@ impl TemporalExplorerWindow {
         imp.timeline_header_title.set_title(&year.to_string());
         imp.timeline_header_title.set_subtitle("");
         imp.commit_search_entry.set_visible(false);
-
-        // Deselect to allow the same year to be re-entered after going back.
         imp.year_list.unselect_all();
     }
 
-    /// Called when the user selects a month row.
     fn on_month_selected(&self, row: &gtk::ListBoxRow) {
         let month: u32 = row.widget_name().parse().unwrap_or(0);
         let imp = self.imp();
@@ -486,16 +484,11 @@ impl TemporalExplorerWindow {
         );
         imp.timeline_header_title.set_subtitle(&year.to_string());
         imp.commit_search_entry.set_visible(true);
-
-        // Reset right panel when entering a new month.
         imp.commit_info_bar.set_revealed(false);
         self.show_empty_state();
-
-        // Deselect to allow re-entry.
         imp.month_list.unselect_all();
     }
 
-    /// Pops one level in the sidebar drill-down.
     fn on_timeline_back(&self) {
         let level = *self.imp().timeline_level.borrow();
         match level {
@@ -516,9 +509,6 @@ impl TemporalExplorerWindow {
         }
     }
 
-    /// Rebuilds the year list from the full commit set.
-    ///
-    /// Called once loading completes (or after a repository reload).
     fn populate_year_list(&self) {
         let imp = self.imp();
         let all = imp.all_commits.borrow();
@@ -608,8 +598,6 @@ impl TemporalExplorerWindow {
         commit_controller::populate_commit_list(&imp.commit_list, &[]);
         imp.commit_info_bar.set_revealed(false);
         self.show_empty_state();
-
-        // Reset sidebar to year list (empty until loading completes).
         self.show_year_list();
 
         imp.loading_commits.set(true);
@@ -655,7 +643,6 @@ impl TemporalExplorerWindow {
                         imp.window_title.set_subtitle(
                             &format!("{} {}", count, gettext("commits"))
                         );
-                        // Now that all commits are in memory, build year list.
                         w.populate_year_list();
                     }
                     glib::ControlFlow::Break
@@ -675,10 +662,7 @@ impl TemporalExplorerWindow {
     fn on_search_changed(&self, query: &str) {
         let imp = self.imp();
 
-        if imp.loading_commits.get() {
-            return;
-        }
-
+        if imp.loading_commits.get() { return; }
         { let last = imp.last_query.borrow(); if *last == query { return; } }
         *imp.last_query.borrow_mut() = query.to_owned();
 
@@ -690,7 +674,7 @@ impl TemporalExplorerWindow {
         *imp.search_cancel.borrow_mut() = Some(Arc::clone(&cancel));
 
         let all: Vec<CommitInfo> = imp.all_commits.borrow().clone();
-        let year  = imp.selected_year.get();
+        let year = imp.selected_year.get();
         let query_owned = query.to_owned();
 
         if query_owned.is_empty() {
@@ -726,9 +710,7 @@ impl TemporalExplorerWindow {
         glib::idle_add_local(move || {
             match rx.try_recv() {
                 Ok(results) => {
-                    if let Some(w) = weak_self.upgrade() {
-                        w.populate_commit_list(&results);
-                    }
+                    if let Some(w) = weak_self.upgrade() { w.populate_commit_list(&results); }
                     glib::ControlFlow::Break
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
