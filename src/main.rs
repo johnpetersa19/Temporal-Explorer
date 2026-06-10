@@ -18,11 +18,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+mod address_bar;
 mod application;
 mod commit_controller;
 mod config;
 mod file_preview;
 pub mod git_engine;
+mod icon_helpers;
+mod views;
 mod window;
 
 use self::application::TemporalExplorerApplication;
