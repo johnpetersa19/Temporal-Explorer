@@ -28,6 +28,36 @@
 //! - [`SnapshotMaterializer`] – converts the resolved tree into [`TreeNode`]s.
 //! - [`TreeNode`]             – a single file or directory in a materialized snapshot.
 //! - [`DirCache`]             – LRU cache of (hash, dir) → Arc<Vec<TreeNode>>.
+//!
+//! # Security model
+//!
+//! **Path traversal is structurally impossible in this module.**
+//!
+//! Every path lookup goes through [`git2::Tree::get_path`], which resolves
+//! components inside the Git *object database* — an in-memory tree of OIDs —
+//! not through the real filesystem.  Because the object database has no concept
+//! of `..` escaping a root, a caller-supplied path such as `"../../etc/passwd"`
+//! will simply fail with `git2::Error` ("the path '../../etc/passwd' does not
+//! exist in the given tree") instead of opening any file outside the repository.
+//!
+//! Concretely:
+//!
+//! * `resolve_dir` calls `root_tree.get_path(dir)`.  git2 walks the in-memory
+//!   tree object component by component.  A `..` component never matches a real
+//!   tree entry, so the call returns `Err` before any I/O occurs.
+//! * `read_file` / `SnapshotMaterializer::read_file` calls `tree.get_path(path)`
+//!   for the same reason and with the same guarantee.
+//! * `revparse_single` resolves revision strings against the Git ref database,
+//!   not the filesystem.  Shell-injection via revision strings (e.g. `--upload-pack`)
+//!   is not applicable because git2 is a native library with no subprocess.
+//!
+//! The module does **not** perform explicit `Path::components()` filtering because
+//! that layer of defence is redundant here and would add false confidence that
+//! a missed branch is safe.  The git2 boundary *is* the trust boundary.
+//!
+//! One edge case worth noting: on Windows, `Path::new("C:\\Windows")` is an
+//! absolute path that `get_path` will reject, but callers should still avoid
+//! passing OS-absolute paths to keep code portable and intentions clear.
 
 use git2::{ObjectType, Repository};
 use std::collections::VecDeque;
@@ -287,6 +317,25 @@ impl<'repo> SnapshotResolver<'repo> {
     /// PERF: Only descends the path components of `dir`, avoiding O(n) scans
     /// on large monorepos.  Prefer this over `resolve_tree` for all interactive
     /// directory browsing.
+    ///
+    /// SECURITY: `dir` is resolved through [`git2::Tree::get_path`], which
+    /// walks the Git *object database* — an in-memory structure of OIDs —
+    /// rather than opening any path on the real filesystem.  This means:
+    ///
+    /// * A traversal attempt such as `"../../etc"` does **not** escape the
+    ///   repository.  git2 tries to match each component against named tree
+    ///   entries; `".."` is never a valid entry name in a well-formed Git tree,
+    ///   so `get_path` returns `Err` before any I/O occurs.
+    /// * Absolute paths (e.g. `"/etc"` on Unix, `"C:\Windows"` on Windows)
+    ///   are similarly rejected by `get_path` with an error.
+    /// * There is no subprocess involved; git2 is a native library, so
+    ///   shell-injection through `revision` strings is not applicable.
+    ///
+    /// Explicit `Path::components()` filtering is intentionally omitted:
+    /// it would be redundant and could create a false sense of security
+    /// in code paths that do *not* pass through this function.  The git2
+    /// object-DB boundary is the canonical trust boundary for this module.
+    /// See the module-level "# Security model" section for the full rationale.
     pub fn resolve_dir(
         &self,
         revision: &str,
@@ -391,6 +440,13 @@ impl<'repo> SnapshotMaterializer<'repo> {
     }
 
     /// Reads the raw byte content of a file at `path` in the given `revision`.
+    ///
+    /// SECURITY: `path` is resolved via [`git2::Tree::get_path`] against the
+    /// commit's in-memory object tree, **not** against the real filesystem.
+    /// Path-traversal inputs such as `"../../etc/passwd"` are rejected by
+    /// git2 with an error before any file is opened.  See the
+    /// [`SnapshotResolver::resolve_dir`] doc and the module-level
+    /// "# Security model" section for the full explanation.
     pub fn read_file(
         &self,
         revision: &str,
