@@ -32,17 +32,24 @@
 //! | Commit list / search        | [`crate::commit_controller`]  |
 //! | File content preview dialog | [`crate::file_preview`]       |
 //! | Git history / tree reads    | [`crate::git_engine`]         |
+//! | Timeline grouping logic     | [`crate::timeline_filter`]    |
+//!
+//! ## Timeline navigation
+//!
+//! The left sidebar is a 3-level drill-down:
+//!
+//! ```
+//! years  →  months (for selected year)  →  commits (for selected month)
+//! ```
+//!
+//! The active level is tracked by [`TimelineLevel`] stored in
+//! `imp.timeline_level`.  The back button (`timeline_back_button`) pops one
+//! level; the `timeline_stack` `Stack` slides between the three pages.
 //!
 //! ## Search scope limitation
 //!
 //! The search (`on_search_changed`) filters the `all_commits` in-memory
-//! cache.  Commits that have not yet been received from the background
-//! pagination thread will not appear in search results.
-//!
-//! **Mitigation implemented here:** the `commit_search_entry` is set
-//! insensitive (greyed-out) while `loading_commits` is `true`.  It is
-//! re-enabled only after the background thread finishes delivering all
-//! pages, ensuring that every search is always a complete search.
+//! cache.  It is only reachable when the sidebar is at the `Commits` level.
 
 use adw::prelude::AdwApplicationWindowExt;
 use adw::subclass::prelude::*;
@@ -58,12 +65,27 @@ use crate::address_bar;
 use crate::git_engine::{CommitInfo, DirCache, HistoryReader, SnapshotResolver, TreeNode};
 use crate::commit_controller;
 use crate::file_preview;
+use crate::timeline_filter;
 use crate::views::{list_view, grid_view};
 
 // ── ViewMode ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum ViewMode { #[default] List, Grid }
+
+// ── TimelineLevel ─────────────────────────────────────────────────────────────
+
+/// Which page of the sidebar `timeline_stack` is currently visible.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+enum TimelineLevel {
+    /// Top level: list of years.
+    #[default]
+    Years,
+    /// Second level: list of months for a selected year.
+    Months,
+    /// Third level: list of commits for a selected (year, month).
+    Commits,
+}
 
 // ── DebugRepository ───────────────────────────────────────────────────────────
 
@@ -104,9 +126,14 @@ mod imp {
         #[template_child] pub location_entry:       TemplateChild<gtk::Entry>,
         #[template_child] pub location_cancel_btn:  TemplateChild<gtk::Button>,
 
-        // Left panel
-        #[template_child] pub commit_search_entry:  TemplateChild<gtk::SearchEntry>,
-        #[template_child] pub commit_list:          TemplateChild<gtk::ListBox>,
+        // Left panel — timeline drill-down
+        #[template_child] pub timeline_stack:        TemplateChild<gtk::Stack>,
+        #[template_child] pub timeline_back_button:  TemplateChild<gtk::Button>,
+        #[template_child] pub timeline_header_title: TemplateChild<adw::WindowTitle>,
+        #[template_child] pub year_list:             TemplateChild<gtk::ListBox>,
+        #[template_child] pub month_list:            TemplateChild<gtk::ListBox>,
+        #[template_child] pub commit_search_entry:   TemplateChild<gtk::SearchEntry>,
+        #[template_child] pub commit_list:           TemplateChild<gtk::ListBox>,
 
         // Right panel
         #[template_child] pub empty_state:          TemplateChild<adw::StatusPage>,
@@ -131,11 +158,14 @@ mod imp {
         pub view_mode:        RefCell<ViewMode>,
         pub repo_name:        RefCell<String>,
 
+        // TIMELINE: tracks the current sidebar drill-down level.
+        pub timeline_level:   RefCell<TimelineLevel>,
+        // TIMELINE: the year currently expanded at the Months level.
+        pub selected_year:    Cell<i32>,
+
         // SEARCH: tracks whether the background pagination thread is still
         // running.  While `true` the `commit_search_entry` is kept
         // insensitive so the user cannot search an incomplete dataset.
-        // Set to `true` in `load_repository`, reset to `false` in the idle
-        // loop once the channel is `Disconnected`.
         pub loading_commits:  Cell<bool>,
 
         // PERF: LRU cache for (hash, dir) → Arc<Vec<TreeNode>>.
@@ -306,6 +336,19 @@ impl TemporalExplorerWindow {
         imp.view_toggle_button.connect_clicked(glib::clone!(
             #[weak(rename_to = w)] self, move |_| w.toggle_view_mode()
         ));
+
+        // ── Timeline drill-down signals ───────────────────────────────────────
+        imp.timeline_back_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)] self, move |_| w.on_timeline_back()
+        ));
+        imp.year_list.connect_row_selected(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_, row| { if let Some(r) = row { w.on_year_selected(r); } }
+        ));
+        imp.month_list.connect_row_selected(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_, row| { if let Some(r) = row { w.on_month_selected(r); } }
+        ));
         imp.commit_list.connect_row_selected(glib::clone!(
             #[weak(rename_to = w)] self, move |_, row| w.on_commit_selected(row)
         ));
@@ -367,12 +410,6 @@ impl TemporalExplorerWindow {
         self.imp().toolbar_switcher.set_visible_child_name("pathbar");
     }
 
-    /// Switch the toolbar to the location-entry (text input) mode.
-    ///
-    /// Currently wired to the "click on address bar" callback inside
-    /// `address_bar::rebuild_address_bar`.  Kept here as a named method
-    /// so that a future keyboard shortcut (e.g. Ctrl+L, à la Nautilus)
-    /// can call it directly without duplicating the logic.
     #[allow(dead_code)]
     fn show_location_entry(&self) {
         let imp = self.imp();
@@ -392,6 +429,102 @@ impl TemporalExplorerWindow {
             PathBuf::from(trimmed)
         };
         self.enter_dir(target);
+    }
+
+    // ── Timeline drill-down ───────────────────────────────────────────────────
+
+    /// Switches the sidebar to the `Years` page and updates header chrome.
+    fn show_year_list(&self) {
+        let imp = self.imp();
+        *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
+        imp.timeline_stack.set_visible_child_name("years");
+        imp.timeline_back_button.set_visible(false);
+        imp.timeline_header_title.set_title(&gettext("Timeline"));
+        imp.timeline_header_title.set_subtitle("");
+        imp.commit_search_entry.set_visible(false);
+    }
+
+    /// Called when the user selects a year row.
+    fn on_year_selected(&self, row: &gtk::ListBoxRow) {
+        let year: i32 = row.widget_name().parse().unwrap_or(0);
+        let imp = self.imp();
+        imp.selected_year.set(year);
+
+        let all = imp.all_commits.borrow();
+        commit_controller::populate_month_list(&imp.month_list, &all, year);
+        drop(all);
+
+        *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
+        imp.timeline_stack.set_visible_child_name("months");
+        imp.timeline_back_button.set_visible(true);
+        imp.timeline_header_title.set_title(&year.to_string());
+        imp.timeline_header_title.set_subtitle("");
+        imp.commit_search_entry.set_visible(false);
+
+        // Deselect to allow the same year to be re-entered after going back.
+        imp.year_list.unselect_all();
+    }
+
+    /// Called when the user selects a month row.
+    fn on_month_selected(&self, row: &gtk::ListBoxRow) {
+        let month: u32 = row.widget_name().parse().unwrap_or(0);
+        let imp = self.imp();
+        let year = imp.selected_year.get();
+
+        let commits = {
+            let all = imp.all_commits.borrow();
+            timeline_filter::commits_for_month(&all, year, month)
+        };
+
+        commit_controller::populate_commit_list(&imp.commit_list, &commits);
+
+        *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
+        imp.timeline_stack.set_visible_child_name("commits");
+        imp.timeline_back_button.set_visible(true);
+        imp.timeline_header_title.set_title(
+            timeline_filter::month_name(month)
+        );
+        imp.timeline_header_title.set_subtitle(&year.to_string());
+        imp.commit_search_entry.set_visible(true);
+
+        // Reset right panel when entering a new month.
+        imp.commit_info_bar.set_revealed(false);
+        self.show_empty_state();
+
+        // Deselect to allow re-entry.
+        imp.month_list.unselect_all();
+    }
+
+    /// Pops one level in the sidebar drill-down.
+    fn on_timeline_back(&self) {
+        let level = *self.imp().timeline_level.borrow();
+        match level {
+            TimelineLevel::Months  => self.show_year_list(),
+            TimelineLevel::Commits => {
+                let imp = self.imp();
+                let year = imp.selected_year.get();
+                *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
+                imp.timeline_stack.set_visible_child_name("months");
+                imp.timeline_back_button.set_visible(true);
+                imp.timeline_header_title.set_title(&year.to_string());
+                imp.timeline_header_title.set_subtitle("");
+                imp.commit_search_entry.set_visible(false);
+                imp.commit_info_bar.set_revealed(false);
+                self.show_empty_state();
+            }
+            TimelineLevel::Years => {} // already at top
+        }
+    }
+
+    /// Rebuilds the year list from the full commit set.
+    ///
+    /// Called once loading completes (or after a repository reload).
+    fn populate_year_list(&self) {
+        let imp = self.imp();
+        let all = imp.all_commits.borrow();
+        commit_controller::populate_year_list(&imp.year_list, &all);
+        drop(all);
+        self.show_year_list();
     }
 
     // ── View mode toggle ───────────────────────────────────────────────────────
@@ -437,20 +570,14 @@ impl TemporalExplorerWindow {
 
     fn load_repository(&self, path: PathBuf) {
         let imp = self.imp();
-        // Validate that the path is a git repository by attempting to open it.
-        // We intentionally drop `reader` immediately after validation: git2::Repository
-        // does not implement Clone, so we open a second independent handle below
-        // for the window-level `repository` field used by the snapshot resolver.
         match HistoryReader::open(&path) {
             Err(e) => {
                 self.show_error_toast(&format!("{}: {e}", gettext("Failed to open repository")));
                 return;
             }
-            Ok(_reader) => { /* validation succeeded; _reader is dropped here */ }
+            Ok(_reader) => {}
         }
 
-        // Open a dedicated git2::Repository handle for the UI (snapshot resolver).
-        // git2::Repository::open is a cheap, local-only operation.
         let repo = match git2::Repository::open(&path) {
             Ok(r) => r,
             Err(e) => {
@@ -482,20 +609,15 @@ impl TemporalExplorerWindow {
         imp.commit_info_bar.set_revealed(false);
         self.show_empty_state();
 
-        // SEARCH: disable the search entry while commits are being
-        // loaded so the user cannot search an incomplete dataset.
-        // The tooltip explains the temporary restriction.
+        // Reset sidebar to year list (empty until loading completes).
+        self.show_year_list();
+
         imp.loading_commits.set(true);
         imp.commit_search_entry.set_sensitive(false);
         imp.commit_search_entry.set_tooltip_text(Some(
             &gettext("Search will be available once all commits are loaded"),
         ));
 
-        // PERF: load commits in a background thread via std::sync::mpsc
-        // (glib::MainContext::channel was removed in glib 0.20).
-        // Pages are forwarded to the GTK main loop using
-        // glib::idle_add_local_once so widget mutations always happen
-        // on the main thread.
         let (tx, rx) = std::sync::mpsc::channel::<Vec<CommitInfo>>();
 
         std::thread::spawn(move || {
@@ -506,14 +628,12 @@ impl TemporalExplorerWindow {
             }
         });
 
-        // Poll the channel from the main loop until the sender is dropped.
         let weak_self = self.downgrade();
         glib::idle_add_local(move || {
             match rx.try_recv() {
                 Ok(page) => {
                     if let Some(w) = weak_self.upgrade() {
                         let imp = w.imp();
-                        commit_controller::append_commit_batch(&imp.commit_list, &page);
                         let mut all = imp.all_commits.borrow_mut();
                         all.extend(page);
                         let count = all.len();
@@ -524,14 +644,8 @@ impl TemporalExplorerWindow {
                     }
                     glib::ControlFlow::Continue
                 }
-                Err(std::sync::mpsc::TryRecvError::Empty) => {
-                    // No page ready yet — yield and come back next idle.
-                    glib::ControlFlow::Continue
-                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    // Sender dropped: background thread finished.
-                    // SEARCH: all commits are now in memory — re-enable
-                    // the search entry and clear the loading tooltip.
                     if let Some(w) = weak_self.upgrade() {
                         let imp = w.imp();
                         imp.loading_commits.set(false);
@@ -541,6 +655,8 @@ impl TemporalExplorerWindow {
                         imp.window_title.set_subtitle(
                             &format!("{} {}", count, gettext("commits"))
                         );
+                        // Now that all commits are in memory, build year list.
+                        w.populate_year_list();
                     }
                     glib::ControlFlow::Break
                 }
@@ -554,25 +670,11 @@ impl TemporalExplorerWindow {
         commit_controller::populate_commit_list(&self.imp().commit_list, commits);
     }
 
-    // ── Search — off-thread filtering with per-query cancellation ─────────────
-    //
-    // NOTE — search scope limitation:
-    // This function filters `all_commits`, which is the in-memory cache built
-    // incrementally by the background pagination thread.  Commits that have
-    // not yet arrived will not appear in search results.
-    //
-    // This is NOT a practical concern during normal use because
-    // `commit_search_entry` is kept insensitive while `loading_commits` is
-    // `true` (see `load_repository`).  The guard-clause below is a
-    // belt-and-suspenders safety net for any code path that could call
-    // `on_search_changed` before loading finishes (e.g. a future keyboard
-    // shortcut or programmatic trigger).
+    // ── Search ────────────────────────────────────────────────────────────────
 
     fn on_search_changed(&self, query: &str) {
         let imp = self.imp();
 
-        // SEARCH: belt-and-suspenders guard — do nothing while commits are
-        // still loading so we never surface incomplete results.
         if imp.loading_commits.get() {
             return;
         }
@@ -580,7 +682,6 @@ impl TemporalExplorerWindow {
         { let last = imp.last_query.borrow(); if *last == query { return; } }
         *imp.last_query.borrow_mut() = query.to_owned();
 
-        // Cancel any in-flight search.
         if let Some(old_cancel) = imp.search_cancel.borrow().as_ref() {
             old_cancel.store(true, Ordering::Relaxed);
         }
@@ -588,10 +689,14 @@ impl TemporalExplorerWindow {
         let cancel = Arc::new(AtomicBool::new(false));
         *imp.search_cancel.borrow_mut() = Some(Arc::clone(&cancel));
 
+        // Retrieve the commits currently shown at the Commits level (month slice).
+        // We search only within the current month's slice, not all commits.
         let all: Vec<CommitInfo> = imp.all_commits.borrow().clone();
+        let year  = imp.selected_year.get();
+        // Derive the active month from the list that is currently populated.
+        // If the query is empty we show the full month slice via the fast path.
         let query_owned = query.to_owned();
 
-        // Fast-path: empty query — no thread needed.
         if query_owned.is_empty() {
             self.populate_commit_list(&all);
             return;
@@ -602,7 +707,16 @@ impl TemporalExplorerWindow {
         std::thread::spawn(move || {
             let q = query_owned.to_lowercase();
             let mut results = Vec::new();
-            for commit in &all {
+            // Filter within the year for responsive results.
+            for commit in all.iter().filter(|c| {
+                use crate::timeline_filter;
+                matches!(
+                    glib::DateTime::from_unix_local(c.timestamp)
+                        .ok()
+                        .map(|dt| dt.year()),
+                    Some(y) if y == year
+                )
+            }) {
                 if cancel.load(Ordering::Relaxed) { return; }
                 if commit.summary.to_lowercase().contains(&q)
                     || commit.hash.starts_with(&query_owned)
@@ -705,9 +819,6 @@ impl TemporalExplorerWindow {
     fn browse_dir_inner(&self, hash: &str, dir: &PathBuf) {
         let imp = self.imp();
 
-        // PERF: check LRU cache before hitting git2.
-        // Extract the cached Arc (if any) and immediately drop the borrow so
-        // the RefCell is free for the insert() call in the else-branch below.
         let cached: Option<Vec<TreeNode>> = imp
             .dir_cache
             .borrow_mut()
@@ -742,7 +853,6 @@ impl TemporalExplorerWindow {
             }
         };
 
-        // Sort: dirs first, then files, both alphabetically.
         let name = |n: &TreeNode| n.path().file_name().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
         children.sort_by(|a, b| {
             match (a.is_dir(), b.is_dir()) {
@@ -755,7 +865,6 @@ impl TemporalExplorerWindow {
         let subtitle = commit_controller::item_count_subtitle(children.len());
         imp.window_title.set_subtitle(&subtitle);
 
-        // ── Rebuild address bar (delegated to address_bar module) ─────────────
         {
             let repo_name = imp.repo_name.borrow().clone();
             let bar = imp.address_bar.clone();
@@ -779,14 +888,13 @@ impl TemporalExplorerWindow {
                             &w.imp().location_entry,
                             &dir,
                         );
-                        let _ = bar; // keep alive
+                        let _ = bar;
                     }
                 ),
             );
         }
         self.show_pathbar();
 
-        // ── Build the right-panel view (delegated to views module) ────────────
         let view_mode = *imp.view_mode.borrow();
         let widget: gtk::Widget = match view_mode {
             ViewMode::List => list_view::build_list_view(
