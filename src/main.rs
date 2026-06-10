@@ -28,6 +28,10 @@ mod icon_helpers;
 mod views;
 mod window;
 
+// Unit tests (compiled only with `cargo test`, never in release builds).
+#[cfg(test)]
+mod tests;
+
 use self::application::TemporalExplorerApplication;
 use self::window::TemporalExplorerWindow;
 

@@ -12,3 +12,8 @@ git2 = "0.19"
 package = "libadwaita"
 version = "0.7"
 features = ["v1_6"]
+
+# Dev-only: used by unit tests in src/tests/ to create temporary git repos.
+# Never compiled into the release binary.
+[dev-dependencies]
+tempfile = "3"
