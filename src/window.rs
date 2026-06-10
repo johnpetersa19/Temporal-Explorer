@@ -449,7 +449,8 @@ impl TemporalExplorerWindow {
                 imp.window_title.set_subtitle(&gettext("Loading…"));
                 *imp.repo_name.borrow_mut()    = repo_name;
                 *imp.repo_path.borrow_mut()    = Some(path.clone());
-                *imp.repository.borrow_mut()   = Some(DebugRepository(reader.repo));
+                // Use reader.repo() — the public accessor — not the private field reader.repo.
+                *imp.repository.borrow_mut()   = Some(DebugRepository(reader.repo().try_clone().expect("failed to clone repository handle")));
                 *imp.all_commits.borrow_mut()  = Vec::new();
                 *imp.last_query.borrow_mut()   = String::new();
                 *imp.current_hash.borrow_mut() = None;
