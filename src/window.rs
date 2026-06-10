@@ -367,6 +367,13 @@ impl TemporalExplorerWindow {
         self.imp().toolbar_switcher.set_visible_child_name("pathbar");
     }
 
+    /// Switch the toolbar to the location-entry (text input) mode.
+    ///
+    /// Currently wired to the "click on address bar" callback inside
+    /// `address_bar::rebuild_address_bar`.  Kept here as a named method
+    /// so that a future keyboard shortcut (e.g. Ctrl+L, à la Nautilus)
+    /// can call it directly without duplicating the logic.
+    #[allow(dead_code)]
     fn show_location_entry(&self) {
         let imp = self.imp();
         let dir = imp.current_dir.borrow().clone();

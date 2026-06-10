@@ -107,8 +107,12 @@ fn mime_icon_inner(path: &Path, symbolic: bool) -> &'static str {
 ///
 /// `symbolic = true`  → appends `-symbolic` (list view).
 /// `symbolic = false` → returns the full name (grid view).
+///
+/// Note: `_suffix` is intentionally unused as a variable — the actual
+/// suffix strings are embedded directly in the `concat!` macro arms below
+/// so that each branch returns a `&'static str` without runtime allocation.
 fn folder_icon_inner(name: &str, symbolic: bool) -> &'static str {
-    let suffix = if symbolic { "-symbolic" } else { "" };
+    let _suffix = if symbolic { "-symbolic" } else { "" };
 
     // Use a macro so we only write the pattern list once.
     macro_rules! folder_match {
