@@ -64,8 +64,13 @@
 //! will simply fail with `git2::Error` ("the path '../../etc/passwd' does not
 //! exist in the given tree") instead of opening any file outside the
 //! repository.
+//!
+//! # Accessing `HistoryReader` fields
+//!
+//! `repo` and `cpu_pool` are private.  Use the public accessor methods
+//! `reader.repo()` and `reader.cpu_pool()` — never access the fields directly.
 
-use git2::{ObjectType, Repository, SubmoduleStatus as Git2SubmoduleStatus};
+use git2::{ObjectType, Repository, SubmoduleIgnore};
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -211,34 +216,38 @@ pub struct SubmoduleInfo {
 /// Accepts an already-open `&Repository` to avoid redundant `Repository::open`
 /// calls when the caller already holds a handle (e.g. inside `HistoryReader`).
 ///
+/// Submodule status is queried via [`Repository::submodule_status`] — the
+/// correct stable API in git2.  `git2::Submodule::status()` is **not** part
+/// of the public API and must not be called.
+///
 /// Returns `Err` when `.gitmodules` cannot be parsed, allowing callers to
 /// distinguish "no submodules" from "read error".
 pub fn detect_submodules(repo: &Repository) -> Result<Vec<SubmoduleInfo>, git2::Error> {
     let submodules = repo.submodules()?;
 
-    let infos = submodules
-        .into_iter()
-        .map(|sm| {
-            let name = sm.name().unwrap_or("").to_owned();
-            let url  = sm.url().unwrap_or("").to_owned();
-            let path = sm.path().to_path_buf();
+    let mut infos = Vec::with_capacity(submodules.len());
+    for sm in &submodules {
+        let name = sm.name().unwrap_or("").to_owned();
+        let url  = sm.url().unwrap_or("").to_owned();
+        let path = sm.path().to_path_buf();
 
-            // Use git2 SubmoduleStatus flags — correct for worktrees, bare
-            // repos, and other non-standard layouts.
-            let flags = sm.status(None).unwrap_or(Git2SubmoduleStatus::IN_CONFIG);
-            let status = if flags.contains(Git2SubmoduleStatus::WD_UNINITIALIZED) {
-                SubmoduleStatus::NotInitialized
-            } else if flags.contains(Git2SubmoduleStatus::WD_WD_MODIFIED)
-                || flags.contains(Git2SubmoduleStatus::IN_WD)
-            {
-                SubmoduleStatus::Present
-            } else {
-                SubmoduleStatus::Missing
-            };
+        // `Repository::submodule_status` is the stable public API for
+        // querying submodule flags.  `SubmoduleIgnore::None` means "report
+        // all changes including untracked files".
+        let flags = repo
+            .submodule_status(&name, SubmoduleIgnore::None)
+            .unwrap_or(git2::SubmoduleStatus::IN_CONFIG);
 
-            SubmoduleInfo { name, url, path, status }
-        })
-        .collect();
+        let status = if flags.contains(git2::SubmoduleStatus::WD_UNINITIALIZED) {
+            SubmoduleStatus::NotInitialized
+        } else if flags.contains(git2::SubmoduleStatus::IN_WD) {
+            SubmoduleStatus::Present
+        } else {
+            SubmoduleStatus::Missing
+        };
+
+        infos.push(SubmoduleInfo { name, url, path, status });
+    }
 
     Ok(infos)
 }
@@ -255,6 +264,9 @@ pub fn detect_submodules_at(repo_path: &Path) -> Result<Vec<SubmoduleInfo>, git2
 // ── HistoryReader ──────────────────────────────────────────────────────────────
 
 /// Opens a Git repository and provides access to its commit history.
+///
+/// Fields are private.  Use [`HistoryReader::repo`] and
+/// [`HistoryReader::cpu_pool`] to access them — never use field syntax.
 pub struct HistoryReader {
     repo: Repository,
     cpu_pool: CpuPool,
@@ -270,6 +282,8 @@ impl HistoryReader {
     }
 
     /// Returns a reference to the underlying [`Repository`].
+    ///
+    /// Use `reader.repo()` — **not** `reader.repo` (private field).
     pub fn repo(&self) -> &Repository { &self.repo }
 
     /// Returns the [`CpuPool`] detected at construction time.
@@ -303,11 +317,8 @@ impl HistoryReader {
         on_page: impl FnMut(Vec<CommitInfo>),
     ) -> Result<(), git2::Error> {
         if self.cpu_pool.is_parallel() {
-            // Probe only up to MIN_COMMITS_FOR_PARALLEL + 1 OIDs — O(limit),
-            // not O(N) — to decide whether the parallel path is worthwhile.
             let count = self.probe_oid_count(MIN_COMMITS_FOR_PARALLEL + 1)?;
             if count > MIN_COMMITS_FOR_PARALLEL {
-                // Full OID collection needed for sharding.
                 let oids = self.collect_all_oids()?;
                 return self.list_commits_paginated_parallel(page_size, oids, on_page);
             }
@@ -339,10 +350,7 @@ impl HistoryReader {
         Ok(())
     }
 
-    /// Probes up to `limit + 1` OIDs from HEAD to decide on parallelism.
-    ///
-    /// Short-circuits after `limit + 1` entries — O(limit), not O(N).
-    /// Returns the actual count walked (≤ `limit + 1`).
+    /// Probes up to `limit + 1` OIDs from HEAD — O(limit), not O(N).
     fn probe_oid_count(&self, limit: usize) -> Result<usize, git2::Error> {
         let mut walk = self.repo.revwalk()?;
         walk.push_head()?;
@@ -356,8 +364,7 @@ impl HistoryReader {
         Ok(count)
     }
 
-    /// Collects **all** reachable OIDs from HEAD into a `Vec`, newest-first.
-    /// Called only when the parallel path has already been chosen.
+    /// Collects all reachable OIDs from HEAD, newest-first.
     fn collect_all_oids(&self) -> Result<Vec<git2::Oid>, git2::Error> {
         let mut walk = self.repo.revwalk()?;
         walk.push_head()?;
@@ -368,8 +375,7 @@ impl HistoryReader {
     /// Parallel paginated commit walk.
     ///
     /// `on_page` is called **only after all worker threads have joined**
-    /// successfully.  This guarantees that a mid-stream panic cannot cause the
-    /// serial fallback to re-emit pages that were already delivered.
+    /// successfully, preventing duplicate-page delivery on panic fallback.
     fn list_commits_paginated_parallel(
         &self,
         page_size: usize,
@@ -405,9 +411,6 @@ impl HistoryReader {
             })
             .collect();
 
-        // Collect ALL shard results before calling on_page even once.
-        // This prevents the serial fallback (triggered by a late panic) from
-        // re-emitting pages that were already delivered to the caller.
         let mut all: Vec<CommitInfo> = Vec::with_capacity(oids.len());
         for handle in handles {
             match handle.join() {
@@ -417,8 +420,6 @@ impl HistoryReader {
                         "[git_engine] parallel worker panicked ({e:?}); \
                          falling back to serial commit walk"
                     );
-                    // No pages have been emitted yet, so the serial path
-                    // starts cleanly from page zero without duplicating data.
                     return self.list_commits_paginated_serial(page_size, on_page);
                 }
             }
@@ -431,15 +432,7 @@ impl HistoryReader {
         Ok(())
     }
 
-    /// Searches commits reachable from HEAD whose summary, hash prefix, or
-    /// author match `query` (case-insensitive).
-    ///
-    /// Hash prefix matching is also case-insensitive: SHA-1 hashes are always
-    /// lowercase hex, so the query is lowercased before comparison.
-    ///
-    /// `find_commit` is deferred until the OID string pre-filter or a later
-    /// field check can actually match, avoiding full `CommitInfo` allocations
-    /// for the vast majority of commits on rare-query searches.
+    /// Searches commits by hash prefix, summary, or author (all case-insensitive).
     ///
     /// Returns at most [`SEARCH_COMMITS_MAX`] results.
     pub fn search_commits(&self, query: &str) -> Result<Vec<CommitInfo>, git2::Error> {
@@ -458,21 +451,14 @@ impl HistoryReader {
             return Ok(results);
         }
 
-        // Normalise to lowercase — SHA-1 hex is always lowercase, and summary/
-        // author comparisons are already case-insensitive via .to_lowercase().
         let q = query.to_lowercase();
         let mut results = Vec::new();
 
         for oid in walk {
             let oid = oid?;
-
-            // Cheap OID pre-filter: convert to hex string and check prefix
-            // before paying the cost of find_commit + CommitInfo allocation.
-            let oid_str = oid.to_string(); // 40-char lowercase hex
+            let oid_str = oid.to_string();
             let hash_match = oid_str.starts_with(&q);
 
-            // Only hydrate the commit when the hash already matches or when
-            // we still need to check summary/author.
             let commit = self.repo.find_commit(oid)?;
             let info = CommitInfo::from_commit(&commit);
 
@@ -570,8 +556,7 @@ impl<'repo> SnapshotResolver<'repo> {
     /// Resolves `revision` and materializes only the **direct children** of
     /// `dir` in the corresponding commit tree.
     ///
-    /// Entries with missing or empty names are silently skipped to avoid
-    /// producing `PathBuf`s with empty components.
+    /// Entries with missing or empty names are silently skipped.
     pub fn resolve_dir(
         &self,
         revision: &str,
@@ -590,8 +575,6 @@ impl<'repo> SnapshotResolver<'repo> {
 
         let mut nodes = Vec::new();
         for entry in subtree.iter() {
-            // Skip entries with empty or missing names — they would produce
-            // PathBuf components like dir.join(""), which is invalid.
             let name = match entry.name() {
                 Some(n) if !n.is_empty() => n,
                 _ => continue,
@@ -605,8 +588,7 @@ impl<'repo> SnapshotResolver<'repo> {
     }
 
     /// Full-tree walk, capped at [`MAX_FULL_TREE_ENTRIES`] entries and
-    /// [`MAX_TREE_DEPTH`] levels.  The limit is enforced inside
-    /// [`SnapshotMaterializer::materialize`] for early abort.
+    /// [`MAX_TREE_DEPTH`] levels.
     pub fn resolve_tree(&self, revision: &str) -> Result<Vec<TreeNode>, git2::Error> {
         let obj = self.repo.revparse_single(revision)?;
         let commit = obj.peel_to_commit()?;
@@ -628,9 +610,7 @@ impl<'repo> SnapshotMaterializer<'repo> {
 
     /// Recursively walks `tree` and returns a flat, depth-first list of nodes.
     ///
-    /// `limit` is a hard cap on the total number of nodes.  When the count
-    /// reaches `limit` an error is returned immediately, aborting traversal.
-    ///
+    /// Aborts early when `limit` is reached or `MAX_TREE_DEPTH` is exceeded.
     /// Entries with missing or empty names are silently skipped.
     pub fn materialize(
         &self,
@@ -657,8 +637,6 @@ impl<'repo> SnapshotMaterializer<'repo> {
                 )));
             }
 
-            // Skip entries with empty or missing names — joining an empty
-            // component produces a semantically invalid path.
             let name = match entry.name() {
                 Some(n) if !n.is_empty() => n,
                 _ => continue,
