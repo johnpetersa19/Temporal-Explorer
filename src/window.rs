@@ -437,99 +437,115 @@ impl TemporalExplorerWindow {
 
     fn load_repository(&self, path: PathBuf) {
         let imp = self.imp();
+        // Validate that the path is a git repository by attempting to open it.
+        // We intentionally drop `reader` immediately after validation: git2::Repository
+        // does not implement Clone, so we open a second independent handle below
+        // for the window-level `repository` field used by the snapshot resolver.
         match HistoryReader::open(&path) {
-            Err(e) => self.show_error_toast(&format!("{}: {e}", gettext("Failed to open repository"))),
-            Ok(reader) => {
-                let repo_name = path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or(&gettext("Repository"))
-                    .to_string();
-                imp.window_title.set_title(&repo_name);
-                imp.window_title.set_subtitle(&gettext("Loading…"));
-                *imp.repo_name.borrow_mut()    = repo_name;
-                *imp.repo_path.borrow_mut()    = Some(path.clone());
-                // Use reader.repo() — the public accessor — not the private field reader.repo.
-                *imp.repository.borrow_mut()   = Some(DebugRepository(reader.repo().try_clone().expect("failed to clone repository handle")));
-                *imp.all_commits.borrow_mut()  = Vec::new();
-                *imp.last_query.borrow_mut()   = String::new();
-                *imp.current_hash.borrow_mut() = None;
-                *imp.current_dir.borrow_mut()  = PathBuf::new();
-                imp.history_back.borrow_mut().clear();
-                imp.history_forward.borrow_mut().clear();
-                imp.nav_back_button.set_sensitive(false);
-                imp.nav_forward_button.set_sensitive(false);
-                imp.dir_cache.borrow_mut().clear();
-                commit_controller::populate_commit_list(&imp.commit_list, &[]);
-                imp.commit_info_bar.set_revealed(false);
-                self.show_empty_state();
+            Err(e) => {
+                self.show_error_toast(&format!("{}: {e}", gettext("Failed to open repository")));
+                return;
+            }
+            Ok(_reader) => { /* validation succeeded; _reader is dropped here */ }
+        }
 
-                // SEARCH: disable the search entry while commits are being
-                // loaded so the user cannot search an incomplete dataset.
-                // The tooltip explains the temporary restriction.
-                imp.loading_commits.set(true);
-                imp.commit_search_entry.set_sensitive(false);
-                imp.commit_search_entry.set_tooltip_text(Some(
-                    &gettext("Search will be available once all commits are loaded"),
-                ));
+        // Open a dedicated git2::Repository handle for the UI (snapshot resolver).
+        // git2::Repository::open is a cheap, local-only operation.
+        let repo = match git2::Repository::open(&path) {
+            Ok(r) => r,
+            Err(e) => {
+                self.show_error_toast(&format!("{}: {e}", gettext("Failed to open repository")));
+                return;
+            }
+        };
 
-                // PERF: load commits in a background thread via std::sync::mpsc
-                // (glib::MainContext::channel was removed in glib 0.20).
-                // Pages are forwarded to the GTK main loop using
-                // glib::idle_add_local_once so widget mutations always happen
-                // on the main thread.
-                let (tx, rx) = std::sync::mpsc::channel::<Vec<CommitInfo>>();
+        let repo_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(&gettext("Repository"))
+            .to_string();
+        imp.window_title.set_title(&repo_name);
+        imp.window_title.set_subtitle(&gettext("Loading…"));
+        *imp.repo_name.borrow_mut()    = repo_name;
+        *imp.repo_path.borrow_mut()    = Some(path.clone());
+        *imp.repository.borrow_mut()   = Some(DebugRepository(repo));
+        *imp.all_commits.borrow_mut()  = Vec::new();
+        *imp.last_query.borrow_mut()   = String::new();
+        *imp.current_hash.borrow_mut() = None;
+        *imp.current_dir.borrow_mut()  = PathBuf::new();
+        imp.history_back.borrow_mut().clear();
+        imp.history_forward.borrow_mut().clear();
+        imp.nav_back_button.set_sensitive(false);
+        imp.nav_forward_button.set_sensitive(false);
+        imp.dir_cache.borrow_mut().clear();
+        commit_controller::populate_commit_list(&imp.commit_list, &[]);
+        imp.commit_info_bar.set_revealed(false);
+        self.show_empty_state();
 
-                std::thread::spawn(move || {
-                    if let Ok(bg_reader) = HistoryReader::open(&path) {
-                        let _ = bg_reader.list_commits_paginated(500, |page| {
-                            let _ = tx.send(page);
-                        });
-                    }
-                });
+        // SEARCH: disable the search entry while commits are being
+        // loaded so the user cannot search an incomplete dataset.
+        // The tooltip explains the temporary restriction.
+        imp.loading_commits.set(true);
+        imp.commit_search_entry.set_sensitive(false);
+        imp.commit_search_entry.set_tooltip_text(Some(
+            &gettext("Search will be available once all commits are loaded"),
+        ));
 
-                // Poll the channel from the main loop until the sender is dropped.
-                let weak_self = self.downgrade();
-                glib::idle_add_local(move || {
-                    match rx.try_recv() {
-                        Ok(page) => {
-                            if let Some(w) = weak_self.upgrade() {
-                                let imp = w.imp();
-                                commit_controller::append_commit_batch(&imp.commit_list, &page);
-                                let mut all = imp.all_commits.borrow_mut();
-                                all.extend(page);
-                                let count = all.len();
-                                drop(all);
-                                imp.window_title.set_subtitle(
-                                    &format!("{} {}", count, gettext("commits"))
-                                );
-                            }
-                            glib::ControlFlow::Continue
-                        }
-                        Err(std::sync::mpsc::TryRecvError::Empty) => {
-                            // No page ready yet — yield and come back next idle.
-                            glib::ControlFlow::Continue
-                        }
-                        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                            // Sender dropped: background thread finished.
-                            // SEARCH: all commits are now in memory — re-enable
-                            // the search entry and clear the loading tooltip.
-                            if let Some(w) = weak_self.upgrade() {
-                                let imp = w.imp();
-                                imp.loading_commits.set(false);
-                                imp.commit_search_entry.set_sensitive(true);
-                                imp.commit_search_entry.set_tooltip_text(None);
-                                let count = imp.all_commits.borrow().len();
-                                imp.window_title.set_subtitle(
-                                    &format!("{} {}", count, gettext("commits"))
-                                );
-                            }
-                            glib::ControlFlow::Break
-                        }
-                    }
+        // PERF: load commits in a background thread via std::sync::mpsc
+        // (glib::MainContext::channel was removed in glib 0.20).
+        // Pages are forwarded to the GTK main loop using
+        // glib::idle_add_local_once so widget mutations always happen
+        // on the main thread.
+        let (tx, rx) = std::sync::mpsc::channel::<Vec<CommitInfo>>();
+
+        std::thread::spawn(move || {
+            if let Ok(bg_reader) = HistoryReader::open(&path) {
+                let _ = bg_reader.list_commits_paginated(500, |page| {
+                    let _ = tx.send(page);
                 });
             }
-        }
+        });
+
+        // Poll the channel from the main loop until the sender is dropped.
+        let weak_self = self.downgrade();
+        glib::idle_add_local(move || {
+            match rx.try_recv() {
+                Ok(page) => {
+                    if let Some(w) = weak_self.upgrade() {
+                        let imp = w.imp();
+                        commit_controller::append_commit_batch(&imp.commit_list, &page);
+                        let mut all = imp.all_commits.borrow_mut();
+                        all.extend(page);
+                        let count = all.len();
+                        drop(all);
+                        imp.window_title.set_subtitle(
+                            &format!("{} {}", count, gettext("commits"))
+                        );
+                    }
+                    glib::ControlFlow::Continue
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    // No page ready yet — yield and come back next idle.
+                    glib::ControlFlow::Continue
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    // Sender dropped: background thread finished.
+                    // SEARCH: all commits are now in memory — re-enable
+                    // the search entry and clear the loading tooltip.
+                    if let Some(w) = weak_self.upgrade() {
+                        let imp = w.imp();
+                        imp.loading_commits.set(false);
+                        imp.commit_search_entry.set_sensitive(true);
+                        imp.commit_search_entry.set_tooltip_text(None);
+                        let count = imp.all_commits.borrow().len();
+                        imp.window_title.set_subtitle(
+                            &format!("{} {}", count, gettext("commits"))
+                        );
+                    }
+                    glib::ControlFlow::Break
+                }
+            }
+        });
     }
 
     // ── Commit list ───────────────────────────────────────────────────────────
