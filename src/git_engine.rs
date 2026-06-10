@@ -376,6 +376,11 @@ impl HistoryReader {
     ///
     /// `on_page` is called **only after all worker threads have joined**
     /// successfully, preventing duplicate-page delivery on panic fallback.
+    ///
+    /// After merging all shards, commits are re-sorted by timestamp (newest-first)
+    /// to restore chronological order that may have been disrupted by shard
+    /// interleaving. This guarantees the same ordering as the serial path and
+    /// ensures the timeline sidebar sees all years correctly.
     fn list_commits_paginated_parallel(
         &self,
         page_size: usize,
@@ -424,6 +429,13 @@ impl HistoryReader {
                 }
             }
         }
+
+        // Re-sort by timestamp (newest-first) after merging shards.
+        // Shards are distributed by OID index, not by time, so the merged
+        // result can be out of chronological order. This sort restores the
+        // same ordering produced by the serial path and ensures the timeline
+        // sidebar displays all years correctly.
+        all.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
 
         let page_size = page_size.max(1);
         for chunk in all.chunks(page_size) {
