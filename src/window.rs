@@ -215,6 +215,26 @@ glib::wrapper! {
             gtk::Native, gtk::Root, gtk::ShortcutManager;
 }
 
+// ── Free helper ───────────────────────────────────────────────────────────────
+
+/// Removes all children from a `gtk::Box` safely.
+///
+/// Snapshots the child list into a `Vec` **before** calling any `unparent()`.
+/// This prevents iterator-invalidation races where a GLib idle frame holds a
+/// stale `previous_sibling` pointer into the partially-mutated widget tree,
+/// which would trigger `gtk_widget_insert_after` assertion failures.
+fn clear_box(container: &gtk::Box) {
+    let mut children: Vec<gtk::Widget> = Vec::new();
+    let mut w = container.first_child();
+    while let Some(child) = w {
+        w = child.next_sibling();
+        children.push(child);
+    }
+    for child in children {
+        child.unparent();
+    }
+}
+
 impl TemporalExplorerWindow {
     pub fn new<P: IsA<gtk::Application>>(application: &P) -> Self {
         glib::Object::builder().property("application", application).build()
@@ -918,7 +938,11 @@ impl TemporalExplorerWindow {
     fn show_empty_state(&self) {
         let imp = self.imp();
         imp.toolbar_switcher.set_visible_child_name("pathbar");
-        while let Some(child) = imp.address_bar.first_child() { child.unparent(); }
+        // Safe snapshot-then-unparent: never iterate the live sibling chain
+        // while mutating it. A concurrent idle frame may hold a stale
+        // previous_sibling pointer, which would crash with
+        // gtk_widget_insert_after assertion failures.
+        clear_box(&imp.address_bar);
         imp.window_title.set_visible(true);
         imp.nav_back_button.set_sensitive(false);
         imp.nav_forward_button.set_sensitive(false);
