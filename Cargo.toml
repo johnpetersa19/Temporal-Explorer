@@ -5,13 +5,13 @@ edition = "2021"
 
 [dependencies]
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
-gtk = { version = "0.9", package = "gtk4", features = ["gnome_47"] }
+gtk = { version = "0.11", package = "gtk4", features = ["gnome_50"] }
 git2 = "0.19"
 
 [dependencies.adw]
 package = "libadwaita"
-version = "0.7"
-features = ["v1_6"]
+version = "0.9"
+features = ["v1_9"]
 
 # Dev-only: used by unit tests in src/tests/ to create temporary git repos.
 # Never compiled into the release binary.
