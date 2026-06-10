@@ -34,6 +34,24 @@
 use gtk::prelude::*;
 use std::path::PathBuf;
 
+/// Removes all children from a `gtk::Box` safely.
+///
+/// Snapshots the child list first, then calls `unparent()` on each captured
+/// widget. This prevents iterator-invalidation races where a concurrent GTK
+/// idle frame observes a partially-mutated sibling chain, causing
+/// `gtk_widget_insert_after` assertion failures.
+fn clear_box(container: &gtk::Box) {
+    let mut children: Vec<gtk::Widget> = Vec::new();
+    let mut child = container.first_child();
+    while let Some(w) = child {
+        child = w.next_sibling();
+        children.push(w);
+    }
+    for w in children {
+        w.unparent();
+    }
+}
+
 /// Clears `bar` and rebuilds the breadcrumb segment buttons for `dir`.
 ///
 /// `repo_name` is shown as the root segment.  Each path component of `dir`
@@ -52,9 +70,9 @@ pub fn rebuild_address_bar(
     on_segment_clicked: impl Fn(PathBuf) + Clone + 'static,
     on_current_clicked: impl Fn() + Clone + 'static,
 ) {
-    while let Some(child) = bar.first_child() {
-        child.unparent();
-    }
+    // Safe snapshot-then-unparent: never iterate the live widget tree while
+    // mutating it, as a concurrent idle frame may be holding a sibling ref.
+    clear_box(bar);
 
     struct Seg {
         label: String,
