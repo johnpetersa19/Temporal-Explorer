@@ -25,6 +25,7 @@ mod config;
 mod file_preview;
 pub mod git_engine;
 mod icon_helpers;
+mod timeline_filter;
 mod views;
 mod window;
 

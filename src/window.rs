@@ -73,7 +73,7 @@ use crate::views::{list_view, grid_view};
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum ViewMode { #[default] List, Grid }
 
-// ── TimelineLevel ─────────────────────────────────────────────────────────────
+// ── TimelineLevel ────────────────────────────────────────────────────────────
 
 /// Which page of the sidebar `timeline_stack` is currently visible.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -337,17 +337,17 @@ impl TemporalExplorerWindow {
             #[weak(rename_to = w)] self, move |_| w.toggle_view_mode()
         ));
 
-        // ── Timeline drill-down signals ───────────────────────────────────────
+        // ── Timeline drill-down signals ──────────────────────────────────────
         imp.timeline_back_button.connect_clicked(glib::clone!(
             #[weak(rename_to = w)] self, move |_| w.on_timeline_back()
         ));
         imp.year_list.connect_row_selected(glib::clone!(
             #[weak(rename_to = w)] self,
-            move |_, row| { if let Some(r) = row { w.on_year_selected(r); } }
+            move |_, row| if let Some(r) = row { w.on_year_selected(r); }
         ));
         imp.month_list.connect_row_selected(glib::clone!(
             #[weak(rename_to = w)] self,
-            move |_, row| { if let Some(r) = row { w.on_month_selected(r); } }
+            move |_, row| if let Some(r) = row { w.on_month_selected(r); }
         ));
         imp.commit_list.connect_row_selected(glib::clone!(
             #[weak(rename_to = w)] self, move |_, row| w.on_commit_selected(row)
@@ -431,7 +431,7 @@ impl TemporalExplorerWindow {
         self.enter_dir(target);
     }
 
-    // ── Timeline drill-down ───────────────────────────────────────────────────
+    // ── Timeline drill-down ──────────────────────────────────────────────────
 
     /// Switches the sidebar to the `Years` page and updates header chrome.
     fn show_year_list(&self) {
@@ -512,7 +512,7 @@ impl TemporalExplorerWindow {
                 imp.commit_info_bar.set_revealed(false);
                 self.show_empty_state();
             }
-            TimelineLevel::Years => {} // already at top
+            TimelineLevel::Years => {}
         }
     }
 
@@ -527,7 +527,7 @@ impl TemporalExplorerWindow {
         self.show_year_list();
     }
 
-    // ── View mode toggle ───────────────────────────────────────────────────────
+    // ── View mode toggle ──────────────────────────────────────────────────────
 
     fn toggle_view_mode(&self) {
         let imp = self.imp();
@@ -689,12 +689,8 @@ impl TemporalExplorerWindow {
         let cancel = Arc::new(AtomicBool::new(false));
         *imp.search_cancel.borrow_mut() = Some(Arc::clone(&cancel));
 
-        // Retrieve the commits currently shown at the Commits level (month slice).
-        // We search only within the current month's slice, not all commits.
         let all: Vec<CommitInfo> = imp.all_commits.borrow().clone();
         let year  = imp.selected_year.get();
-        // Derive the active month from the list that is currently populated.
-        // If the query is empty we show the full month slice via the fast path.
         let query_owned = query.to_owned();
 
         if query_owned.is_empty() {
@@ -707,9 +703,7 @@ impl TemporalExplorerWindow {
         std::thread::spawn(move || {
             let q = query_owned.to_lowercase();
             let mut results = Vec::new();
-            // Filter within the year for responsive results.
             for commit in all.iter().filter(|c| {
-                use crate::timeline_filter;
                 matches!(
                     glib::DateTime::from_unix_local(c.timestamp)
                         .ok()
