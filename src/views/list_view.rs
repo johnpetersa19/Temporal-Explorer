@@ -87,7 +87,14 @@ pub fn build_list_view(
     let hash_clone = hash.to_owned();
     list.connect_row_activated(glib::clone!(
         move |_, row| {
-            let idx = row.index() as usize;
+            // gtk::ListBoxRow::index() returns -1 when the row is not
+            // attached to a ListBox (removal animations, re-render edge
+            // cases).  Casting -1i32 as usize wraps to
+            // 18_446_744_073_709_551_615 — guard against it here.
+            let idx = match row.index() {
+                i if i >= 0 => i as usize,
+                _ => return,
+            };
             if let Some(node) = children_clone.get(idx) {
                 if node.is_dir() || node.is_submodule() {
                     on_enter_dir(node.path().to_path_buf());
