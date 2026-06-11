@@ -101,7 +101,14 @@ pub fn build_grid_view(
     let hash_clone = hash.to_owned();
     flow.connect_child_activated(glib::clone!(
         move |_, child| {
-            let idx = child.index() as usize;
+            // gtk::FlowBoxChild::index() returns -1 when the child is not
+            // attached to a FlowBox (removal animations, re-render edge
+            // cases).  Casting -1i32 as usize wraps to
+            // 18_446_744_073_709_551_615 — guard against it here.
+            let idx = match child.index() {
+                i if i >= 0 => i as usize,
+                _ => return,
+            };
             if let Some(node) = children_clone.get(idx) {
                 if node.is_dir() || node.is_submodule() {
                     on_enter_dir(node.path().to_path_buf());
