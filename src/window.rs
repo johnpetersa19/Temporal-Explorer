@@ -46,10 +46,12 @@
 //! `imp.timeline_level`.  The back button (`timeline_back_button`) pops one
 //! level; the `timeline_stack` `Stack` slides between the three pages.
 //!
-//! ## Search scope limitation
+//! ## Search scope
 //!
 //! The search (`on_search_changed`) filters the `all_commits` in-memory
-//! cache.  It is only reachable when the sidebar is at the `Commits` level.
+//! cache.  When a year is selected (`selected_year != 0`) the results are
+//! scoped to that year.  When no year is selected (Years screen or after
+//! pressing Back to the years level) the search spans all commits.
 
 use adw::prelude::AdwApplicationWindowExt;
 use adw::subclass::prelude::*;
@@ -700,6 +702,8 @@ impl TemporalExplorerWindow {
         *imp.search_cancel.borrow_mut() = Some(Arc::clone(&cancel));
 
         let all: Vec<CommitInfo> = imp.all_commits.borrow().clone();
+        // year==0 means no year is selected (Years screen or after Back);
+        // in that case the search spans all commits across every year.
         let year = imp.selected_year.get();
         let query_owned = query.to_owned();
 
@@ -713,14 +717,21 @@ impl TemporalExplorerWindow {
         std::thread::spawn(move || {
             let q = query_owned.to_lowercase();
             let mut results = Vec::new();
-            for commit in all.iter().filter(|c| {
-                matches!(
-                    glib::DateTime::from_unix_local(c.timestamp)
-                        .ok()
-                        .map(|dt| dt.year()),
-                    Some(y) if y == year
-                )
-            }) {
+            // When year==0 no year filter is active — search all commits.
+            // When year!=0 scope results to that year only.
+            let iter: Box<dyn Iterator<Item = &CommitInfo> + Send> = if year == 0 {
+                Box::new(all.iter())
+            } else {
+                Box::new(all.iter().filter(move |c| {
+                    matches!(
+                        glib::DateTime::from_unix_local(c.timestamp)
+                            .ok()
+                            .map(|dt| dt.year()),
+                        Some(y) if y == year
+                    )
+                }))
+            };
+            for commit in iter {
                 if cancel.load(Ordering::Relaxed) { return; }
                 if commit.summary.to_lowercase().contains(&q)
                     || commit.hash.starts_with(&query_owned)
