@@ -467,7 +467,10 @@ impl TemporalExplorerWindow {
     }
 
     fn on_year_selected(&self, row: &gtk::ListBoxRow) {
-        let year: i32 = row.widget_name().parse().unwrap_or(0);
+        let year: i32 = match row.widget_name().parse() {
+            Ok(y) => y,
+            Err(_) => return, // Malformed widget_name: ignore silently instead of using year=0
+        };
         let imp = self.imp();
         imp.selected_year.set(year);
 
@@ -485,7 +488,10 @@ impl TemporalExplorerWindow {
     }
 
     fn on_month_selected(&self, row: &gtk::ListBoxRow) {
-        let month: u32 = row.widget_name().parse().unwrap_or(0);
+        let month: u32 = match row.widget_name().parse() {
+            Ok(m) if m >= 1 && m <= 12 => m,
+            _ => return, // month=0 or >12 is invalid in the Gregorian calendar: ignore silently
+        };
         let imp = self.imp();
         let year = imp.selected_year.get();
 
