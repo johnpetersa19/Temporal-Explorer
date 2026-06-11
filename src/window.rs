@@ -70,12 +70,12 @@ use crate::file_preview;
 use crate::timeline_filter;
 use crate::views::{list_view, grid_view};
 
-// ── ViewMode ────────────────────────────────────────────────────────────────
+// ── ViewMode ────────────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum ViewMode { #[default] List, Grid }
 
-// ── TimelineLevel ────────────────────────────────────────────────────────────
+// ── TimelineLevel ──────────────────────────────────────────────────────────────────────────
 
 /// Which page of the sidebar `timeline_stack` is currently visible.
 ///
@@ -92,7 +92,7 @@ pub enum TimelineLevel {
     Commits,
 }
 
-// ── DebugRepository ───────────────────────────────────────────────────────────
+// ── DebugRepository ─────────────────────────────────────────────────────────────────────────
 
 pub struct DebugRepository(pub git2::Repository);
 
@@ -107,7 +107,7 @@ impl std::ops::Deref for DebugRepository {
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-// ── Private implementation ────────────────────────────────────────────────────
+// ── Private implementation ────────────────────────────────────────────────────────────────
 
 mod imp {
     use super::*;
@@ -181,6 +181,12 @@ mod imp {
 
         // PERF: cancellation token for the in-flight search background task.
         pub search_cancel:    RefCell<Option<Arc<AtomicBool>>>,
+
+        // LOAD: cancellation token for the in-flight repository loading idle.
+        // Mirrors `search_cancel`: when a new repository is opened the
+        // previous token is set to `true` so the stale idle_add_local closure
+        // exits on its next tick instead of appending stale commits.
+        pub load_cancel:      RefCell<Option<Arc<AtomicBool>>>,
     }
 
     #[glib::object_subclass]
@@ -206,7 +212,7 @@ mod imp {
     impl AdwApplicationWindowImpl for TemporalExplorerWindow {}
 }
 
-// ── Public wrapper ────────────────────────────────────────────────────────────
+// ── Public wrapper ──────────────────────────────────────────────────────────────────────────
 
 glib::wrapper! {
     pub struct TemporalExplorerWindow(ObjectSubclass<imp::TemporalExplorerWindow>)
@@ -217,7 +223,7 @@ glib::wrapper! {
             gtk::Native, gtk::Root, gtk::ShortcutManager;
 }
 
-// ── Free helper ───────────────────────────────────────────────────────────────
+// ── Free helper ────────────────────────────────────────────────────────────────────────────
 
 /// Removes all children from a `gtk::Box` safely.
 ///
@@ -242,12 +248,12 @@ impl TemporalExplorerWindow {
         glib::Object::builder().property("application", application).build()
     }
 
-    // ── Styles ────────────────────────────────────────────────────────────────
+    // ── Styles ──────────────────────────────────────────────────────────────────────────────
 
     fn setup_styles(&self) {
         let provider = gtk::CssProvider::new();
         provider.load_from_string("
-            /* ── Path bar pill container ─────────────────────────────── */
+            /* ── Path bar pill container ──────────────────────────────────────────── */
             .nautilus-pathbar {
                 background-color: color-mix(in srgb, currentColor 8%, transparent);
                 border-radius: 9999px;
@@ -255,7 +261,7 @@ impl TemporalExplorerWindow {
                 min-height: 32px;
             }
 
-            /* ── Individual path segment buttons ──────────────────────── */
+            /* ── Individual path segment buttons ──────────────────────────── */
             .nautilus-path-button {
                 min-width: 8px;
                 border-radius: 9999px;
@@ -278,14 +284,14 @@ impl TemporalExplorerWindow {
                 box-shadow: none;
             }
 
-            /* ── Chevron separators ───────────────────────────────── */
+            /* ── Chevron separators ───────────────────────────────────────────── */
             .nautilus-path-separator {
                 opacity: 0.35;
                 margin: 0 1px;
                 -gtk-icon-size: 12px;
             }
 
-            /* ── Location entry ───────────────────────────────────────── */
+            /* ── Location entry ────────────────────────────────────────────────── */
             .location-bar {
                 min-width: 320px;
             }
@@ -296,7 +302,7 @@ impl TemporalExplorerWindow {
                 border-radius: 0 9999px 9999px 0;
             }
 
-            /* ── Grid view cells ─────────────────────────────────────── */
+            /* ── Grid view cells ─────────────────────────────────────────────────── */
             .nautilus-view-cell {
                 border-radius: 8px;
                 padding: 8px 6px 6px 6px;
@@ -315,7 +321,7 @@ impl TemporalExplorerWindow {
                 outline-color: @accent_bg_color;
             }
 
-            /* ── List view rows ───────────────────────────────────────────── */
+            /* ── List view rows ─────────────────────────────────────────────────────── */
             .nautilus-list-row {
                 border-radius: 6px;
                 transition: background-color 120ms ease;
@@ -328,7 +334,7 @@ impl TemporalExplorerWindow {
                 background-color: color-mix(in srgb, @accent_bg_color 18%, transparent);
             }
 
-            /* ── Commit info bar ─────────────────────────────────────────── */
+            /* ── Commit info bar ────────────────────────────────────────────────────── */
             .commit-hash {
                 font-family: monospace;
                 font-size: 0.85em;
@@ -344,7 +350,7 @@ impl TemporalExplorerWindow {
         }
     }
 
-    // ── Signal wiring ─────────────────────────────────────────────────────────
+    // ── Signal wiring ─────────────────────────────────────────────────────────────────────────────
 
     fn setup_callbacks(&self) {
         let imp = self.imp();
@@ -362,7 +368,7 @@ impl TemporalExplorerWindow {
             #[weak(rename_to = w)] self, move |_| w.toggle_view_mode()
         ));
 
-        // ── Timeline drill-down signals ──────────────────────────────────────
+        // ── Timeline drill-down signals ──────────────────────────────────────────────────
         imp.timeline_back_button.connect_clicked(glib::clone!(
             #[weak(rename_to = w)] self, move |_| w.on_timeline_back()
         ));
@@ -429,7 +435,7 @@ impl TemporalExplorerWindow {
         ));
     }
 
-    // ── toolbar_switcher helpers ───────────────────────────────────────────
+    // ── toolbar_switcher helpers ───────────────────────────────────────────────────────────────────
 
     fn show_pathbar(&self) {
         self.imp().toolbar_switcher.set_visible_child_name("pathbar");
@@ -456,7 +462,7 @@ impl TemporalExplorerWindow {
         self.enter_dir(target);
     }
 
-    // ── Timeline drill-down ──────────────────────────────────────────────────
+    // ── Timeline drill-down ────────────────────────────────────────────────────────────────────────
 
     fn show_year_list(&self) {
         let imp = self.imp();
@@ -545,7 +551,7 @@ impl TemporalExplorerWindow {
         self.show_year_list();
     }
 
-    // ── View mode toggle ──────────────────────────────────────────────────────
+    // ── View mode toggle ────────────────────────────────────────────────────────────────────────────
 
     fn toggle_view_mode(&self) {
         let imp = self.imp();
@@ -566,7 +572,7 @@ impl TemporalExplorerWindow {
         }
     }
 
-    // ── Open repository ───────────────────────────────────────────────────────
+    // ── Open repository ────────────────────────────────────────────────────────────────────────────
 
     fn open_repository_dialog(&self) {
         let dialog = gtk::FileDialog::builder()
@@ -588,6 +594,14 @@ impl TemporalExplorerWindow {
 
     fn load_repository(&self, path: PathBuf) {
         let imp = self.imp();
+
+        // Cancel any stale idle_add_local from a previous load_repository()
+        // call that may still be draining commits into all_commits.
+        // Without this, opening Repo B immediately after Repo A would cause
+        // the old idle to append A's commits into B's all_commits vec.
+        if let Some(old_cancel) = imp.load_cancel.borrow().as_ref() {
+            old_cancel.store(true, Ordering::Relaxed);
+        }
 
         // Open the repository exactly once for validation.
         // The resulting HistoryReader is reused: its inner git2::Repository is
@@ -644,8 +658,16 @@ impl TemporalExplorerWindow {
             }
         });
 
+        // Fresh cancellation token for this load session.
+        let cancel = Arc::new(AtomicBool::new(false));
+        *imp.load_cancel.borrow_mut() = Some(Arc::clone(&cancel));
+
         let weak_self = self.downgrade();
         glib::idle_add_local(move || {
+            // Exit immediately if a newer load_repository() call has started.
+            if cancel.load(Ordering::Relaxed) {
+                return glib::ControlFlow::Break;
+            }
             match rx.try_recv() {
                 Ok(page) => {
                     if let Some(w) = weak_self.upgrade() {
@@ -679,13 +701,13 @@ impl TemporalExplorerWindow {
         });
     }
 
-    // ── Commit list ───────────────────────────────────────────────────────────
+    // ── Commit list ──────────────────────────────────────────────────────────────────────────────
 
     fn populate_commit_list(&self, commits: &[CommitInfo]) {
         commit_controller::populate_commit_list(&self.imp().commit_list, commits);
     }
 
-    // ── Search ────────────────────────────────────────────────────────────────
+    // ── Search ─────────────────────────────────────────────────────────────────────────────────
 
     fn on_search_changed(&self, query: &str) {
         let imp = self.imp();
@@ -756,7 +778,7 @@ impl TemporalExplorerWindow {
         });
     }
 
-    // ── Commit selected ───────────────────────────────────────────────────────
+    // ── Commit selected ───────────────────────────────────────────────────────────────────────────
 
     fn on_commit_selected(&self, row: Option<&gtk::ListBoxRow>) {
         let imp = self.imp();
@@ -779,7 +801,7 @@ impl TemporalExplorerWindow {
         self.browse_dir(&hash, &PathBuf::new());
     }
 
-    // ── Navigation ────────────────────────────────────────────────────────────
+    // ── Navigation ───────────────────────────────────────────────────────────────────────────────
 
     fn enter_dir(&self, dir: PathBuf) {
         let imp = self.imp();
@@ -938,7 +960,7 @@ impl TemporalExplorerWindow {
         self.replace_right_panel(widget);
     }
 
-    // ── File preview ──────────────────────────────────────────────────────────
+    // ── File preview ────────────────────────────────────────────────────────────────────────────
 
     fn open_file_preview(&self, path: &std::path::Path, hash: &str) {
         let imp = self.imp();
@@ -950,7 +972,7 @@ impl TemporalExplorerWindow {
         file_preview::show_file_preview(self, repo, hash, path);
     }
 
-    // ── Panel helpers ─────────────────────────────────────────────────────────
+    // ── Panel helpers ─────────────────────────────────────────────────────────────────────────────
 
     fn show_empty_state(&self) {
         let imp = self.imp();
@@ -972,7 +994,7 @@ impl TemporalExplorerWindow {
         tv.set_content(Some(&widget));
     }
 
-    // ── Utilities ─────────────────────────────────────────────────────────────
+    // ── Utilities ──────────────────────────────────────────────────────────────────────────────
 
     fn show_error_toast(&self, message: &str) {
         let toast = adw::Toast::builder().title(message).timeout(4).build();
