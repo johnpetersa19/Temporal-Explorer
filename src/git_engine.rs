@@ -75,7 +75,7 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-// ── Limits ────────────────────────────────────────────────────────────────────
+// ── Limits ──────────────────────────────────────────────────────────────────
 
 /// Hard cap for [`HistoryReader::list_commits`] (non-paginated).
 /// Above this, callers should use [`HistoryReader::list_commits_paginated`].
@@ -107,7 +107,7 @@ const SEARCH_COMMITS_MAX: usize = 5_000;
 /// threshold does not vary with the caller's pagination preference.
 const MIN_COMMITS_FOR_PARALLEL: usize = 2_000;
 
-// ── Internal helpers ──────────────────────────────────────────────────────────
+// ── Internal helpers ───────────────────────────────────────────────────────────
 
 /// Converts a git2 tree entry kind + path into the corresponding [`TreeNode`].
 ///
@@ -122,6 +122,34 @@ fn entry_to_tree_node(kind: Option<ObjectType>, path: PathBuf) -> Option<TreeNod
         Some(ObjectType::Tree)   => Some(TreeNode::Dir(path)),
         Some(ObjectType::Commit) => Some(TreeNode::Submodule(path)),
         _                        => None,
+    }
+}
+
+/// Pushes HEAD onto a revwalk, gracefully handling empty repositories.
+///
+/// In a freshly-initialised repository with no commits, `push_head()` returns
+/// `Err` with error class `Reference` (code -3, "reference 'refs/heads/...'
+/// not found").  Propagating that error leaves the UI in a broken state
+/// (the title bar shows "Loading…" forever) even though the repository itself
+/// is perfectly valid — it simply has no history yet.
+///
+/// This helper absorbs that specific error and returns `Ok(())` instead, so
+/// the caller's revwalk iterator yields zero OIDs and the UI renders an
+/// empty-repository state cleanly.
+#[inline]
+fn push_head_safe(walk: &mut git2::Revwalk<'_>, repo: &Repository) -> Result<(), git2::Error> {
+    match walk.push_head() {
+        Ok(()) => Ok(()),
+        Err(e) if e.class() == git2::ErrorClass::Reference => {
+            // Empty repository: HEAD exists but points to an unborn branch.
+            // Verify by checking whether any commit-like object is reachable.
+            if repo.is_empty().unwrap_or(true) {
+                Ok(()) // Treat as zero commits — not an error.
+            } else {
+                Err(e) // Reference error in a non-empty repo is a real problem.
+            }
+        }
+        Err(e) => Err(e),
     }
 }
 
@@ -189,7 +217,7 @@ impl CommitInfo {
     }
 }
 
-// ── SubmoduleInfo / SubmoduleStatus ───────────────────────────────────────────
+// ── SubmoduleInfo / SubmoduleStatus ───────────────────────────────────────────────
 
 /// Initialization / checkout status of a submodule.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -261,7 +289,7 @@ pub fn detect_submodules_at(repo_path: &Path) -> Result<Vec<SubmoduleInfo>, git2
     detect_submodules(&repo)
 }
 
-// ── HistoryReader ──────────────────────────────────────────────────────────────
+// ── HistoryReader ──────────────────────────────────────────────────────────────────
 
 /// Opens a Git repository and provides access to its commit history.
 ///
@@ -293,7 +321,7 @@ impl HistoryReader {
     /// sorted newest-first.
     pub fn list_commits(&self) -> Result<Vec<CommitInfo>, git2::Error> {
         let mut walk = self.repo.revwalk()?;
-        walk.push_head()?;
+        push_head_safe(&mut walk, &self.repo)?;
         walk.set_sorting(git2::Sort::TIME)?;
 
         let mut commits = Vec::new();
@@ -334,7 +362,7 @@ impl HistoryReader {
     ) -> Result<(), git2::Error> {
         let page_size = page_size.max(1);
         let mut walk = self.repo.revwalk()?;
-        walk.push_head()?;
+        push_head_safe(&mut walk, &self.repo)?;
         walk.set_sorting(git2::Sort::TIME)?;
 
         let mut page: Vec<CommitInfo> = Vec::with_capacity(page_size);
@@ -353,7 +381,7 @@ impl HistoryReader {
     /// Probes up to `limit + 1` OIDs from HEAD — O(limit), not O(N).
     fn probe_oid_count(&self, limit: usize) -> Result<usize, git2::Error> {
         let mut walk = self.repo.revwalk()?;
-        walk.push_head()?;
+        push_head_safe(&mut walk, &self.repo)?;
         walk.set_sorting(git2::Sort::TIME)?;
         let mut count = 0usize;
         for oid in walk {
@@ -367,7 +395,7 @@ impl HistoryReader {
     /// Collects all reachable OIDs from HEAD, newest-first.
     fn collect_all_oids(&self) -> Result<Vec<git2::Oid>, git2::Error> {
         let mut walk = self.repo.revwalk()?;
-        walk.push_head()?;
+        push_head_safe(&mut walk, &self.repo)?;
         walk.set_sorting(git2::Sort::TIME)?;
         walk.collect::<Result<Vec<_>, _>>()
     }
@@ -449,7 +477,7 @@ impl HistoryReader {
     /// Returns at most [`SEARCH_COMMITS_MAX`] results.
     pub fn search_commits(&self, query: &str) -> Result<Vec<CommitInfo>, git2::Error> {
         let mut walk = self.repo.revwalk()?;
-        walk.push_head()?;
+        push_head_safe(&mut walk, &self.repo)?;
         walk.set_sorting(git2::Sort::TIME)?;
 
         if query.is_empty() {
@@ -510,7 +538,7 @@ impl TreeNode {
     pub fn is_submodule(&self) -> bool { matches!(self, TreeNode::Submodule(_)) }
 }
 
-// ── DirCache ──────────────────────────────────────────────────────────────────
+// ── DirCache ───────────────────────────────────────────────────────────────────
 
 /// Simple LRU cache for directory listings keyed by `(commit_hash, dir_path)`.
 #[derive(Debug)]
@@ -555,7 +583,7 @@ impl Default for DirCache {
     fn default() -> Self { Self::new() }
 }
 
-// ── SnapshotResolver ───────────────────────────────────────────────────────────
+// ── SnapshotResolver ─────────────────────────────────────────────────────────────────
 
 /// Resolves a commit hash (or any Git revision string) into a raw Git tree.
 pub struct SnapshotResolver<'repo> {
@@ -610,7 +638,7 @@ impl<'repo> SnapshotResolver<'repo> {
     }
 }
 
-// ── SnapshotMaterializer ─────────────────────────────────────────────────────
+// ── SnapshotMaterializer ───────────────────────────────────────────────────────────────
 
 /// Converts a raw Git tree object into a navigable list of [`TreeNode`]s.
 pub struct SnapshotMaterializer<'repo> {
