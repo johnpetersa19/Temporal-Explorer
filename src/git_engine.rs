@@ -75,7 +75,7 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-// ── Limits ──────────────────────────────────────────────────────────────────
+// ── Limits ───────────────────────────────────────────────────────────
 
 /// Hard cap for [`HistoryReader::list_commits`] (non-paginated).
 /// Above this, callers should use [`HistoryReader::list_commits_paginated`].
@@ -107,7 +107,7 @@ const SEARCH_COMMITS_MAX: usize = 5_000;
 /// threshold does not vary with the caller's pagination preference.
 const MIN_COMMITS_FOR_PARALLEL: usize = 2_000;
 
-// ── Internal helpers ───────────────────────────────────────────────────────────
+// ── Internal helpers ──────────────────────────────────────────────────────────
 
 /// Converts a git2 tree entry kind + path into the corresponding [`TreeNode`].
 ///
@@ -153,7 +153,7 @@ fn push_head_safe(walk: &mut git2::Revwalk<'_>, repo: &Repository) -> Result<(),
     }
 }
 
-// ── CpuPool ───────────────────────────────────────────────────────────────────
+// ── CpuPool ────────────────────────────────────────────────────────────────
 
 /// Runtime CPU detection and derived thread-pool sizes.
 #[derive(Debug, Clone, Copy)]
@@ -187,7 +187,7 @@ impl Default for CpuPool {
     fn default() -> Self { Self::detect() }
 }
 
-// ── CommitInfo ────────────────────────────────────────────────────────────────
+// ── CommitInfo ───────────────────────────────────────────────────────────────
 
 /// Lightweight representation of a single commit, used to populate the UI list.
 #[derive(Debug, Clone)]
@@ -217,7 +217,7 @@ impl CommitInfo {
     }
 }
 
-// ── SubmoduleInfo / SubmoduleStatus ───────────────────────────────────────────────
+// ── SubmoduleInfo / SubmoduleStatus ──────────────────────────────────────────────
 
 /// Initialization / checkout status of a submodule.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -512,9 +512,16 @@ impl HistoryReader {
         }
         Ok(results)
     }
+
+    /// Extracts the underlying `git2::Repository` out of this reader.
+    ///
+    /// Used in `window.rs` to avoid opening the same repository path twice:
+    /// the window opens it once for validation via `HistoryReader::open`, then
+    /// calls this method to retrieve the inner handle for tree/snapshot browsing.
+    pub fn into_git2(self) -> Repository { self.repo }
 }
 
-// ── TreeNode ───────────────────────────────────────────────────────────────────
+// ── TreeNode ───────────────────────────────────────────────────────────────
 
 /// A single node in a materialized snapshot tree.
 #[derive(Debug, Clone)]
@@ -538,7 +545,7 @@ impl TreeNode {
     pub fn is_submodule(&self) -> bool { matches!(self, TreeNode::Submodule(_)) }
 }
 
-// ── DirCache ───────────────────────────────────────────────────────────────────
+// ── DirCache ───────────────────────────────────────────────────────────────
 
 /// Simple LRU cache for directory listings keyed by `(commit_hash, dir_path)`.
 #[derive(Debug)]
@@ -556,7 +563,14 @@ impl DirCache {
             .entries
             .iter()
             .position(|((h, d), _)| h == hash && d == dir)?;
-        let entry = self.entries.remove(pos).unwrap();
+        // INVARIANT: `pos` was just returned by `Iterator::position` on
+        // `self.entries` with no intervening mutation, so the index is
+        // guaranteed to be in-bounds.  Using `expect` instead of `unwrap`
+        // documents this contract and produces a meaningful panic message
+        // if the invariant is ever broken by a future refactor (e.g. after
+        // introducing interior mutability or concurrent access).
+        let entry = self.entries.remove(pos)
+            .expect("pos is valid: it was just returned by position() on the same VecDeque");
         let arc = Arc::clone(&entry.1);
         self.entries.push_front(entry);
         Some(arc)
@@ -583,7 +597,7 @@ impl Default for DirCache {
     fn default() -> Self { Self::new() }
 }
 
-// ── SnapshotResolver ─────────────────────────────────────────────────────────────────
+// ── SnapshotResolver ───────────────────────────────────────────────────────────────
 
 /// Resolves a commit hash (or any Git revision string) into a raw Git tree.
 pub struct SnapshotResolver<'repo> {
