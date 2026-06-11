@@ -63,7 +63,7 @@ use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
 use std::collections::HashMap;
 use std::cell::RefCell;
 
-// ── Tuning constants ───────────────────────────────────────────────────────
+// ── Tuning constants ───────────────────────────────────────────────────
 
 /// Rows inserted per idle frame during a **full list rebuild**.
 const POPULATE_BATCH: usize = 150;
@@ -81,7 +81,7 @@ const MAX_RENDERED_ROWS: usize = 5_000;
 #[allow(dead_code)]
 const HARD_APPEND_CAP: usize = 15_000;
 
-// ── Generation counter helpers ────────────────────────────────────────────
+// ── Generation counter helpers ──────────────────────────────────────────────
 //
 // We store an Arc<AtomicU64> in a thread-local keyed by the ListBox pointer
 // address. This avoids GObject qdata FFI entirely.
@@ -109,7 +109,7 @@ fn next_generation(list_box: &gtk::ListBox) -> u64 {
     counter.fetch_add(1, Ordering::Relaxed) + 1
 }
 
-// ── Safe ListBox clear ────────────────────────────────────────────────────────
+// ── Safe ListBox clear ─────────────────────────────────────────────────────
 
 /// Removes all children from `list_box` safely.
 ///
@@ -131,7 +131,7 @@ fn clear_listbox(list_box: &gtk::ListBox) {
     }
 }
 
-// ── Row builders ───────────────────────────────────────────────────────
+// ── Row builders ─────────────────────────────────────────────
 
 /// Builds a [`gtk::ListBoxRow`] that represents a single commit entry.
 pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
@@ -151,7 +151,7 @@ pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
         .build();
 
     let meta = gtk::Label::builder()
-        .label(&format!("{} · {}", &commit.hash[..8], commit.author))
+        .label(&format!("{} · {}", &commit.hash[..commit.hash.len().min(8)], commit.author))
         .xalign(0.0)
         .build();
     meta.add_css_class("caption");
@@ -273,7 +273,7 @@ fn build_truncation_hint_row(total: usize, rendered: usize) -> gtk::ListBoxRow {
         .build()
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ── Public API ─────────────────────────────────────────────────────────────
 
 /// Populates `list_box` with rows for each commit in `commits`.
 ///
@@ -394,7 +394,7 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     schedule_batch_append(list_weak, remaining);
 }
 
-// ── Internal idle-batch helpers ──────────────────────────────────────────────
+// ── Internal idle-batch helpers ───────────────────────────────────────────────
 
 fn schedule_batch_populate(
     list_weak: glib::object::WeakRef<gtk::ListBox>,
@@ -423,7 +423,7 @@ fn schedule_batch_populate(
         let still_pending = !rem.is_empty();
         drop(rem);
 
-        // Double-check generation hasn’t advanced while we were building rows.
+        // Double-check generation hasn't advanced while we were building rows.
         if gen_counter.load(Ordering::Relaxed) != gen {
             return;
         }
@@ -465,7 +465,7 @@ fn schedule_batch_append(
     });
 }
 
-// ── Search / filter helpers ───────────────────────────────────────────────
+// ── Search / filter helpers ─────────────────────────────────────────────
 
 #[allow(dead_code)]
 pub fn filter_commits<'a>(commits: &'a [CommitInfo], query: &str) -> Vec<&'a CommitInfo> {
