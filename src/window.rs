@@ -750,7 +750,7 @@ impl TemporalExplorerWindow {
         let hash = row.widget_name().to_string();
         let commit = { let all = imp.all_commits.borrow(); all.iter().find(|c| c.hash == hash).cloned() };
         let commit = match commit { Some(c) => c, None => return };
-        imp.commit_hash_label.set_label(&commit.hash[..12]);
+        imp.commit_hash_label.set_label(&commit.hash[..commit.hash.len().min(12)]);
         imp.commit_hash_label.add_css_class("commit-hash");
         imp.commit_message_label.set_label(&commit.summary);
         imp.commit_date_label.set_label(&Self::format_timestamp(commit.timestamp));
