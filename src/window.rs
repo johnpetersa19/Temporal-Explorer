@@ -586,21 +586,21 @@ impl TemporalExplorerWindow {
 
     fn load_repository(&self, path: PathBuf) {
         let imp = self.imp();
-        match HistoryReader::open(&path) {
-            Err(e) => {
-                self.show_error_toast(&format!("{}: {e}", gettext("Failed to open repository")));
-                return;
-            }
-            Ok(_reader) => {}
-        }
 
-        let repo = match git2::Repository::open(&path) {
+        // Open the repository exactly once for validation.
+        // The resulting HistoryReader is reused: its inner git2::Repository is
+        // extracted for tree/snapshot browsing, avoiding a second open() call.
+        let reader = match HistoryReader::open(&path) {
             Ok(r) => r,
             Err(e) => {
                 self.show_error_toast(&format!("{}: {e}", gettext("Failed to open repository")));
                 return;
             }
         };
+
+        // Extract the git2::Repository from the HistoryReader so we don't open
+        // the same path a second time.
+        let repo = reader.into_git2();
 
         let repo_name = path
             .file_name()
