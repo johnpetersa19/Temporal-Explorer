@@ -756,7 +756,7 @@ impl TemporalExplorerWindow {
             for commit in iter {
                 if cancel.load(Ordering::Relaxed) { return; }
                 if commit.summary.to_lowercase().contains(&q)
-                    || commit.hash.starts_with(&query_owned)
+                    || commit.hash.starts_with(&q)
                     || commit.author.to_lowercase().contains(&q)
                 {
                     results.push(commit.clone());
