@@ -50,6 +50,11 @@
 //! counter before touching any widget. If the counter has advanced, the
 //! frame becomes a no-op and exits immediately.
 //!
+//! The map entry is removed via a `connect_destroy` hook registered the
+//! first time a `ListBox` is seen, so the map stays bounded to the number
+//! of currently-live `ListBox` instances and stale-address collisions cannot
+//! occur after a widget is reallocated at the same memory address.
+//!
 //! Additionally, children are removed by snapshotting the child list first
 //! and then calling `unparent()` on each captured widget, so the removal
 //! loop never races with iterator state inside the GTK widget tree.
@@ -63,7 +68,7 @@ use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
 use std::collections::HashMap;
 use std::cell::RefCell;
 
-// ── Tuning constants ───────────────────────────────────────────────────
+// ── Tuning constants ────────────────────────────────────────────────────
 
 /// Rows inserted per idle frame during a **full list rebuild**.
 const POPULATE_BATCH: usize = 150;
@@ -81,24 +86,52 @@ const MAX_RENDERED_ROWS: usize = 5_000;
 #[allow(dead_code)]
 const HARD_APPEND_CAP: usize = 15_000;
 
-// ── Generation counter helpers ──────────────────────────────────────────────
+// ── Generation counter helpers ────────────────────────────────────────────
 //
 // We store an Arc<AtomicU64> in a thread-local keyed by the ListBox pointer
 // address. This avoids GObject qdata FFI entirely.
+//
+// The map entry is cleaned up via connect_destroy so it stays bounded to the
+// number of currently-live ListBox instances.  Without this cleanup, two bugs
+// could occur:
+//
+//   1. Memory leak — entries accumulate for the process lifetime.
+//   2. Stale-address collision — if a destroyed ListBox is reallocated at
+//      the same address, the new instance inherits the old generation counter
+//      and its first idle batch is immediately considered stale and skipped.
 
 thread_local! {
     /// Maps ListBox raw pointer address → generation counter.
+    /// Entries are inserted on first use and removed on widget destruction.
     static GENERATIONS: RefCell<HashMap<usize, Arc<AtomicU64>>> = RefCell::new(HashMap::new());
 }
 
 /// Returns the generation counter for `list_box`, creating it if absent.
+///
+/// On first creation a `connect_destroy` handler is registered so the entry
+/// is removed from [`GENERATIONS`] when GTK finalizes the widget, keeping
+/// the map bounded and preventing stale-address collisions.
 fn get_or_create_generation(list_box: &gtk::ListBox) -> Arc<AtomicU64> {
     let key = list_box.as_ptr() as usize;
     GENERATIONS.with(|map| {
-        map.borrow_mut()
-            .entry(key)
-            .or_insert_with(|| Arc::new(AtomicU64::new(0)))
-            .clone()
+        let mut m = map.borrow_mut();
+        if let Some(arc) = m.get(&key) {
+            return arc.clone();
+        }
+        // First time we see this ListBox: create the counter and register a
+        // destroy hook that removes the entry when the widget is finalized.
+        let arc = Arc::new(AtomicU64::new(0));
+        m.insert(key, arc.clone());
+        drop(m); // release borrow before connecting the signal
+
+        list_box.connect_destroy(move |lb| {
+            let dead_key = lb.as_ptr() as usize;
+            GENERATIONS.with(|m| {
+                m.borrow_mut().remove(&dead_key);
+            });
+        });
+
+        arc
     })
 }
 
@@ -131,7 +164,7 @@ fn clear_listbox(list_box: &gtk::ListBox) {
     }
 }
 
-// ── Row builders ─────────────────────────────────────────────
+// ── Row builders ──────────────────────────────────────────────────
 
 /// Builds a [`gtk::ListBoxRow`] that represents a single commit entry.
 pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
@@ -273,7 +306,7 @@ fn build_truncation_hint_row(total: usize, rendered: usize) -> gtk::ListBoxRow {
         .build()
 }
 
-// ── Public API ─────────────────────────────────────────────────────────────
+// ── Public API ────────────────────────────────────────────────────────────────
 
 /// Populates `list_box` with rows for each commit in `commits`.
 ///
@@ -465,7 +498,7 @@ fn schedule_batch_append(
     });
 }
 
-// ── Search / filter helpers ─────────────────────────────────────────────
+// ── Search / filter helpers ───────────────────────────────────────────────
 
 #[allow(dead_code)]
 pub fn filter_commits<'a>(commits: &'a [CommitInfo], query: &str) -> Vec<&'a CommitInfo> {
