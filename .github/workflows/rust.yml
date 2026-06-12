@@ -57,6 +57,44 @@ jobs:
         echo "glib-2.0 flags:"
         pkgconf --cflags --libs glib-2.0
 
+    - name: Lint Blueprint (.blp) files
+      run: |
+        echo "=== blueprint-compiler version ==="
+        blueprint-compiler --version
+
+        BLP_FILES=$(find . -name '*.blp' -not -path './.git/*')
+
+        if [ -z "$BLP_FILES" ]; then
+          echo "No .blp files found — skipping lint."
+          exit 0
+        fi
+
+        echo "Found .blp files:"
+        echo "$BLP_FILES"
+        echo ""
+
+        FAILED=0
+        for f in $BLP_FILES; do
+          echo "--- Checking: $f ---"
+          # blueprint-compiler batch-compile compiles to a temp dir;
+          # any parse/type error is printed to stderr and exits non-zero.
+          if ! blueprint-compiler batch-compile /tmp/blp-check "$(dirname "$f")" "$(basename "$f")" 2>&1; then
+            echo "FAIL: $f"
+            FAILED=1
+          else
+            echo "OK:   $f"
+          fi
+        done
+
+        if [ "$FAILED" -eq 1 ]; then
+          echo ""
+          echo "One or more .blp files have errors. Fix them before merging."
+          exit 1
+        fi
+
+        echo ""
+        echo "All .blp files passed blueprint-compiler lint."
+
     - name: Build with Meson
       run: |
         meson setup builddir
