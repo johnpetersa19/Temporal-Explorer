@@ -31,6 +31,7 @@
 //! without a display connection.
 
 use gtk::glib;
+use gettextrs::gettext;
 use crate::git_engine::CommitInfo;
 
 /// Decode a Unix timestamp into (year, month_1_12) in local time.
@@ -85,21 +86,24 @@ pub fn commits_for_month(commits: &[CommitInfo], year: i32, month: u32) -> Vec<C
         .collect()
 }
 
-/// Human-readable month name (locale-independent fallback).
-pub fn month_name(month: u32) -> &'static str {
+/// Human-readable month name — translated via gettext.
+///
+/// Returns an owned `String` so the translated value lives long enough
+/// to be used in GTK label setters.
+pub fn month_name(month: u32) -> String {
     match month {
-        1  => "January",
-        2  => "February",
-        3  => "March",
-        4  => "April",
-        5  => "May",
-        6  => "June",
-        7  => "July",
-        8  => "August",
-        9  => "September",
-        10 => "October",
-        11 => "November",
-        12 => "December",
-        _  => "?",
+        1  => gettext("January"),
+        2  => gettext("February"),
+        3  => gettext("March"),
+        4  => gettext("April"),
+        5  => gettext("May"),
+        6  => gettext("June"),
+        7  => gettext("July"),
+        8  => gettext("August"),
+        9  => gettext("September"),
+        10 => gettext("October"),
+        11 => gettext("November"),
+        12 => gettext("December"),
+        _  => String::from("?"),
     }
 }

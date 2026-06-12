@@ -1,6 +1,9 @@
 # List of source files containing translatable strings.
 # Please keep this file sorted alphabetically.
-data/org.gnome.Example.desktop.in
-data/org.gnome.Example.metainfo.xml.in
-data/org.gnome.Example.gschema.xml
-src/window.ui
+data/io.github.johnpetersa19.TemporalExplorer.desktop.in
+data/io.github.johnpetersa19.TemporalExplorer.metainfo.xml.in
+data/io.github.johnpetersa19.TemporalExplorer.gschema.xml
+src/commit_controller.rs
+src/file_preview.rs
+src/timeline_filter.rs
+src/window.rs
