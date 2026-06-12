@@ -142,10 +142,15 @@ pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
     vbox.append(&summary);
     vbox.append(&meta);
 
-    gtk::ListBoxRow::builder()
+    let row = gtk::ListBoxRow::builder()
         .name(&commit.hash)
         .child(&vbox)
-        .build()
+        .build();
+
+    // Store hash so connect_row_activated can retrieve it
+    unsafe { row.set_data("hash", commit.hash.clone()); }
+
+    row
 }
 
 /// Builds a row representing a **year** in the timeline drill-down.
@@ -182,10 +187,15 @@ pub fn build_year_row(year: i32, count: usize) -> gtk::ListBoxRow {
     hbox.append(&badge);
     hbox.append(&chevron);
 
-    gtk::ListBoxRow::builder()
+    let row = gtk::ListBoxRow::builder()
         .name(&year.to_string())
         .child(&hbox)
-        .build()
+        .build();
+
+    // Store the year value so connect_row_activated can retrieve it reliably
+    unsafe { row.set_data("year", year); }
+
+    row
 }
 
 /// Builds a row representing a **month** inside a selected year.
@@ -221,10 +231,15 @@ pub fn build_month_row(month: u32, count: usize) -> gtk::ListBoxRow {
     hbox.append(&badge);
     hbox.append(&chevron);
 
-    gtk::ListBoxRow::builder()
+    let row = gtk::ListBoxRow::builder()
         .name(&month.to_string())
         .child(&hbox)
-        .build()
+        .build();
+
+    // Store the month value so connect_row_activated can retrieve it reliably
+    unsafe { row.set_data("month", month); }
+
+    row
 }
 
 /// Builds a special "truncated" hint row shown when the list exceeds
