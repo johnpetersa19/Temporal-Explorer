@@ -582,7 +582,7 @@ impl TemporalExplorerWindow {
         // mutably borrowed" at line 601.
         let dir = { imp.history_back.borrow_mut().pop() };
         if let Some(dir) = dir {
-            let cur = imp.current_dir.borrow().clone();
+            let cur = { imp.current_dir.borrow().clone() };
             { imp.history_forward.borrow_mut().push(cur); }
             self.navigate_to_dir(dir);
         }
@@ -593,7 +593,7 @@ impl TemporalExplorerWindow {
         // Same fix as navigate_back — drop the RefMut before navigate_to_dir.
         let dir = { imp.history_forward.borrow_mut().pop() };
         if let Some(dir) = dir {
-            let cur = imp.current_dir.borrow().clone();
+            let cur = { imp.current_dir.borrow().clone() };
             { imp.history_back.borrow_mut().push(cur); }
             self.navigate_to_dir(dir);
         }
@@ -601,8 +601,16 @@ impl TemporalExplorerWindow {
 
     fn update_nav_buttons(&self) {
         let imp = self.imp();
-        imp.nav_back_button.set_sensitive(!imp.history_back.borrow().is_empty());
-        imp.nav_forward_button.set_sensitive(!imp.history_forward.borrow().is_empty());
+        // Use try_borrow instead of borrow to avoid panicking when this function
+        // is called while a borrow_mut is still alive higher in the call stack
+        // (e.g. from push_dir or navigate_back/forward). update_nav_buttons is
+        // a display-only helper — skipping an update on reentrancy is safe.
+        if let Ok(back) = imp.history_back.try_borrow() {
+            imp.nav_back_button.set_sensitive(!back.is_empty());
+        }
+        if let Ok(fwd) = imp.history_forward.try_borrow() {
+            imp.nav_forward_button.set_sensitive(!fwd.is_empty());
+        }
     }
 
     // ── Location bar ──────────────────────────────────────────────────────────
