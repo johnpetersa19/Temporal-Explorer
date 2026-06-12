@@ -1044,9 +1044,14 @@ impl TemporalExplorerWindow {
     }
 
     fn replace_right_panel(&self, widget: gtk::Widget) {
-        let tv = &self.imp().content_toolbar_view;
-        tv.set_content(None::<&gtk::Widget>);
-        tv.set_content(Some(&widget));
+        // adw::ToolbarView replaces and unparents the previous content
+        // atomically when set_content(Some(...)) is called. Calling
+        // set_content(None) first is both redundant and harmful: it creates
+        // a window where the old widget has been unparented but any still-queued
+        // glib::idle_add_local frames (from list_view/grid_view builds) will
+        // attempt to access its layout manager, triggering:
+        //   Gtk-CRITICAL: gtk_widget_get_layout_manager: assertion 'GTK_IS_WIDGET (widget)' failed
+        self.imp().content_toolbar_view.set_content(Some(&widget));
     }
 
     // ── Utilities ──────────────────────────────────────────────────────────────────────────────
