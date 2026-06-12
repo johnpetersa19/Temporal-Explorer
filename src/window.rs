@@ -180,14 +180,14 @@ fn clear_box(container: &gtk::Box) {
     }
 }
 
-/// Cancel a pending debounce timer without panicking.
+/// Cancel a pending debounce timer without crashing.
 ///
-/// `SourceId::remove()` panics in glib 0.22 when the GLib source was already
-/// consumed (e.g. the timeout fired and returned `ControlFlow::Break`). The
-/// free function `glib::source_remove()` returns a `Result` instead, so we
-/// use that and simply ignore the error if the source is already gone.
+/// `SourceId::remove()` panics when the GLib source was already consumed
+/// (the timeout fired and returned `ControlFlow::Break`) because GLib already
+/// freed it. We wrap the call in `catch_unwind` so that race is silently
+/// ignored — the timer is gone either way, which is exactly what we want.
 fn cancel_debounce(source: glib::SourceId) {
-    let _ = glib::source_remove(source);
+    let _ = std::panic::catch_unwind(|| source.remove());
 }
 
 impl TemporalExplorerWindow {
@@ -295,7 +295,6 @@ impl TemporalExplorerWindow {
 
     pub fn load_repository(&self, path: PathBuf) {
         let cancel = Arc::new(AtomicBool::new(false));
-        // Extract and drop the borrow_mut before the next borrow_mut call.
         { if let Some(prev) = self.imp().load_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
         }}
@@ -322,7 +321,7 @@ impl TemporalExplorerWindow {
     }
 
     // ── Timeline loading ───────────────────────────────────────────────────────
-    // glib 0.22 removed MainContext::channel — mpsc + idle_add_local instead.
+    // glib 0.18 removed MainContext::channel — mpsc + idle_add_local instead.
 
     fn load_timeline(&self, _cancel: Arc<AtomicBool>) {
         let repo_path = match self.imp().repo_path.borrow().clone() {
@@ -424,7 +423,6 @@ impl TemporalExplorerWindow {
 
     fn timeline_pop(&self) {
         let imp = self.imp();
-        // Capture the Copy value and drop the Ref before any borrow_mut().
         let current_level = { *imp.timeline_level.borrow() };
 
         match current_level {
@@ -454,8 +452,6 @@ impl TemporalExplorerWindow {
         imp.history_back.borrow_mut().clear();
         imp.history_forward.borrow_mut().clear();
 
-        // Borrow all_commits, extract what we need, drop the Ref before
-        // navigate_to_dir (which will borrow other fields).
         {
             let commits = imp.all_commits.borrow();
             if let Some(commit) = commits.iter().find(|c| c.hash.starts_with(&hash[..7.min(hash.len())])) {
@@ -464,7 +460,7 @@ impl TemporalExplorerWindow {
                 imp.commit_date_label.set_label(&Self::format_timestamp(commit.timestamp));
                 imp.commit_info_bar.set_revealed(true);
             }
-        } // Ref dropped here
+        }
         self.navigate_to_dir(PathBuf::new());
     }
 
@@ -572,13 +568,11 @@ impl TemporalExplorerWindow {
         }
     }
 
-    // ── Navigation helpers ────────────────────────────────────────────────────
+    // ── Navigation helpers ──────────────────────────────────────────────────
 
     pub fn push_dir(&self, dir: PathBuf) {
         let imp = self.imp();
         let prev = imp.current_dir.borrow().clone();
-        // Push to history and clear forward, then drop the RefMut before
-        // navigate_to_dir which reads history_back via update_nav_buttons.
         { imp.history_back.borrow_mut().push(prev); }
         { imp.history_forward.borrow_mut().clear(); }
         self.navigate_to_dir(dir);
@@ -606,10 +600,6 @@ impl TemporalExplorerWindow {
 
     fn update_nav_buttons(&self) {
         let imp = self.imp();
-        // Use try_borrow instead of borrow to avoid panicking when this function
-        // is called while a borrow_mut is still alive higher in the call stack
-        // (e.g. from push_dir or navigate_back/forward). update_nav_buttons is
-        // a display-only helper — skipping an update on reentrancy is safe.
         if let Ok(back) = imp.history_back.try_borrow() {
             imp.nav_back_button.set_sensitive(!back.is_empty());
         }
@@ -622,8 +612,6 @@ impl TemporalExplorerWindow {
 
     pub fn enter_location_mode(&self) {
         let imp = self.imp();
-        // Clone the path value and drop the Ref before grab_focus() which
-        // can emit signals that re-enter this borrow.
         let current = { imp.current_dir.borrow().clone() };
         imp.location_entry.set_text(current.to_str().unwrap_or(""));
         imp.location_entry.grab_focus();
@@ -631,7 +619,6 @@ impl TemporalExplorerWindow {
     }
 
     fn leave_location_mode(&self) {
-        // "pathbar" is the name defined in window.blp for the address-bar StackPage.
         self.imp().toolbar_switcher.set_visible_child_name("pathbar");
     }
 
@@ -644,7 +631,6 @@ impl TemporalExplorerWindow {
 
     fn toggle_view_mode(&self) {
         let imp = self.imp();
-        // Capture Copy value, drop the Ref, then mutate and check separately.
         let current_mode = { *imp.view_mode.borrow() };
 
         let new_mode = match current_mode {
@@ -658,11 +644,9 @@ impl TemporalExplorerWindow {
             }
         };
 
-        // Write new_mode, then drop the RefMut before the borrow() below.
         { *imp.view_mode.borrow_mut() = new_mode; }
 
         let dir = imp.current_dir.borrow().clone();
-        // Check current_hash with a scoped borrow, drop before navigate_to_dir.
         let has_hash = { imp.current_hash.borrow().is_some() };
         if has_hash { self.navigate_to_dir(dir); }
     }
@@ -671,11 +655,10 @@ impl TemporalExplorerWindow {
 
     fn on_search_changed(&self, query: String) {
         let imp = self.imp();
-        // Take the pending SourceId and cancel it safely.
-        // `SourceId::remove()` panics in glib 0.22 when the timeout has already
-        // fired and been removed by GLib. `glib::source_remove()` returns a
-        // Result instead, so we delegate to `cancel_debounce` which ignores the
-        // error — the debounce timer is gone either way.
+        // Cancel any pending debounce timer safely.
+        // SourceId::remove() panics if the source was already consumed by GLib
+        // (timeout fired, returned ControlFlow::Break). catch_unwind absorbs
+        // that panic — the result is the same: timer is gone.
         if let Some(source) = imp.search_debounce.borrow_mut().take() {
             cancel_debounce(source);
         }
