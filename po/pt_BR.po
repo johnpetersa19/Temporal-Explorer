@@ -67,8 +67,8 @@ msgid "Back"
 msgstr "Voltar"
 
 #: src/window.blp
-msgid "Search commits\u2026"
-msgstr "Pesquisar commits\u2026"
+msgid "Search commits…"
+msgstr "Pesquisar commits…"
 
 #: src/window.blp
 msgid "Forward"
@@ -79,8 +79,8 @@ msgid "Show Sidebar"
 msgstr "Mostrar barra lateral"
 
 #: src/window.blp
-msgid "Type a path and press Enter\u2026"
-msgstr "Digite um caminho e pressione Enter\u2026"
+msgid "Type a path and press Enter…"
+msgstr "Digite um caminho e pressione Enter…"
 
 #: src/window.blp
 msgid "Cancel"
