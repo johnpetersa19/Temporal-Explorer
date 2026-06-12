@@ -69,7 +69,7 @@
 //! scoped to that year.  When no year is selected (Years screen or after
 //! pressing Back to the years level) the search spans all commits.
 
-use adw::prelude::AdwApplicationWindowExt;
+use adw::prelude::{AdwApplicationWindowExt, AdwDialogExt, AlertDialogExt};
 use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 use gtk::prelude::*;
@@ -85,6 +85,7 @@ use crate::commit_controller;
 use crate::file_preview;
 use crate::timeline_filter;
 use crate::views::{list_view, grid_view};
+use crate::views::list_view::{OnEnterDir, OnOpenFile};
 
 // ── ViewMode ────────────────────────────────────────────────────────────────────────────
 
@@ -270,14 +271,14 @@ impl TemporalExplorerWindow {
             win.toggle_view_mode();
         });
 
-        // Address bar — activate entry on click
-        let win = self.clone();
-        imp.address_bar.connect_button_press_event(move |_, event| {
-            if event.button() == 1 {
-                win.enter_location_mode();
-            }
-            glib::Propagation::Proceed
+        // Address bar — activate entry on click (GTK4: use GestureClick)
+        let win_g = self.clone();
+        let gesture = gtk::GestureClick::new();
+        gesture.set_button(1); // primary button only
+        gesture.connect_pressed(move |_, _n_press, _, _| {
+            win_g.enter_location_mode();
         });
+        imp.address_bar.add_controller(gesture);
 
         // Location entry — confirm with Enter
         let win = self.clone();
@@ -300,7 +301,7 @@ impl TemporalExplorerWindow {
         // Year list row activated
         let win = self.clone();
         imp.year_list.connect_row_activated(move |_, row| {
-            let year = row.index();  // index == year offset; actual year stored in widget data
+            let year = row.index();
             if let Some(y) = row.data::<i32>("year") {
                 win.on_year_selected(unsafe { *y.as_ref() });
             } else {
@@ -332,9 +333,6 @@ impl TemporalExplorerWindow {
     }
 
     // ── CSS loader ────────────────────────────────────────────────────────────────────────
-    //
-    // All application CSS lives in `src/temporal-explorer.css` (bundled via
-    // GResource).  Nothing is hard-coded here as a string literal.
 
     fn setup_styles(&self) {
         let provider = gtk::CssProvider::new();
@@ -402,8 +400,9 @@ impl TemporalExplorerWindow {
     }
 
     // ── Timeline loading ───────────────────────────────────────────────────────────────────
+    // glib 0.22 removed MainContext::channel — use std mpsc + idle_add_local instead.
 
-    fn load_timeline(&self, cancel: Arc<AtomicBool>) {
+    fn load_timeline(&self, _cancel: Arc<AtomicBool>) {
         let repo_path = match self.imp().repo_path.borrow().clone() {
             Some(p) => p,
             None => return,
@@ -412,27 +411,35 @@ impl TemporalExplorerWindow {
         self.imp().loading_commits.set(true);
         self.show_empty_state();
 
-        let (tx, rx) = glib::MainContext::channel(glib::Priority::DEFAULT);
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<CommitInfo>, String>>(1);
 
         std::thread::spawn(move || {
-            let commits = HistoryReader::read_all(&repo_path, &cancel);
-            let _ = tx.send(commits);
+            let result = HistoryReader::open(&repo_path)
+                .and_then(|r| r.list_commits())
+                .map_err(|e| e.to_string());
+            let _ = tx.send(result);
         });
 
         let win = self.clone();
-        rx.attach(None, move |commits| {
-            win.imp().loading_commits.set(false);
-            match commits {
-                Ok(list) => {
-                    *win.imp().all_commits.borrow_mut() = list;
-                    win.populate_year_list();
-                    win.imp().split_view.set_show_sidebar(true);
+        glib::idle_add_local(move || {
+            match rx.try_recv() {
+                Ok(commits) => {
+                    win.imp().loading_commits.set(false);
+                    match commits {
+                        Ok(list) => {
+                            *win.imp().all_commits.borrow_mut() = list;
+                            win.populate_year_list();
+                            win.imp().split_view.set_show_sidebar(true);
+                        }
+                        Err(e) => {
+                            win.show_error(&format!("Failed to read history: {e}"));
+                        }
+                    }
+                    glib::ControlFlow::Break
                 }
-                Err(e) => {
-                    win.show_error(&format!("Failed to read history: {e}"));
-                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(_) => glib::ControlFlow::Break,
             }
-            glib::ControlFlow::Break
         });
     }
 
@@ -442,7 +449,6 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         let list = &imp.year_list;
 
-        // Clear existing rows
         while let Some(child) = list.first_child() {
             child.unparent();
         }
@@ -502,15 +508,8 @@ impl TemporalExplorerWindow {
         let commits = imp.all_commits.borrow().clone();
         let filtered = timeline_filter::filter_by_month(&commits, year, month);
 
-        let cancel = Arc::new(AtomicBool::new(false));
-        if let Some(prev) = imp.search_cancel.borrow_mut().take() {
-            prev.store(true, Ordering::Relaxed);
-        }
-        *imp.search_cancel.borrow_mut() = Some(cancel.clone());
-
-        commit_controller::populate_commit_list(
-            list.clone(), filtered, cancel,
-        );
+        // populate_commit_list takes (&ListBox, &[CommitInfo]) — no cancel arg
+        commit_controller::populate_commit_list(&list, &filtered);
 
         *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
         imp.timeline_stack.set_visible_child_name("commits");
@@ -554,7 +553,6 @@ impl TemporalExplorerWindow {
         imp.history_back.borrow_mut().clear();
         imp.history_forward.borrow_mut().clear();
 
-        // Update bottom bar
         let commits = imp.all_commits.borrow();
         if let Some(commit) = commits.iter().find(|c| c.hash.starts_with(&hash[..7.min(hash.len())])) {
             imp.commit_hash_label.set_label(&commit.hash[..8.min(commit.hash.len())]);
@@ -578,9 +576,22 @@ impl TemporalExplorerWindow {
             Some(p) => p,
             None => return,
         };
+        let repo_name = imp.repo_name.borrow().clone();
 
         *imp.current_dir.borrow_mut() = dir.clone();
-        address_bar::rebuild(self, &dir);
+
+        // address_bar::rebuild_address_bar takes the box + repo name + dir + two closures
+        let win_ab1 = self.clone();
+        let win_ab2 = self.clone();
+        let address_bar_widget = imp.address_bar.clone();
+        address_bar::rebuild_address_bar(
+            &address_bar_widget,
+            &repo_name,
+            &dir,
+            move |path: PathBuf| { win_ab1.push_dir(path); },
+            move || { win_ab2.enter_location_mode(); },
+        );
+
         self.update_nav_buttons();
 
         let cancel = Arc::new(AtomicBool::new(false));
@@ -589,31 +600,50 @@ impl TemporalExplorerWindow {
         }
         *imp.load_cancel.borrow_mut() = Some(cancel.clone());
 
-        let (tx, rx) = glib::MainContext::channel(glib::Priority::DEFAULT);
         let dir_clone = dir.clone();
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<TreeNode>, String>>(1);
 
         std::thread::spawn(move || {
-            let result = SnapshotResolver::list_dir(&repo_path, &hash, &dir_clone, &cancel);
+            let result = git2::Repository::open(&repo_path)
+                .map_err(|e| e.to_string())
+                .and_then(|repo| {
+                    SnapshotResolver::new(&repo)
+                        .resolve_dir(&hash, &dir_clone)
+                        .map_err(|e| e.to_string())
+                });
             let _ = tx.send(result);
         });
 
         let win = self.clone();
-        rx.attach(None, move |result| {
-            match result {
-                Ok(nodes) => win.render_dir(nodes),
-                Err(e) => win.show_error(&format!("Error reading tree: {e}")),
+        glib::idle_add_local(move || {
+            match rx.try_recv() {
+                Ok(result) => {
+                    match result {
+                        Ok(nodes) => win.render_dir(nodes),
+                        Err(e) => win.show_error(&format!("Error reading tree: {e}")),
+                    }
+                    glib::ControlFlow::Break
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(_) => glib::ControlFlow::Break,
             }
-            glib::ControlFlow::Break
         });
     }
 
     fn render_dir(&self, nodes: Vec<TreeNode>) {
         let imp = self.imp();
         let mode = *imp.view_mode.borrow();
+        let win1 = self.clone();
+        let win2 = self.clone();
+
+        let on_enter_dir: OnEnterDir = Box::new(move |path: PathBuf| { win1.push_dir(path); });
+        let on_open_file: OnOpenFile = Box::new(move |path: &std::path::Path, _hash: &str| {
+            win2.preview_file(path);
+        });
 
         let widget: gtk::Widget = match mode {
-            ViewMode::List => list_view::build(self, &nodes).upcast(),
-            ViewMode::Grid => grid_view::build(self, &nodes).upcast(),
+            ViewMode::List => list_view::build_list_view(&nodes, on_enter_dir, on_open_file).upcast(),
+            ViewMode::Grid => grid_view::build_grid_view(&nodes, on_enter_dir, on_open_file).upcast(),
         };
 
         self.replace_right_panel(widget);
@@ -646,22 +676,34 @@ impl TemporalExplorerWindow {
             None => return,
         };
 
-        let cancel = Arc::new(AtomicBool::new(false));
-        let (tx, rx) = glib::MainContext::channel(glib::Priority::DEFAULT);
         let path_clone = path.to_path_buf();
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<u8>, String>>(1);
 
         std::thread::spawn(move || {
-            let result = SnapshotResolver::read_file(&repo_path, &hash, &path_clone, &cancel);
-            let _ = tx.send((path_clone, result));
+            let result = git2::Repository::open(&repo_path)
+                .map_err(|e| e.to_string())
+                .and_then(|repo| {
+                    SnapshotResolver::new(&repo)
+                        .read_file(&hash, &path_clone)
+                        .map_err(|e| e.to_string())
+                });
+            let _ = tx.send(result);
         });
 
         let win = self.clone();
-        rx.attach(None, move |(p, result)| {
-            match result {
-                Ok(bytes) => file_preview::show(&win, &p, bytes),
-                Err(e)    => win.show_error(&format!("Cannot preview file: {e}")),
+        let p = path.to_path_buf();
+        glib::idle_add_local(move || {
+            match rx.try_recv() {
+                Ok(result) => {
+                    match result {
+                        Ok(bytes) => file_preview::show_file_preview(&win, &p, bytes),
+                        Err(e)    => win.show_error(&format!("Cannot preview file: {e}")),
+                    }
+                    glib::ControlFlow::Break
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(_) => glib::ControlFlow::Break,
             }
-            glib::ControlFlow::Break
         });
     }
 
@@ -703,7 +745,7 @@ impl TemporalExplorerWindow {
 
     // ── Location bar (Nautilus-style) ──────────────────────────────────────────────────────
 
-    fn enter_location_mode(&self) {
+    pub fn enter_location_mode(&self) {
         let imp = self.imp();
         let current = imp.current_dir.borrow();
         imp.location_entry.set_text(current.to_str().unwrap_or(""));
@@ -737,7 +779,6 @@ impl TemporalExplorerWindow {
         };
         *imp.view_mode.borrow_mut() = new_mode;
 
-        // Re-render current directory
         let dir = imp.current_dir.borrow().clone();
         if imp.current_hash.borrow().is_some() {
             self.navigate_to_dir(dir);
@@ -749,7 +790,6 @@ impl TemporalExplorerWindow {
     fn on_search_changed(&self, query: String) {
         let imp = self.imp();
 
-        // Debounce: cancel previous scheduled search
         if let Some(source) = imp.search_debounce.borrow_mut().take() {
             source.remove();
         }
@@ -766,7 +806,6 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         *imp.last_query.borrow_mut() = query.clone();
 
-        // Cancel any previous search
         let cancel = Arc::new(AtomicBool::new(false));
         if let Some(prev) = imp.search_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
@@ -774,7 +813,6 @@ impl TemporalExplorerWindow {
         *imp.search_cancel.borrow_mut() = Some(cancel.clone());
 
         let list = imp.commit_list.clone();
-        // Clear current rows
         while let Some(child) = list.first_child() {
             child.unparent();
         }
@@ -786,8 +824,9 @@ impl TemporalExplorerWindow {
             if selected_year != 0 {
                 all.into_iter()
                     .filter(|c| {
-                        let dt = chrono::DateTime::from_timestamp(c.timestamp, 0);
-                        dt.map(|d| d.year() == selected_year).unwrap_or(false)
+                        glib::DateTime::from_unix_local(c.timestamp)
+                            .map(|d| d.year() == selected_year)
+                            .unwrap_or(false)
                     })
                     .collect()
             } else {
@@ -798,8 +837,9 @@ impl TemporalExplorerWindow {
             all.into_iter()
                 .filter(|c| {
                     let year_ok = selected_year == 0 || {
-                        let dt = chrono::DateTime::from_timestamp(c.timestamp, 0);
-                        dt.map(|d| d.year() == selected_year).unwrap_or(false)
+                        glib::DateTime::from_unix_local(c.timestamp)
+                            .map(|d| d.year() == selected_year)
+                            .unwrap_or(false)
                     };
                     year_ok && (
                         c.summary.to_lowercase().contains(&q)
@@ -810,7 +850,8 @@ impl TemporalExplorerWindow {
                 .collect()
         };
 
-        commit_controller::populate_commit_list(list, filtered, cancel);
+        // populate_commit_list signature: (&ListBox, &[CommitInfo])
+        commit_controller::populate_commit_list(&list, &filtered);
     }
 
     // ── Error display ──────────────────────────────────────────────────────────────────────
@@ -818,16 +859,18 @@ impl TemporalExplorerWindow {
     fn show_error(&self, message: &str) {
         eprintln!("[TemporalExplorer] {message}");
         let dialog = adw::AlertDialog::new(Some(&gettext("Error")), Some(message));
-        dialog.add_response("ok", &gettext("OK"));
-        dialog.present(Some(self));
+        // AlertDialogExt and AdwDialogExt are imported at the top of the file
+        AlertDialogExt::add_response(&dialog, "ok", &gettext("OK"));
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
     // ── Timestamp formatter ────────────────────────────────────────────────────────────────
+    // chrono removed — uses glib::DateTime (already a dependency, no new crate needed).
 
     fn format_timestamp(ts: i64) -> String {
-        use chrono::TimeZone;
-        if let Some(dt) = chrono::Local.timestamp_opt(ts, 0).single() {
-            dt.format("%Y-%m-%d %H:%M").unwrap_or_default().to_string()
-        } else { ts.to_string() }
+        glib::DateTime::from_unix_local(ts)
+            .and_then(|d| d.format("%Y-%m-%d %H:%M"))
+            .map(|s| s.to_string())
+            .unwrap_or_else(|_| ts.to_string())
     }
 }
