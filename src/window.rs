@@ -172,14 +172,13 @@ glib::wrapper! {
 
 // ── Free helpers ───────────────────────────────────────────────────────────────
 
+// Uses gtk::Box::remove_all_children() — the atomic GTK4 API that removes
+// every child in a single pass without leaving live GObject references that
+// could race with concurrent idle_add_local callbacks populating the same box.
 fn clear_box(container: &gtk::Box) {
-    let mut children: Vec<gtk::Widget> = Vec::new();
-    let mut w = container.first_child();
-    while let Some(child) = w {
-        w = child.next_sibling();
-        children.push(child);
+    while let Some(child) = container.first_child() {
+        container.remove(&child);
     }
-    for child in children { child.unparent(); }
 }
 
 impl TemporalExplorerWindow {
@@ -354,10 +353,12 @@ impl TemporalExplorerWindow {
 
     fn populate_year_list(&self) {
         let imp = self.imp();
-        while let Some(child) = imp.year_list.first_child() { child.unparent(); }
+        // remove_all() is the atomic GTK4 API — avoids the parent-mismatch
+        // assertion failures that the manual first_child/unparent loop caused
+        // when an in-flight idle_add_local batch still held sibling pointers.
+        imp.year_list.remove_all();
 
         let commits = imp.all_commits.borrow();
-        // correct name: years_in_range
         let years = timeline_filter::years_in_range(&commits);
         for (year, count) in &years {
             let row = commit_controller::build_year_row(*year, *count);
@@ -376,10 +377,10 @@ impl TemporalExplorerWindow {
     fn on_year_selected(&self, year: i32) {
         let imp = self.imp();
         imp.selected_year.set(year);
-        while let Some(child) = imp.month_list.first_child() { child.unparent(); }
+        // remove_all() — same rationale as populate_year_list above.
+        imp.month_list.remove_all();
 
         let commits = imp.all_commits.borrow();
-        // correct name: months_for_year
         let months = timeline_filter::months_for_year(&commits, year);
         for (month, count) in &months {
             let row = commit_controller::build_month_row(*month, *count);
@@ -398,10 +399,10 @@ impl TemporalExplorerWindow {
     fn on_month_selected(&self, month: u32) {
         let imp = self.imp();
         let year = imp.selected_year.get();
-        while let Some(child) = imp.commit_list.first_child() { child.unparent(); }
+        // remove_all() — same rationale as populate_year_list above.
+        imp.commit_list.remove_all();
 
         let commits = imp.all_commits.borrow().clone();
-        // correct name: commits_for_month
         let filtered = timeline_filter::commits_for_month(&commits, year, month);
         commit_controller::populate_commit_list(&imp.commit_list, &filtered);
 
@@ -520,7 +521,6 @@ impl TemporalExplorerWindow {
     fn render_dir(&self, nodes: Vec<TreeNode>) {
         let imp = self.imp();
         let mode = *imp.view_mode.borrow();
-        // hash needed by build_list_view / build_grid_view as 2nd argument
         let hash = imp.current_hash.borrow().clone().unwrap_or_default();
 
         let win1 = self.clone();
@@ -555,8 +555,6 @@ impl TemporalExplorerWindow {
     }
 
     // ── File preview ──────────────────────────────────────────────────────────
-    // show_file_preview(parent, repo, revision, path) — opens repo internally,
-    // no need to spawn a thread here; the materializer call is cheap.
 
     pub fn preview_file(&self, path: &std::path::Path) {
         let hash = match self.imp().current_hash.borrow().clone() { Some(h) => h, None => return };
@@ -629,9 +627,6 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
 
         // Drop the immutable borrow before calling borrow_mut() below.
-        // Capturing the Copy value in a scoped block ensures the Ref guard
-        // is released before any subsequent borrow_mut() call, preventing
-        // the "RefCell already borrowed" runtime panic.
         let current_mode = { *imp.view_mode.borrow() };
 
         let new_mode = match current_mode {
@@ -674,7 +669,8 @@ impl TemporalExplorerWindow {
         *imp.search_cancel.borrow_mut() = Some(cancel);
 
         let list = imp.commit_list.clone();
-        while let Some(child) = list.first_child() { child.unparent(); }
+        // remove_all() — same rationale as populate_year_list.
+        list.remove_all();
 
         let all = imp.all_commits.borrow().clone();
         let selected_year = imp.selected_year.get();
@@ -722,7 +718,6 @@ impl TemporalExplorerWindow {
     }
 
     // ── Timestamp formatter ───────────────────────────────────────────────────
-    // chrono removed — glib::DateTime (zero new deps)
 
     fn format_timestamp(ts: i64) -> String {
         glib::DateTime::from_unix_local(ts)
