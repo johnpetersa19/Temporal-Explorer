@@ -619,7 +619,14 @@ impl TemporalExplorerWindow {
 
     fn toggle_view_mode(&self) {
         let imp = self.imp();
-        let new_mode = match *imp.view_mode.borrow() {
+
+        // Drop the immutable borrow before calling borrow_mut() below.
+        // Capturing the Copy value in a scoped block ensures the Ref guard
+        // is released before any subsequent borrow_mut() call, preventing
+        // the "RefCell already borrowed" runtime panic.
+        let current_mode = { *imp.view_mode.borrow() };
+
+        let new_mode = match current_mode {
             ViewMode::List => {
                 imp.view_toggle_button.set_icon_name("view-list-symbolic");
                 ViewMode::Grid
@@ -629,6 +636,7 @@ impl TemporalExplorerWindow {
                 ViewMode::List
             }
         };
+
         *imp.view_mode.borrow_mut() = new_mode;
         let dir = imp.current_dir.borrow().clone();
         if imp.current_hash.borrow().is_some() { self.navigate_to_dir(dir); }
