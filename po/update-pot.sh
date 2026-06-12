@@ -36,6 +36,15 @@ echo ""
 PKG_VER=$(grep -m1 '^version' "$ROOT/Cargo.toml" | sed 's/.*= *"//;s/"//')
 DATE=$(date +"%Y-%m-%d %H:%M%z")
 
+# Helper: write a minimal valid .pot header (msgcat requires MIME-Version)
+_empty_pot() {
+    printf 'msgid ""\nmsgstr ""\n'
+    printf '"MIME-Version: 1.0\\n"\n'
+    printf '"Content-Type: text/plain; charset=UTF-8\\n"\n'
+    printf '"Content-Transfer-Encoding: 8bit\\n"\n'
+    printf '\n'
+}
+
 # ── 1. Rust files ───────────────────────────────────────────────────────────────
 echo "[1/6] Scanning Rust files (.rs with gettext())..."
 mapfile -t RUST_FILES < <(
@@ -58,7 +67,7 @@ if [[ ${#RUST_FILES[@]} -gt 0 ]]; then
     RS_COUNT=$(grep -c '^msgid ' "$TMP/rust.pot" 2>/dev/null || echo 0)
     echo "   → rust.pot: $RS_COUNT entries"
 else
-    printf 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n' > "$TMP/rust.pot"
+    _empty_pot > "$TMP/rust.pot"
 fi
 
 # ── 2. Blueprint files (.blp) ───────────────────────────────────────────────────
@@ -70,12 +79,10 @@ mapfile -t BLP_FILES < <(
 )
 echo "   → ${#BLP_FILES[@]} .blp files found"
 
-# Blueprint syntax uses _("string") — not XML, so xgettext Glade cannot parse it.
-# Extract with lookbehind regex: match content inside _("...")
+# Blueprint syntax uses _("string") — not XML, xgettext Glade cannot parse it.
+# Extract with lookbehind regex matching content inside _("..").
 {
-    printf 'msgid ""\nmsgstr ""\n'
-    printf '"Content-Type: text/plain; charset=UTF-8\\n"\n'
-    printf '"Content-Transfer-Encoding: 8bit\\n"\n\n'
+    _empty_pot
     for blp in "${BLP_FILES[@]}"; do
         rel="${blp#"$ROOT/"}"
         grep -oP '(?<=_\(")[^"]+(?=")' "$blp" 2>/dev/null \
@@ -110,8 +117,11 @@ if [[ ${#UI_FILES[@]} -gt 0 ]]; then
     UI_COUNT=$(grep -c '^msgid ' "$TMP/ui.pot" 2>/dev/null || echo 0)
     echo "   → ui.pot: $UI_COUNT entries"
 else
-    printf 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n' > "$TMP/ui.pot"
+    _empty_pot > "$TMP/ui.pot"
 fi
+
+# Garantir que ui.pot exista mesmo se xgettext falhou
+[[ -f "$TMP/ui.pot" ]] || _empty_pot > "$TMP/ui.pot"
 
 # ── 4. Merge rust.pot + blp.pot + ui.pot ────────────────────────────────────────
 echo "[4/6] Merging rust.pot + blp.pot + ui.pot..."
@@ -120,7 +130,17 @@ msgcat \
     --output="$TMP/merged.pot" \
     "$TMP/rust.pot" \
     "$TMP/blp.pot" \
-    "$TMP/ui.pot" 2>/dev/null
+    "$TMP/ui.pot" 2>/dev/null || {
+        # Fallback: concatenar manualmente se msgcat falhar
+        echo "   ⚠ msgcat falhou, usando fallback manual..."
+        {
+            _empty_pot
+            grep -h '^#:\|^msgid\|^msgstr' \
+                "$TMP/rust.pot" "$TMP/blp.pot" "$TMP/ui.pot" \
+                | grep -v '^msgid ""$\|^msgstr ""$' \
+                || true
+        } > "$TMP/merged.pot"
+    }
 
 sed \
     -e "s|^\"Project-Id-Version:.*|\"Project-Id-Version: temporal-explorer $PKG_VER\\\\n\"|" \
