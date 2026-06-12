@@ -307,7 +307,7 @@ impl TemporalExplorerWindow {
                 self.imp().window_title.set_subtitle(path.to_str().unwrap_or(""));
                 self.load_timeline(cancel);
             }
-            Err(e) => self.show_error(&format!("Failed to open repository: {e}")),
+            Err(e) => self.show_error(&format!("{}: {e}", gettext("Failed to open repository"))),
         }
     }
 
@@ -340,7 +340,7 @@ impl TemporalExplorerWindow {
                         win.populate_year_list();
                         win.imp().split_view.set_show_sidebar(true);
                     }
-                    Err(e) => win.show_error(&format!("Failed to read history: {e}")),
+                    Err(e) => win.show_error(&format!("{}: {e}", gettext("Failed to read history"))),
                 }
                 glib::ControlFlow::Break
             }
@@ -503,7 +503,7 @@ impl TemporalExplorerWindow {
             Ok(result) => {
                 match result {
                     Ok(nodes) => win.render_dir(nodes),
-                    Err(e) => win.show_error(&format!("Error reading tree: {e}")),
+                    Err(e) => win.show_error(&format!("{}: {e}", gettext("Error reading tree"))),
                 }
                 glib::ControlFlow::Break
             }
@@ -558,7 +558,7 @@ impl TemporalExplorerWindow {
             Ok(repo) => {
                 file_preview::show_file_preview(self, &repo, &hash, path);
             }
-            Err(e) => self.show_error(&format!("Cannot open repository: {e}")),
+            Err(e) => self.show_error(&format!("{}: {e}", gettext("Cannot open repository"))),
         }
     }
 

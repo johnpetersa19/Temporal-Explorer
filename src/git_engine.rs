@@ -70,6 +70,7 @@
 //! `repo` and `cpu_pool` are private.  Use the public accessor methods
 //! `reader.repo()` and `reader.cpu_pool()` — never access the fields directly.
 
+use gettextrs::gettext;
 use git2::{ObjectType, Repository, SubmoduleIgnore};
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
@@ -210,7 +211,7 @@ impl CommitInfo {
         Self {
             hash: commit.id().to_string(),
             summary: commit.summary().unwrap_or("").to_owned(),
-            author: commit.author().name().unwrap_or("Unknown").to_owned(),
+            author: commit.author().name().unwrap_or(&gettext("Unknown")).to_owned(),
             author_email: commit.author().email().unwrap_or("").to_owned(),
             timestamp: commit.time().seconds(),
         }
