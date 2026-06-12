@@ -128,7 +128,7 @@ fn entry_to_tree_node(kind: Option<ObjectType>, path: PathBuf) -> Option<TreeNod
 /// Pushes HEAD onto a revwalk, gracefully handling empty repositories.
 ///
 /// In a freshly-initialised repository with no commits, `push_head()` returns
-/// `Err` with error class `Reference` (code -3, "reference 'refs/heads/...'
+/// `Err` with error class `Reference` (code -3, "reference 'refs/heads/...'\
 /// not found").  Propagating that error leaves the UI in a broken state
 /// (the title bar shows "Loading…" forever) even though the repository itself
 /// is perfectly valid — it simply has no history yet.
@@ -472,9 +472,21 @@ impl HistoryReader {
         Ok(())
     }
 
-    /// Searches commits by hash prefix, summary, or author (all case-insensitive).
+    /// Backend commit search via `revwalk` — searches by hash prefix, summary,
+    /// or author (all case-insensitive).  Returns at most [`SEARCH_COMMITS_MAX`]
+    /// results.
     ///
-    /// Returns at most [`SEARCH_COMMITS_MAX`] results.
+    /// # Note — currently unused by the UI
+    ///
+    /// The UI performs search inline inside `window.rs::on_search_changed`,
+    /// filtering the already-loaded `all_commits` `Vec` in a `thread::spawn`
+    /// without opening a new revwalk.  This function implements the same logic
+    /// at the git-engine level and is preserved for a future refactor that
+    /// moves search responsibility from `window.rs` into the engine (e.g. to
+    /// support incremental streaming search over very large histories that do
+    /// not fit in memory).  Until that refactor lands, the compiler warning is
+    /// suppressed with `#[allow(dead_code)]` to avoid misleading noise in CI.
+    #[allow(dead_code)]
     pub fn search_commits(&self, query: &str) -> Result<Vec<CommitInfo>, git2::Error> {
         let mut walk = self.repo.revwalk()?;
         push_head_safe(&mut walk, &self.repo)?;
@@ -718,7 +730,7 @@ impl<'repo> SnapshotMaterializer<'repo> {
     ///
     /// Only genuine git2 I/O errors (e.g. `find_tree` failures) are returned
     /// as `Err`.  Reaching the entry cap or the depth cap is encoded as
-    /// `Ok(Truncated(...))`.
+    /// `Ok(Truncated(...))`
     fn materialize_inner(
         &self,
         tree: &git2::Tree<'_>,
