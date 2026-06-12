@@ -24,11 +24,11 @@ msgid "translator-credits"
 msgstr ""
 
 #. window.rs
-#: src/window.rs
+#: src/window.rs src/window.blp
 msgid "Open Repository"
 msgstr "Abrir Repositório"
 
-#: src/window.rs
+#: src/window.rs src/window.blp
 msgid "Timeline"
 msgstr "Linha do Tempo"
 
@@ -39,6 +39,101 @@ msgstr "Erro"
 #: src/window.rs
 msgid "OK"
 msgstr "OK"
+
+#: src/window.rs
+msgid "Failed to open repository"
+msgstr "Falha ao abrir repositório"
+
+#: src/window.rs
+msgid "Failed to read history"
+msgstr "Falha ao ler histórico"
+
+#: src/window.rs
+msgid "Error reading tree"
+msgstr "Erro ao ler árvore"
+
+#: src/window.rs
+msgid "Cannot open repository"
+msgstr "Não foi possível abrir o repositório"
+
+#. git_engine.rs
+#: src/git_engine.rs
+msgid "Unknown"
+msgstr "Desconhecido"
+
+#. window.blp
+#: src/window.blp
+msgid "Back"
+msgstr "Voltar"
+
+#: src/window.blp
+msgid "Search commits\u2026"
+msgstr "Pesquisar commits\u2026"
+
+#: src/window.blp
+msgid "Forward"
+msgstr "Avançar"
+
+#: src/window.blp
+msgid "Show Sidebar"
+msgstr "Mostrar barra lateral"
+
+#: src/window.blp
+msgid "Type a path and press Enter\u2026"
+msgstr "Digite um caminho e pressione Enter\u2026"
+
+#: src/window.blp
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: src/window.blp
+msgid "Toggle View"
+msgstr "Alternar visualização"
+
+#: src/window.blp
+msgid "Main Menu"
+msgstr "Menu principal"
+
+#: src/window.blp
+msgid "Temporal Explorer"
+msgstr "Temporal Explorer"
+
+#: src/window.blp
+msgid "No repository selected"
+msgstr "Nenhum repositório selecionado"
+
+#: src/window.blp
+msgid "No Snapshot Selected"
+msgstr "Nenhum snapshot selecionado"
+
+#: src/window.blp
+msgid "Open a Git repository and select a commit from the timeline to browse its file tree."
+msgstr "Abra um repositório Git e selecione um commit na linha do tempo para navegar pela árvore de arquivos."
+
+#: src/window.blp
+msgid "_Preferences"
+msgstr "_Preferências"
+
+#: src/window.blp
+msgid "_Keyboard Shortcuts"
+msgstr "_Atalhos de teclado"
+
+#: src/window.blp
+msgid "_About Temporal Explorer"
+msgstr "_Sobre o Temporal Explorer"
+
+#. shortcuts-dialog.ui
+#: src/shortcuts-dialog.ui
+msgid "Shortcuts"
+msgstr "Atalhos"
+
+#: src/shortcuts-dialog.ui
+msgid "Show Shortcuts"
+msgstr "Mostrar atalhos"
+
+#: src/shortcuts-dialog.ui
+msgid "Quit"
+msgstr "Sair"
 
 #. commit_controller.rs
 #: src/commit_controller.rs
@@ -107,19 +202,19 @@ msgid "December"
 msgstr "Dezembro"
 
 #. file_preview.rs
-#: src/file_preview.rs
+#: src/file_preview.rs src/file-preview-dialog.blp
 msgid "Could not read file"
 msgstr "Não foi possível ler o arquivo"
 
 #: src/file_preview.rs
-msgid "Binary file — preview not available."
-msgstr "Arquivo binário — prévia não disponível."
+msgid "Binary file -- preview not available."
+msgstr "Arquivo binário -- prévia não disponível."
 
 #: src/file_preview.rs
 msgid "Preview truncated at"
 msgstr "Prévia truncada em"
 
-#: src/file_preview.rs
+#: src/file_preview.rs src/file-preview-dialog.blp
 msgid "Copy content"
 msgstr "Copiar conteúdo"
 

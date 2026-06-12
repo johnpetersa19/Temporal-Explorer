@@ -23,11 +23,11 @@ msgid "translator-credits"
 msgstr ""
 
 #. window.rs
-#: src/window.rs
+#: src/window.rs src/window.blp
 msgid "Open Repository"
 msgstr ""
 
-#: src/window.rs
+#: src/window.rs src/window.blp
 msgid "Timeline"
 msgstr ""
 
@@ -37,6 +37,101 @@ msgstr ""
 
 #: src/window.rs
 msgid "OK"
+msgstr ""
+
+#: src/window.rs
+msgid "Failed to open repository"
+msgstr ""
+
+#: src/window.rs
+msgid "Failed to read history"
+msgstr ""
+
+#: src/window.rs
+msgid "Error reading tree"
+msgstr ""
+
+#: src/window.rs
+msgid "Cannot open repository"
+msgstr ""
+
+#. git_engine.rs
+#: src/git_engine.rs
+msgid "Unknown"
+msgstr ""
+
+#. window.blp
+#: src/window.blp
+msgid "Back"
+msgstr ""
+
+#: src/window.blp
+msgid "Search commits\u2026"
+msgstr ""
+
+#: src/window.blp
+msgid "Forward"
+msgstr ""
+
+#: src/window.blp
+msgid "Show Sidebar"
+msgstr ""
+
+#: src/window.blp
+msgid "Type a path and press Enter\u2026"
+msgstr ""
+
+#: src/window.blp
+msgid "Cancel"
+msgstr ""
+
+#: src/window.blp
+msgid "Toggle View"
+msgstr ""
+
+#: src/window.blp
+msgid "Main Menu"
+msgstr ""
+
+#: src/window.blp
+msgid "Temporal Explorer"
+msgstr ""
+
+#: src/window.blp
+msgid "No repository selected"
+msgstr ""
+
+#: src/window.blp
+msgid "No Snapshot Selected"
+msgstr ""
+
+#: src/window.blp
+msgid "Open a Git repository and select a commit from the timeline to browse its file tree."
+msgstr ""
+
+#: src/window.blp
+msgid "_Preferences"
+msgstr ""
+
+#: src/window.blp
+msgid "_Keyboard Shortcuts"
+msgstr ""
+
+#: src/window.blp
+msgid "_About Temporal Explorer"
+msgstr ""
+
+#. shortcuts-dialog.ui
+#: src/shortcuts-dialog.ui
+msgid "Shortcuts"
+msgstr ""
+
+#: src/shortcuts-dialog.ui
+msgid "Show Shortcuts"
+msgstr ""
+
+#: src/shortcuts-dialog.ui
+msgid "Quit"
 msgstr ""
 
 #. commit_controller.rs
@@ -111,14 +206,14 @@ msgid "Could not read file"
 msgstr ""
 
 #: src/file_preview.rs
-msgid "Binary file — preview not available."
+msgid "Binary file -- preview not available."
 msgstr ""
 
 #: src/file_preview.rs
 msgid "Preview truncated at"
 msgstr ""
 
-#: src/file_preview.rs
+#: src/file_preview.rs src/file-preview-dialog.blp
 msgid "Copy content"
 msgstr ""
 
