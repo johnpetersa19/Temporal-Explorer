@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: temporal-explorer 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-12 01:00-0300\n"
-"PO-Revision-Date: 2026-06-12 01:00-0300\n"
+"POT-Creation-Date: 2026-06-12 02:00-0300\n"
+"PO-Revision-Date: 2026-06-12 02:00-0300\n"
 "Last-Translator: John Peter Sá <johnpetersa19@gmail.com>\n"
 "Language-Team: Brazilian Portuguese\n"
 "Language: pt_BR\n"
@@ -17,6 +17,13 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
+#. application.rs
+#: src/application.rs
+#. TRANSLATORS: adicione seu nome aqui, ex: "João Silva <joao@exemplo.com>"
+msgid "translator-credits"
+msgstr ""
+
+#. window.rs
 #: src/window.rs
 msgid "Open Repository"
 msgstr "Abrir Repositório"
@@ -33,6 +40,7 @@ msgstr "Erro"
 msgid "OK"
 msgstr "OK"
 
+#. commit_controller.rs
 #: src/commit_controller.rs
 msgid "commits not shown"
 msgstr "commits não exibidos"
@@ -49,6 +57,7 @@ msgstr "1 item"
 msgid "items"
 msgstr "itens"
 
+#. timeline_filter.rs
 #: src/timeline_filter.rs
 msgid "January"
 msgstr "Janeiro"
@@ -96,3 +105,25 @@ msgstr "Novembro"
 #: src/timeline_filter.rs
 msgid "December"
 msgstr "Dezembro"
+
+#. file_preview.rs
+#: src/file_preview.rs
+msgid "Could not read file"
+msgstr "Não foi possível ler o arquivo"
+
+#: src/file_preview.rs
+msgid "Binary file \u2014 preview not available."
+msgstr "Arquivo binário — prévia não disponível."
+
+#: src/file_preview.rs
+msgid "Preview truncated at"
+msgstr "Prévia truncada em"
+
+#: src/file_preview.rs
+msgid "Copy content"
+msgstr "Copiar conteúdo"
+
+#. views/list_view.rs e views/grid_view.rs
+#: src/views/list_view.rs src/views/grid_view.rs
+msgid "Empty directory"
+msgstr "Diretório vazio"

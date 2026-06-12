@@ -1,4 +1,4 @@
-# Temporal Explorer — Translation Template
+# SOME DESCRIPTIVE TITLE.
 # Copyright (C) 2026 John Peter Sá
 # This file is distributed under the same license as the temporal-explorer package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: temporal-explorer 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-12 01:00-0300\n"
+"POT-Creation-Date: 2026-06-12 02:00-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,12 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+#. application.rs
+#: src/application.rs
+msgid "translator-credits"
+msgstr ""
+
+#. window.rs
 #: src/window.rs
 msgid "Open Repository"
 msgstr ""
@@ -33,6 +39,7 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
+#. commit_controller.rs
 #: src/commit_controller.rs
 msgid "commits not shown"
 msgstr ""
@@ -49,6 +56,7 @@ msgstr ""
 msgid "items"
 msgstr ""
 
+#. timeline_filter.rs
 #: src/timeline_filter.rs
 msgid "January"
 msgstr ""
@@ -95,4 +103,31 @@ msgstr ""
 
 #: src/timeline_filter.rs
 msgid "December"
+msgstr ""
+
+#. file_preview.rs
+#: src/file_preview.rs
+msgid "Could not read file"
+msgstr ""
+
+#: src/file_preview.rs
+msgid "Binary file \u2014 preview not available."
+msgstr ""
+
+#: src/file_preview.rs
+msgid "Preview truncated at"
+msgstr ""
+
+#: src/file_preview.rs
+msgid "Copy content"
+msgstr ""
+
+#. views/list_view.rs
+#: src/views/list_view.rs
+msgid "Empty directory"
+msgstr ""
+
+#. views/grid_view.rs
+#: src/views/grid_view.rs
+msgid "Empty directory"
 msgstr ""
