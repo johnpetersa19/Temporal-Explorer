@@ -48,12 +48,12 @@ use crate::timeline_filter;
 use crate::views::{list_view, grid_view};
 use crate::views::list_view::{OnEnterDir, OnOpenFile};
 
-// ── ViewMode ─────────────────────────────────────────────────────────────────────────────
+// ── ViewMode ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum ViewMode { #[default] List, Grid }
 
-// ── TimelineLevel ───────────────────────────────────────────────────────────────────
+// ── TimelineLevel ──────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum TimelineLevel {
@@ -62,7 +62,7 @@ pub enum TimelineLevel {
     Commits,
 }
 
-// ── DebugRepository ──────────────────────────────────────────────────────────────────
+// ── DebugRepository ────────────────────────────────────────────────────────────
 
 pub struct DebugRepository(pub git2::Repository);
 
@@ -77,7 +77,7 @@ impl std::ops::Deref for DebugRepository {
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-// ── Private implementation ─────────────────────────────────────────────────────────────
+// ── Private implementation ─────────────────────────────────────────────────────
 
 mod imp {
     use super::*;
@@ -159,7 +159,7 @@ mod imp {
     impl AdwApplicationWindowImpl for TemporalExplorerWindow {}
 }
 
-// ── Public wrapper ─────────────────────────────────────────────────────────────────────────
+// ── Public wrapper ─────────────────────────────────────────────────────────────
 
 glib::wrapper! {
     pub struct TemporalExplorerWindow(ObjectSubclass<imp::TemporalExplorerWindow>)
@@ -170,7 +170,7 @@ glib::wrapper! {
             gtk::Native, gtk::Root, gtk::ShortcutManager;
 }
 
-// ── Free helpers ─────────────────────────────────────────────────────────────────────────
+// ── Free helpers ───────────────────────────────────────────────────────────────
 
 // Uses container.remove() in a loop — avoids leaving live GObject
 // references that could race with concurrent idle_add_local callbacks.
@@ -187,7 +187,7 @@ impl TemporalExplorerWindow {
             .build()
     }
 
-    // ── Callback wiring ───────────────────────────────────────────────────────────
+    // ── Callback wiring ────────────────────────────────────────────────────────
 
     fn setup_callbacks(&self) {
         let imp = self.imp();
@@ -253,7 +253,7 @@ impl TemporalExplorerWindow {
         });
     }
 
-    // ── CSS loader ────────────────────────────────────────────────────────────────────
+    // ── CSS loader ────────────────────────────────────────────────────────────
 
     fn setup_styles(&self) {
         let provider = gtk::CssProvider::new();
@@ -268,7 +268,7 @@ impl TemporalExplorerWindow {
         }
     }
 
-    // ── Repository opening ───────────────────────────────────────────────────────────
+    // ── Repository opening ─────────────────────────────────────────────────────
 
     fn open_repo_dialog(&self) {
         let dialog = gtk::FileDialog::builder()
@@ -285,6 +285,7 @@ impl TemporalExplorerWindow {
 
     pub fn load_repository(&self, path: PathBuf) {
         let cancel = Arc::new(AtomicBool::new(false));
+        // Extract and drop the borrow_mut before the next borrow_mut call.
         { if let Some(prev) = self.imp().load_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
         }}
@@ -306,11 +307,11 @@ impl TemporalExplorerWindow {
                 self.imp().window_title.set_subtitle(path.to_str().unwrap_or(""));
                 self.load_timeline(cancel);
             }
-            Err(e) => self.show_error(&format!("{}: {e}", gettext("Failed to open repository"))),
+            Err(e) => self.show_error(&format!("Failed to open repository: {e}")),
         }
     }
 
-    // ── Timeline loading ───────────────────────────────────────────────────────────
+    // ── Timeline loading ───────────────────────────────────────────────────────
     // glib 0.22 removed MainContext::channel — mpsc + idle_add_local instead.
 
     fn load_timeline(&self, _cancel: Arc<AtomicBool>) {
@@ -339,7 +340,7 @@ impl TemporalExplorerWindow {
                         win.populate_year_list();
                         win.imp().split_view.set_show_sidebar(true);
                     }
-                    Err(e) => win.show_error(&format!("{}: {e}", gettext("Failed to read history"))),
+                    Err(e) => win.show_error(&format!("Failed to read history: {e}")),
                 }
                 glib::ControlFlow::Break
             }
@@ -348,7 +349,7 @@ impl TemporalExplorerWindow {
         });
     }
 
-    // ── Year list ───────────────────────────────────────────────────────────────────────
+    // ── Year list ─────────────────────────────────────────────────────────────
 
     fn populate_year_list(&self) {
         let imp = self.imp();
@@ -368,7 +369,7 @@ impl TemporalExplorerWindow {
         imp.timeline_header_title.set_subtitle("");
     }
 
-    // ── Year selected ────────────────────────────────────────────────────────────────
+    // ── Year selected ─────────────────────────────────────────────────────────
 
     fn on_year_selected(&self, year: i32) {
         let imp = self.imp();
@@ -389,7 +390,7 @@ impl TemporalExplorerWindow {
         imp.timeline_header_title.set_subtitle("");
     }
 
-    // ── Month selected ────────────────────────────────────────────────────────────────
+    // ── Month selected ────────────────────────────────────────────────────────
 
     fn on_month_selected(&self, month: u32) {
         let imp = self.imp();
@@ -409,10 +410,11 @@ impl TemporalExplorerWindow {
         ));
     }
 
-    // ── Timeline back ─────────────────────────────────────────────────────────────────
+    // ── Timeline back ─────────────────────────────────────────────────────────
 
     fn timeline_pop(&self) {
         let imp = self.imp();
+        // Capture the Copy value and drop the Ref before any borrow_mut().
         let current_level = { *imp.timeline_level.borrow() };
 
         match current_level {
@@ -433,7 +435,7 @@ impl TemporalExplorerWindow {
         }
     }
 
-    // ── Commit selected ───────────────────────────────────────────────────────────────
+    // ── Commit selected ───────────────────────────────────────────────────────
 
     fn on_commit_selected(&self, hash: String) {
         let imp = self.imp();
@@ -442,6 +444,8 @@ impl TemporalExplorerWindow {
         imp.history_back.borrow_mut().clear();
         imp.history_forward.borrow_mut().clear();
 
+        // Borrow all_commits, extract what we need, drop the Ref before
+        // navigate_to_dir (which will borrow other fields).
         {
             let commits = imp.all_commits.borrow();
             if let Some(commit) = commits.iter().find(|c| c.hash.starts_with(&hash[..7.min(hash.len())])) {
@@ -450,11 +454,11 @@ impl TemporalExplorerWindow {
                 imp.commit_date_label.set_label(&Self::format_timestamp(commit.timestamp));
                 imp.commit_info_bar.set_revealed(true);
             }
-        }
+        } // Ref dropped here
         self.navigate_to_dir(PathBuf::new());
     }
 
-    // ── Directory navigation ──────────────────────────────────────────────────────────
+    // ── Directory navigation ──────────────────────────────────────────────────
 
     pub fn navigate_to_dir(&self, dir: PathBuf) {
         let imp = self.imp();
@@ -499,7 +503,7 @@ impl TemporalExplorerWindow {
             Ok(result) => {
                 match result {
                     Ok(nodes) => win.render_dir(nodes),
-                    Err(e) => win.show_error(&format!("{}: {e}", gettext("Error reading tree"))),
+                    Err(e) => win.show_error(&format!("Error reading tree: {e}")),
                 }
                 glib::ControlFlow::Break
             }
@@ -529,7 +533,7 @@ impl TemporalExplorerWindow {
         self.replace_right_panel(widget);
     }
 
-    // ── Right-panel management ──────────────────────────────────────────────────────────
+    // ── Right-panel management ────────────────────────────────────────────────
 
     pub fn replace_right_panel(&self, widget: gtk::Widget) {
         let imp = self.imp();
@@ -544,7 +548,7 @@ impl TemporalExplorerWindow {
         imp.right_panel_stack.set_visible_child_name("empty");
     }
 
-    // ── File preview ──────────────────────────────────────────────────────────────────
+    // ── File preview ──────────────────────────────────────────────────────────
 
     pub fn preview_file(&self, path: &std::path::Path) {
         let hash = match self.imp().current_hash.borrow().clone() { Some(h) => h, None => return };
@@ -554,15 +558,17 @@ impl TemporalExplorerWindow {
             Ok(repo) => {
                 file_preview::show_file_preview(self, &repo, &hash, path);
             }
-            Err(e) => self.show_error(&format!("{}: {e}", gettext("Cannot open repository"))),
+            Err(e) => self.show_error(&format!("Cannot open repository: {e}")),
         }
     }
 
-    // ── Navigation helpers ─────────────────────────────────────────────────────────────
+    // ── Navigation helpers ────────────────────────────────────────────────────
 
     pub fn push_dir(&self, dir: PathBuf) {
         let imp = self.imp();
         let prev = imp.current_dir.borrow().clone();
+        // Push to history and clear forward, then drop the RefMut before
+        // navigate_to_dir which reads history_back via update_nav_buttons.
         { imp.history_back.borrow_mut().push(prev); }
         { imp.history_forward.borrow_mut().clear(); }
         self.navigate_to_dir(dir);
@@ -590,6 +596,10 @@ impl TemporalExplorerWindow {
 
     fn update_nav_buttons(&self) {
         let imp = self.imp();
+        // Use try_borrow instead of borrow to avoid panicking when this function
+        // is called while a borrow_mut is still alive higher in the call stack
+        // (e.g. from push_dir or navigate_back/forward). update_nav_buttons is
+        // a display-only helper — skipping an update on reentrancy is safe.
         if let Ok(back) = imp.history_back.try_borrow() {
             imp.nav_back_button.set_sensitive(!back.is_empty());
         }
@@ -598,10 +608,12 @@ impl TemporalExplorerWindow {
         }
     }
 
-    // ── Location bar ────────────────────────────────────────────────────────────────────
+    // ── Location bar ──────────────────────────────────────────────────────────
 
     pub fn enter_location_mode(&self) {
         let imp = self.imp();
+        // Clone the path value and drop the Ref before grab_focus() which
+        // can emit signals that re-enter this borrow.
         let current = { imp.current_dir.borrow().clone() };
         imp.location_entry.set_text(current.to_str().unwrap_or(""));
         imp.location_entry.grab_focus();
@@ -609,6 +621,7 @@ impl TemporalExplorerWindow {
     }
 
     fn leave_location_mode(&self) {
+        // "pathbar" is the name defined in window.blp for the address-bar StackPage.
         self.imp().toolbar_switcher.set_visible_child_name("pathbar");
     }
 
@@ -617,10 +630,11 @@ impl TemporalExplorerWindow {
         self.push_dir(PathBuf::from(text.trim()));
     }
 
-    // ── View mode toggle ────────────────────────────────────────────────────────────────
+    // ── View mode toggle ──────────────────────────────────────────────────────
 
     fn toggle_view_mode(&self) {
         let imp = self.imp();
+        // Capture Copy value, drop the Ref, then mutate and check separately.
         let current_mode = { *imp.view_mode.borrow() };
 
         let new_mode = match current_mode {
@@ -634,14 +648,16 @@ impl TemporalExplorerWindow {
             }
         };
 
+        // Write new_mode, then drop the RefMut before the borrow() below.
         { *imp.view_mode.borrow_mut() = new_mode; }
 
         let dir = imp.current_dir.borrow().clone();
+        // Check current_hash with a scoped borrow, drop before navigate_to_dir.
         let has_hash = { imp.current_hash.borrow().is_some() };
         if has_hash { self.navigate_to_dir(dir); }
     }
 
-    // ── Search ─────────────────────────────────────────────────────────────────────────────
+    // ── Search ────────────────────────────────────────────────────────────────
 
     fn on_search_changed(&self, query: String) {
         let imp = self.imp();
@@ -703,7 +719,7 @@ impl TemporalExplorerWindow {
         commit_controller::populate_commit_list(&list, &filtered);
     }
 
-    // ── Error display ─────────────────────────────────────────────────────────────────
+    // ── Error display ─────────────────────────────────────────────────────────
 
     fn show_error(&self, message: &str) {
         eprintln!("[TemporalExplorer] {message}");
@@ -712,7 +728,7 @@ impl TemporalExplorerWindow {
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
-    // ── Timestamp formatter ──────────────────────────────────────────────────────────
+    // ── Timestamp formatter ───────────────────────────────────────────────────
 
     fn format_timestamp(ts: i64) -> String {
         glib::DateTime::from_unix_local(ts)
