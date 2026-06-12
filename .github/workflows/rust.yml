@@ -35,7 +35,16 @@ jobs:
           appstream \
           desktop-file-utils \
           gettext \
-          libxml2
+          libxml2 \
+          rustup \
+          cargo
+
+    - name: Initialize Rust toolchain
+      run: |
+        rustup toolchain install stable
+        rustup default stable
+        rustc --version
+        cargo --version
 
     - name: Check GLib via pkg-config
       run: |
