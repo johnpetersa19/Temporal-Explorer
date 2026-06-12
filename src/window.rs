@@ -180,6 +180,16 @@ fn clear_box(container: &gtk::Box) {
     }
 }
 
+/// Cancel a pending debounce timer without panicking.
+///
+/// `SourceId::remove()` panics in glib 0.22 when the GLib source was already
+/// consumed (e.g. the timeout fired and returned `ControlFlow::Break`). The
+/// free function `glib::source_remove()` returns a `Result` instead, so we
+/// use that and simply ignore the error if the source is already gone.
+fn cancel_debounce(source: glib::SourceId) {
+    let _ = glib::source_remove(source);
+}
+
 impl TemporalExplorerWindow {
     pub fn new<P: IsA<gtk::Application>>(application: &P) -> Self {
         glib::Object::builder()
@@ -661,7 +671,14 @@ impl TemporalExplorerWindow {
 
     fn on_search_changed(&self, query: String) {
         let imp = self.imp();
-        if let Some(source) = imp.search_debounce.borrow_mut().take() { source.remove(); }
+        // Take the pending SourceId and cancel it safely.
+        // `SourceId::remove()` panics in glib 0.22 when the timeout has already
+        // fired and been removed by GLib. `glib::source_remove()` returns a
+        // Result instead, so we delegate to `cancel_debounce` which ignores the
+        // error — the debounce timer is gone either way.
+        if let Some(source) = imp.search_debounce.borrow_mut().take() {
+            cancel_debounce(source);
+        }
         let win = self.clone();
         let source = glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
             win.run_search(query.clone());
