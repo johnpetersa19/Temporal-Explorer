@@ -62,8 +62,8 @@ jobs:
         echo "=== blueprint-compiler version ==="
         blueprint-compiler --version
 
-        # Collect all .blp files as absolute paths so we can group by directory
-        BLP_FILES=$(find "$(pwd)" -name '*.blp' -not -path '*/.git/*' | sort)
+        ROOT="$(pwd)"
+        BLP_FILES=$(find "$ROOT" -name '*.blp' -not -path '*/.git/*' | sort)
 
         if [ -z "$BLP_FILES" ]; then
           echo "No .blp files found — skipping lint."
@@ -74,22 +74,23 @@ jobs:
         echo "$BLP_FILES"
         echo ""
 
-        # batch-compile requires: output-dir  input-dir  filename [filename ...]
-        # The filenames must be relative to input-dir, so we group files by their
-        # parent directory and call batch-compile once per directory.
         FAILED=0
+
+        # Group files by parent directory; for each group cd into that dir
+        # so filenames are resolved relative to CWD (required by v0.20.x).
         PREV_DIR=""
         FILES_IN_DIR=""
 
-        run_batch() {
+        flush_dir() {
           dir="$1"
           files="$2"
           out="/tmp/blp-check/$(echo "$dir" | tr '/' '_')"
           mkdir -p "$out"
-          echo "--- Compiling directory: $dir ---"
+          echo "--- Compiling: $dir ---"
+          # cd into the source dir so blueprint-compiler finds the files
           # shellcheck disable=SC2086
-          if ! blueprint-compiler batch-compile "$out" "$dir" $files 2>&1; then
-            echo "FAIL in $dir"
+          if ! (cd "$dir" && blueprint-compiler batch-compile "$out" . $files 2>&1); then
+            echo "FAIL: $dir"
             return 1
           fi
           echo "OK:  $dir"
@@ -100,7 +101,7 @@ jobs:
           dir="$(dirname "$abs_file")"
           base="$(basename "$abs_file")"
           if [ "$dir" != "$PREV_DIR" ] && [ -n "$PREV_DIR" ]; then
-            run_batch "$PREV_DIR" "$FILES_IN_DIR" || FAILED=1
+            flush_dir "$PREV_DIR" "$FILES_IN_DIR" || FAILED=1
             FILES_IN_DIR=""
           fi
           FILES_IN_DIR="$FILES_IN_DIR $base"
@@ -109,9 +110,9 @@ jobs:
         $BLP_FILES
         EOF
 
-        # flush the last directory
+        # flush the last directory group
         if [ -n "$PREV_DIR" ] && [ -n "$FILES_IN_DIR" ]; then
-          run_batch "$PREV_DIR" "$FILES_IN_DIR" || FAILED=1
+          flush_dir "$PREV_DIR" "$FILES_IN_DIR" || FAILED=1
         fi
 
         if [ "$FAILED" -eq 1 ]; then
