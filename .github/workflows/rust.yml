@@ -25,7 +25,6 @@ jobs:
           libadwaita-1-dev \
           libglib2.0-dev \
           libgit2-dev \
-          libgettext-rs-dev \
           pkg-config \
           blueprint-compiler \
           appstream \
