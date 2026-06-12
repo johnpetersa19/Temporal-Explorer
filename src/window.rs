@@ -459,6 +459,45 @@ impl TemporalExplorerWindow {
         } else {
             PathBuf::from(trimmed)
         };
+
+        // Validate the target path against the current commit snapshot *before*
+        // touching the navigation history.  enter_dir pushes the previous dir
+        // onto history_back unconditionally; if we let an invalid path through,
+        // the bad entry ends up in the stack and the Back button replays the
+        // same error in a loop.
+        //
+        // The root (empty path) is always valid when a commit is selected, so
+        // we skip the probe for that case.
+        if !target.as_os_str().is_empty() {
+            let imp = self.imp();
+            let hash = match imp.current_hash.borrow().clone() {
+                Some(h) => h,
+                None => return, // No commit selected — nothing to navigate into.
+            };
+
+            // Fast path: already in the dir-cache — no need to hit git2.
+            let cached = imp.dir_cache.borrow_mut().get(&hash, target.as_path()).is_some();
+            if !cached {
+                let repo_ref = imp.repository.borrow();
+                let repo = match repo_ref.as_ref() {
+                    Some(r) => r,
+                    None => {
+                        self.show_error_toast(&gettext("No repository open."));
+                        return;
+                    }
+                };
+                let resolver = SnapshotResolver::new(repo);
+                if let Err(e) = resolver.resolve_dir(&hash, target.as_path()) {
+                    drop(repo_ref);
+                    self.show_error_toast(&format!("{}: {e}", gettext("Cannot resolve snapshot")));
+                    return; // Do NOT enter history_back / current_dir.
+                }
+                // Resolved successfully; drop the borrow before enter_dir
+                // acquires it again inside browse_dir_inner.
+                drop(repo_ref);
+            }
+        }
+
         self.enter_dir(target);
     }
 
