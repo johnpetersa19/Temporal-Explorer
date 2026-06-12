@@ -1,7 +1,12 @@
 src/application.rs
 src/window.rs
+src/window.blp
+src/git_engine.rs
 src/commit_controller.rs
 src/timeline_filter.rs
 src/file_preview.rs
+src/file-list-row.blp
+src/file-preview-dialog.blp
+src/shortcuts-dialog.ui
 src/views/list_view.rs
 src/views/grid_view.rs
