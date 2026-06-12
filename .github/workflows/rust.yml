@@ -28,7 +28,8 @@ jobs:
           pkg-config \
           blueprint-compiler \
           appstream \
-          desktop-file-utils
+          desktop-file-utils \
+          gettext
     - name: Build com Meson
       run: |
         meson setup builddir
