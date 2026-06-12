@@ -1,5 +1,4 @@
 using Gtk 4.0;
-using Adw 1;
 
 /* file-list-row.blp
  *
@@ -7,31 +6,29 @@ using Adw 1;
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Template for a single row in the list-view file browser panel.
+ * Template for a single file/directory entry in the list view.
  * Extracted from views/list_view.rs :: build_file_row().
  *
  * The Rust code sets at runtime:
- *   - file_row_icon.icon-name        → mime or folder symbolic icon name
- *   - file_row_name_label.label      → file or directory name
- *
- * Visibility is toggled depending on TreeNode variant:
- *   - Dir:       file_row_chevron.set_visible(true)
- *   - Submodule: file_row_submodule_badge.set_visible(true)
- *   - File:      file_row_ext_label.set_label(ext); file_row_ext_label.set_visible(true)
+ *   - file_row_icon.icon-name         → mime/type icon
+ *   - file_row_name_label.label       → file or directory name
+ *   - file_row_ext_label.label        → extension badge (files only)
+ *   - file_row_submodule_badge.label  → "submodule" badge (submodules only)
+ *   - file_row_chevron.visible        → true for directories
  */
 
 template $FileListRow : Gtk.ListBoxRow {
   child: Box {
     orientation: horizontal;
-    spacing: 10;
-    margin-top: 5;
-    margin-bottom: 5;
+    margin-top: 4;
+    margin-bottom: 4;
     margin-start: 12;
-    margin-end: 12;
-    styles ["nautilus-list-row"]
+    margin-end: 8;
+    spacing: 8;
 
     Image file_row_icon {
       pixel-size: 16;
+      valign: center;
     }
 
     Label file_row_name_label {
@@ -41,27 +38,23 @@ template $FileListRow : Gtk.ListBoxRow {
       ellipsize: end;
     }
 
-    /* Shown for directories */
+    Label file_row_ext_label {
+      label: "";
+      visible: false;
+      styles ["caption", "dim-label"]
+    }
+
+    Label file_row_submodule_badge {
+      label: "submodule";
+      visible: false;
+      styles ["caption", "dim-label"]
+    }
+
     Image file_row_chevron {
       icon-name: "go-next-symbolic";
       pixel-size: 12;
       visible: false;
       styles ["dim-label"]
-    }
-
-    /* Shown for submodules */
-    Image file_row_submodule_badge {
-      icon-name: "vcs-branch-symbolic";
-      pixel-size: 12;
-      visible: false;
-      styles ["dim-label"]
-    }
-
-    /* Shown for files — displays extension */
-    Label file_row_ext_label {
-      label: "";
-      visible: false;
-      styles ["caption", "dim-label"]
     }
   };
 }
