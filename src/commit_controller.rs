@@ -52,7 +52,7 @@ use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
 use std::collections::HashMap;
 use std::cell::RefCell;
 
-// ── Tuning constants ────────────────────────────────────────────────────
+// ── Tuning constants ────────────────────────────────────────────────────────────────────────
 
 /// Rows inserted per idle frame during a **full list rebuild**.
 const POPULATE_BATCH: usize = 150;
@@ -70,7 +70,7 @@ const MAX_RENDERED_ROWS: usize = 5_000;
 #[allow(dead_code)]
 const HARD_APPEND_CAP: usize = 15_000;
 
-// ── Generation counter helpers ────────────────────────────────────────────
+// ── Generation counter helpers ────────────────────────────────────────────────
 
 thread_local! {
     static GENERATIONS: RefCell<HashMap<usize, Arc<AtomicU64>>> = RefCell::new(HashMap::new());
@@ -101,7 +101,7 @@ fn next_generation(list_box: &gtk::ListBox) -> u64 {
     counter.fetch_add(1, Ordering::Relaxed) + 1
 }
 
-// ── Safe ListBox clear ─────────────────────────────────────────────────────
+// ── Safe ListBox clear ──────────────────────────────────────────────────────
 
 /// Removes all children from `list_box` safely.
 ///
@@ -117,7 +117,7 @@ fn clear_listbox(list_box: &gtk::ListBox) {
     list_box.remove_all();
 }
 
-// ── Row builders ──────────────────────────────────────────────────
+// ── Row builders ──────────────────────────────────────────────────────────
 
 /// Builds a [`gtk::ListBoxRow`] that represents a single commit entry.
 pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
@@ -203,6 +203,7 @@ pub fn build_year_row(year: i32, count: usize) -> gtk::ListBoxRow {
 }
 
 /// Builds a row representing a **month** inside a selected year.
+/// month_name() returns an owned String (translated via gettext).
 pub fn build_month_row(month: u32, count: usize) -> gtk::ListBoxRow {
     let hbox = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
@@ -213,8 +214,9 @@ pub fn build_month_row(month: u32, count: usize) -> gtk::ListBoxRow {
         .margin_end(12)
         .build();
 
+    let name = timeline_filter::month_name(month);
     let label = gtk::Label::builder()
-        .label(timeline_filter::month_name(month))
+        .label(&name)
         .xalign(0.0)
         .hexpand(true)
         .build();
@@ -274,7 +276,7 @@ fn build_truncation_hint_row(total: usize, rendered: usize) -> gtk::ListBoxRow {
         .build()
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ── Public API ────────────────────────────────────────────────────────────────────────
 
 /// Populates `list_box` with rows for each commit in `commits`.
 pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
@@ -340,7 +342,7 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     schedule_batch_append(list_weak, remaining);
 }
 
-// ── Internal idle-batch helpers ───────────────────────────────────────────────
+// ── Internal idle-batch helpers ───────────────────────────────────────────────────
 
 fn schedule_batch_populate(
     list_weak: glib::object::WeakRef<gtk::ListBox>,
@@ -399,7 +401,7 @@ fn schedule_batch_append(
     });
 }
 
-// ── Search / filter helpers ───────────────────────────────────────────────
+// ── Search / filter helpers ───────────────────────────────────────────────────
 
 #[allow(dead_code)]
 pub fn filter_commits<'a>(commits: &'a [CommitInfo], query: &str) -> Vec<&'a CommitInfo> {
