@@ -10,7 +10,7 @@
 # ────────────────────────────────────────────────────────────────────────────
 #
 #  Step 1 — Rust source scan (.rs with gettext())
-#  Step 2 — Blueprint scan (.blp with _"...") via grep fallback
+#  Step 2 — Blueprint scan (.blp) via grep lookbehind: _("..") pattern
 #  Step 3 — Native UI scan (.ui with translatable="yes") via xgettext Glade
 #  Step 4 — Merge all partial .pot files with msgcat
 #  Step 5 — POTFILES.in regeneration
@@ -62,25 +62,23 @@ else
 fi
 
 # ── 2. Blueprint files (.blp) ───────────────────────────────────────────────────
-echo "[2/6] Scanning Blueprint files (.blp with _\"...\")..."
+echo "[2/6] Scanning Blueprint files (.blp with _(\"...\"))..."
 mapfile -t BLP_FILES < <(
     find "$ROOT/src" -name "*.blp" -type f \
-    | xargs grep -l '_"' 2>/dev/null \
+    | xargs grep -l '_("' 2>/dev/null \
     | sort
 )
 echo "   → ${#BLP_FILES[@]} .blp files found"
 
-# Blueprint is not XML so xgettext --language=Glade won't parse it.
-# We extract strings manually: _"...") pattern (single-line only).
+# Blueprint syntax uses _("string") — not XML, so xgettext Glade cannot parse it.
+# Extract with lookbehind regex: match content inside _("...")
 {
     printf 'msgid ""\nmsgstr ""\n'
     printf '"Content-Type: text/plain; charset=UTF-8\\n"\n'
     printf '"Content-Transfer-Encoding: 8bit\\n"\n\n'
     for blp in "${BLP_FILES[@]}"; do
         rel="${blp#"$ROOT/"}"
-        # Match _"...") — capture everything between the quotes
-        grep -oP '_"[^"]+"' "$blp" 2>/dev/null \
-        | sed 's/^_"//;s/"$//' \
+        grep -oP '(?<=_\(")[^"]+(?=")' "$blp" 2>/dev/null \
         | while IFS= read -r str; do
             printf '#: %s\n' "$rel"
             printf 'msgid "%s"\n' "$str"
