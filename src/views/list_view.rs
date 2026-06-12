@@ -85,8 +85,20 @@ pub fn build_list_view(
 
     let children_clone = children.to_vec();
     let hash_clone = hash.to_owned();
+    // Keep a WeakRef to the list so we can detect when it has been
+    // un-parented (panel replaced) before the queued signal fires.
+    // If the widget is gone or has no parent the event is stale — bail out.
+    let list_weak = list.downgrade();
     list.connect_row_activated(glib::clone!(
         move |_, row| {
+            // Guard: if the ListBox has already been un-parented (the panel
+            // was swapped while this signal was still in the event queue)
+            // then gtk_widget_get_layout_manager would fire a CRITICAL.
+            // Upgrading the WeakRef and checking parent() short-circuits
+            // that path safely without removing any existing behaviour.
+            if list_weak.upgrade().and_then(|w| w.parent()).is_none() {
+                return;
+            }
             // gtk::ListBoxRow::index() returns -1 when the row is not
             // attached to a ListBox (removal animations, re-render edge
             // cases).  Casting -1i32 as usize wraps to

@@ -99,8 +99,20 @@ pub fn build_grid_view(
 
     let children_clone = children.to_vec();
     let hash_clone = hash.to_owned();
+    // Keep a WeakRef to the flow so we can detect when it has been
+    // un-parented (panel replaced) before the queued signal fires.
+    // If the widget is gone or has no parent the event is stale — bail out.
+    let flow_weak = flow.downgrade();
     flow.connect_child_activated(glib::clone!(
         move |_, child| {
+            // Guard: if the FlowBox has already been un-parented (the panel
+            // was swapped while this signal was still in the event queue)
+            // then gtk_widget_get_layout_manager would fire a CRITICAL.
+            // Upgrading the WeakRef and checking parent() short-circuits
+            // that path safely without removing any existing behaviour.
+            if flow_weak.upgrade().and_then(|w| w.parent()).is_none() {
+                return;
+            }
             // gtk::FlowBoxChild::index() returns -1 when the child is not
             // attached to a FlowBox (removal animations, re-render edge
             // cases).  Casting -1i32 as usize wraps to
