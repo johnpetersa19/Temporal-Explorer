@@ -576,10 +576,6 @@ impl TemporalExplorerWindow {
 
     fn navigate_back(&self) {
         let imp = self.imp();
-        // Pop the target dir and drop the RefMut BEFORE calling navigate_to_dir,
-        // which internally calls update_nav_buttons -> history_back.borrow().
-        // Keeping the RefMut alive across that call caused "RefCell already
-        // mutably borrowed" at line 601.
         let dir = { imp.history_back.borrow_mut().pop() };
         if let Some(dir) = dir {
             let cur = { imp.current_dir.borrow().clone() };
@@ -590,7 +586,6 @@ impl TemporalExplorerWindow {
 
     fn navigate_forward(&self) {
         let imp = self.imp();
-        // Same fix as navigate_back — drop the RefMut before navigate_to_dir.
         let dir = { imp.history_forward.borrow_mut().pop() };
         if let Some(dir) = dir {
             let cur = { imp.current_dir.borrow().clone() };
@@ -626,7 +621,8 @@ impl TemporalExplorerWindow {
     }
 
     fn leave_location_mode(&self) {
-        self.imp().toolbar_switcher.set_visible_child_name("address");
+        // "pathbar" is the name defined in window.blp for the address-bar StackPage.
+        self.imp().toolbar_switcher.set_visible_child_name("pathbar");
     }
 
     fn navigate_to_typed_path(&self, text: &str) {
