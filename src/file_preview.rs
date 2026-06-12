@@ -64,7 +64,7 @@ pub fn show_file_preview(
             let preview_bytes = &bytes[..bytes.len().min(MAX_PREVIEW_BYTES)];
 
             if preview_bytes.contains(&0u8) {
-                (name, gettext("Binary file — preview not available."))
+                (name, gettext("Binary file -- preview not available."))
             } else {
                 let mut text = String::from_utf8_lossy(preview_bytes).into_owned();
                 if bytes.len() > MAX_PREVIEW_BYTES {
@@ -82,7 +82,7 @@ pub fn show_file_preview(
     build_preview_dialog(parent, &title, &body_text, revision, file_path);
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
+// ── Private helpers ───────────────────────────────────────────────────────
 
 fn build_preview_dialog(
     parent: &impl IsA<gtk::Window>,
@@ -132,7 +132,7 @@ fn build_preview_dialog(
 
     let win_title = adw::WindowTitle::builder()
         .title(title)
-        .subtitle(&format!("{}…", &revision[..revision.len().min(12)]))
+        .subtitle(&format!("{}\u2026", &revision[..revision.len().min(12)]))
         .build();
 
     let header = adw::HeaderBar::new();
