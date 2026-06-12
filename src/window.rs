@@ -18,11 +18,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-//! Main application window.
-//!
-//! This module is intentionally kept as an *orchestrator*: it owns the
-//! GObject subclass boilerplate, wires GTK signals, and delegates all
-//! widget-construction work to the purpose-built sub-modules:
+//! Main application window — orchestrator module.
 //!
 //! | Responsibility              | Module                        |
 //! |-----------------------------|-------------------------------|
@@ -33,43 +29,8 @@
 //! | File content preview dialog | [`crate::file_preview`]       |
 //! | Git history / tree reads    | [`crate::git_engine`]         |
 //! | Timeline grouping logic     | [`crate::timeline_filter`]    |
-//!
-//! ## Right-panel layout
-//!
-//! `content_toolbar_view` has a permanent `Stack` child (`right_panel_stack`)
-//! with two named pages:
-//!
-//! ```
-//! right_panel_stack
-//!   ├── "empty"   → adw::StatusPage (never re-parented)
-//!   └── "content" → gtk::Box right_panel_content  (dynamic views appended here)
-//! ```
-//!
-//! `replace_right_panel` clears `right_panel_content`, appends the new widget,
-//! and flips the stack to "content".  `show_empty_state` clears the box and
-//! flips back to "empty".  `set_content()` on `content_toolbar_view` is never
-//! called at runtime, so the "parent must be NULL" assertion can never fire.
-//!
-//! ## Timeline navigation
-//!
-//! The left sidebar is a 3-level drill-down:
-//!
-//! ```
-//! years  →  months (for selected year)  →  commits (for selected month)
-//! ```
-//!
-//! The active level is tracked by [`TimelineLevel`] stored in
-//! `imp.timeline_level`.  The back button (`timeline_back_button`) pops one
-//! level; the `timeline_stack` `Stack` slides between the three pages.
-//!
-//! ## Search scope
-//!
-//! The search (`on_search_changed`) filters the `all_commits` in-memory
-//! cache.  When a year is selected (`selected_year != 0`) the results are
-//! scoped to that year.  When no year is selected (Years screen or after
-//! pressing Back to the years level) the search spans all commits.
 
-use adw::prelude::{AdwApplicationWindowExt, AdwDialogExt, AlertDialogExt};
+use adw::prelude::{AdwDialogExt, AlertDialogExt};
 use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 use gtk::prelude::*;
@@ -87,23 +48,21 @@ use crate::timeline_filter;
 use crate::views::{list_view, grid_view};
 use crate::views::list_view::{OnEnterDir, OnOpenFile};
 
-// ── ViewMode ────────────────────────────────────────────────────────────────────────────
+// ── ViewMode ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum ViewMode { #[default] List, Grid }
 
-// ── TimelineLevel ──────────────────────────────────────────────────────────────────────────
+// ── TimelineLevel ──────────────────────────────────────────────────────────────
 
-/// Which page of the sidebar `timeline_stack` is currently visible.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum TimelineLevel {
-    #[default]
-    Years,
+    #[default] Years,
     Months,
     Commits,
 }
 
-// ── DebugRepository ─────────────────────────────────────────────────────────────────────────
+// ── DebugRepository ────────────────────────────────────────────────────────────
 
 pub struct DebugRepository(pub git2::Repository);
 
@@ -118,7 +77,7 @@ impl std::ops::Deref for DebugRepository {
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-// ── Private implementation ────────────────────────────────────────────────────────────────
+// ── Private implementation ─────────────────────────────────────────────────────
 
 mod imp {
     use super::*;
@@ -126,7 +85,6 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/window.ui")]
     pub struct TemporalExplorerWindow {
-        // Header
         #[template_child] pub open_repo_button:     TemplateChild<gtk::Button>,
         #[template_child] pub nav_back_button:      TemplateChild<gtk::Button>,
         #[template_child] pub nav_forward_button:   TemplateChild<gtk::Button>,
@@ -134,13 +92,11 @@ mod imp {
         #[template_child] pub show_sidebar_button:  TemplateChild<gtk::ToggleButton>,
         #[template_child] pub window_title:         TemplateChild<adw::WindowTitle>,
 
-        // Nautilus-style toolbar_switcher Stack
         #[template_child] pub toolbar_switcher:     TemplateChild<gtk::Stack>,
         #[template_child] pub address_bar:          TemplateChild<gtk::Box>,
         #[template_child] pub location_entry:       TemplateChild<gtk::Entry>,
         #[template_child] pub location_cancel_btn:  TemplateChild<gtk::Button>,
 
-        // Left panel — timeline drill-down
         #[template_child] pub timeline_stack:        TemplateChild<gtk::Stack>,
         #[template_child] pub timeline_back_button:  TemplateChild<gtk::Button>,
         #[template_child] pub timeline_header_title: TemplateChild<adw::WindowTitle>,
@@ -149,20 +105,17 @@ mod imp {
         #[template_child] pub commit_search_entry:   TemplateChild<gtk::SearchEntry>,
         #[template_child] pub commit_list:           TemplateChild<gtk::ListBox>,
 
-        // Right panel — permanent stack (never re-parented)
         #[template_child] pub content_toolbar_view: TemplateChild<adw::ToolbarView>,
         #[template_child] pub right_panel_stack:    TemplateChild<gtk::Stack>,
         #[template_child] pub right_panel_content:  TemplateChild<gtk::Box>,
         #[template_child] pub empty_state:          TemplateChild<adw::StatusPage>,
         #[template_child] pub split_view:           TemplateChild<adw::OverlaySplitView>,
 
-        // Bottom bar
         #[template_child] pub commit_info_bar:      TemplateChild<gtk::ActionBar>,
         #[template_child] pub commit_hash_label:    TemplateChild<gtk::Label>,
         #[template_child] pub commit_message_label: TemplateChild<gtk::Label>,
         #[template_child] pub commit_date_label:    TemplateChild<gtk::Label>,
 
-        // Runtime state
         pub all_commits:      RefCell<Vec<CommitInfo>>,
         pub repo_path:        RefCell<Option<PathBuf>>,
         pub repository:       RefCell<Option<DebugRepository>>,
@@ -206,7 +159,7 @@ mod imp {
     impl AdwApplicationWindowImpl for TemporalExplorerWindow {}
 }
 
-// ── Public wrapper ──────────────────────────────────────────────────────────────────────────
+// ── Public wrapper ─────────────────────────────────────────────────────────────
 
 glib::wrapper! {
     pub struct TemporalExplorerWindow(ObjectSubclass<imp::TemporalExplorerWindow>)
@@ -217,12 +170,8 @@ glib::wrapper! {
             gtk::Native, gtk::Root, gtk::ShortcutManager;
 }
 
-// ── Free helper ────────────────────────────────────────────────────────────────────────────
+// ── Free helpers ───────────────────────────────────────────────────────────────
 
-/// Removes all children from a `gtk::Box` safely.
-///
-/// Snapshots the child list into a `Vec` before calling any `unparent()`
-/// to prevent iterator-invalidation races with pending idle frames.
 fn clear_box(container: &gtk::Box) {
     let mut children: Vec<gtk::Widget> = Vec::new();
     let mut w = container.first_child();
@@ -230,9 +179,7 @@ fn clear_box(container: &gtk::Box) {
         w = child.next_sibling();
         children.push(child);
     }
-    for child in children {
-        child.unparent();
-    }
+    for child in children { child.unparent(); }
 }
 
 impl TemporalExplorerWindow {
@@ -242,97 +189,73 @@ impl TemporalExplorerWindow {
             .build()
     }
 
-    // ── Callback wiring ────────────────────────────────────────────────────────────────
+    // ── Callback wiring ────────────────────────────────────────────────────────
 
     fn setup_callbacks(&self) {
         let imp = self.imp();
 
-        // Open repository button
         let win = self.clone();
-        imp.open_repo_button.connect_clicked(move |_| {
-            win.open_repo_dialog();
-        });
+        imp.open_repo_button.connect_clicked(move |_| { win.open_repo_dialog(); });
 
-        // Nav back
         let win = self.clone();
-        imp.nav_back_button.connect_clicked(move |_| {
-            win.navigate_back();
-        });
+        imp.nav_back_button.connect_clicked(move |_| { win.navigate_back(); });
 
-        // Nav forward
         let win = self.clone();
-        imp.nav_forward_button.connect_clicked(move |_| {
-            win.navigate_forward();
-        });
+        imp.nav_forward_button.connect_clicked(move |_| { win.navigate_forward(); });
 
-        // View-mode toggle
         let win = self.clone();
-        imp.view_toggle_button.connect_clicked(move |_| {
-            win.toggle_view_mode();
-        });
+        imp.view_toggle_button.connect_clicked(move |_| { win.toggle_view_mode(); });
 
-        // Address bar — activate entry on click (GTK4: use GestureClick)
+        // GTK4: GestureClick replaces the removed connect_button_press_event
         let win_g = self.clone();
         let gesture = gtk::GestureClick::new();
-        gesture.set_button(1); // primary button only
-        gesture.connect_pressed(move |_, _n_press, _, _| {
-            win_g.enter_location_mode();
-        });
+        gesture.set_button(1);
+        gesture.connect_pressed(move |_, _n, _, _| { win_g.enter_location_mode(); });
         imp.address_bar.add_controller(gesture);
 
-        // Location entry — confirm with Enter
         let win = self.clone();
         imp.location_entry.connect_activate(move |entry| {
             win.navigate_to_typed_path(entry.text().as_str());
         });
 
-        // Location cancel
         let win = self.clone();
-        imp.location_cancel_btn.connect_clicked(move |_| {
-            win.leave_location_mode();
-        });
+        imp.location_cancel_btn.connect_clicked(move |_| { win.leave_location_mode(); });
 
-        // Timeline back button
         let win = self.clone();
-        imp.timeline_back_button.connect_clicked(move |_| {
-            win.timeline_pop();
-        });
+        imp.timeline_back_button.connect_clicked(move |_| { win.timeline_pop(); });
 
-        // Year list row activated
+        // row.data::<T>() is unsafe — wrap every call
         let win = self.clone();
         imp.year_list.connect_row_activated(move |_, row| {
-            let year = row.index();
-            if let Some(y) = row.data::<i32>("year") {
-                win.on_year_selected(unsafe { *y.as_ref() });
-            } else {
-                win.on_year_selected(year);
-            }
+            let year = unsafe {
+                row.data::<i32>("year")
+                    .map(|p| *p.as_ref())
+                    .unwrap_or(row.index())
+            };
+            win.on_year_selected(year);
         });
 
-        // Month list row activated
         let win = self.clone();
         imp.month_list.connect_row_activated(move |_, row| {
-            if let Some(m) = row.data::<u32>("month") {
+            if let Some(m) = unsafe { row.data::<u32>("month") } {
                 win.on_month_selected(unsafe { *m.as_ref() });
             }
         });
 
-        // Commit list row activated
         let win = self.clone();
         imp.commit_list.connect_row_activated(move |_, row| {
-            if let Some(h) = row.data::<String>("hash") {
+            if let Some(h) = unsafe { row.data::<String>("hash") } {
                 win.on_commit_selected(unsafe { h.as_ref().clone() });
             }
         });
 
-        // Search entry
         let win = self.clone();
         imp.commit_search_entry.connect_search_changed(move |entry| {
             win.on_search_changed(entry.text().to_string());
         });
     }
 
-    // ── CSS loader ────────────────────────────────────────────────────────────────────────
+    // ── CSS loader ────────────────────────────────────────────────────────────
 
     fn setup_styles(&self) {
         let provider = gtk::CssProvider::new();
@@ -347,20 +270,17 @@ impl TemporalExplorerWindow {
         }
     }
 
-    // ── Repository opening ─────────────────────────────────────────────────────────────────
+    // ── Repository opening ─────────────────────────────────────────────────────
 
     fn open_repo_dialog(&self) {
         let dialog = gtk::FileDialog::builder()
             .title(gettext("Open Repository"))
             .modal(true)
             .build();
-
         let win = self.clone();
         dialog.select_folder(Some(self), gio::Cancellable::NONE, move |result| {
             if let Ok(file) = result {
-                if let Some(path) = file.path() {
-                    win.load_repository(path);
-                }
+                if let Some(path) = file.path() { win.load_repository(path); }
             }
         });
     }
@@ -378,41 +298,32 @@ impl TemporalExplorerWindow {
                     .and_then(|n| n.to_str())
                     .unwrap_or("repository")
                     .to_string();
-
                 *self.imp().repo_path.borrow_mut() = Some(path.clone());
                 *self.imp().repository.borrow_mut() = Some(DebugRepository(repo));
                 *self.imp().repo_name.borrow_mut() = repo_name.clone();
                 *self.imp().current_dir.borrow_mut() = PathBuf::new();
                 self.imp().history_back.borrow_mut().clear();
                 self.imp().history_forward.borrow_mut().clear();
-
                 self.imp().window_title.set_title(&repo_name);
-                self.imp().window_title.set_subtitle(
-                    path.to_str().unwrap_or(""),
-                );
-
+                self.imp().window_title.set_subtitle(path.to_str().unwrap_or(""));
                 self.load_timeline(cancel);
             }
-            Err(e) => {
-                self.show_error(&format!("Failed to open repository: {e}"));
-            }
+            Err(e) => self.show_error(&format!("Failed to open repository: {e}")),
         }
     }
 
-    // ── Timeline loading ───────────────────────────────────────────────────────────────────
-    // glib 0.22 removed MainContext::channel — use std mpsc + idle_add_local instead.
+    // ── Timeline loading ───────────────────────────────────────────────────────
+    // glib 0.22 removed MainContext::channel — mpsc + idle_add_local instead.
 
     fn load_timeline(&self, _cancel: Arc<AtomicBool>) {
         let repo_path = match self.imp().repo_path.borrow().clone() {
             Some(p) => p,
             None => return,
         };
-
         self.imp().loading_commits.set(true);
         self.show_empty_state();
 
         let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<CommitInfo>, String>>(1);
-
         std::thread::spawn(move || {
             let result = HistoryReader::open(&repo_path)
                 .and_then(|r| r.list_commits())
@@ -421,44 +332,36 @@ impl TemporalExplorerWindow {
         });
 
         let win = self.clone();
-        glib::idle_add_local(move || {
-            match rx.try_recv() {
-                Ok(commits) => {
-                    win.imp().loading_commits.set(false);
-                    match commits {
-                        Ok(list) => {
-                            *win.imp().all_commits.borrow_mut() = list;
-                            win.populate_year_list();
-                            win.imp().split_view.set_show_sidebar(true);
-                        }
-                        Err(e) => {
-                            win.show_error(&format!("Failed to read history: {e}"));
-                        }
+        glib::idle_add_local(move || match rx.try_recv() {
+            Ok(commits) => {
+                win.imp().loading_commits.set(false);
+                match commits {
+                    Ok(list) => {
+                        *win.imp().all_commits.borrow_mut() = list;
+                        win.populate_year_list();
+                        win.imp().split_view.set_show_sidebar(true);
                     }
-                    glib::ControlFlow::Break
+                    Err(e) => win.show_error(&format!("Failed to read history: {e}")),
                 }
-                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-                Err(_) => glib::ControlFlow::Break,
+                glib::ControlFlow::Break
             }
+            Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+            Err(_) => glib::ControlFlow::Break,
         });
     }
 
-    // ── Year list ─────────────────────────────────────────────────────────────────────────
+    // ── Year list ─────────────────────────────────────────────────────────────
 
     fn populate_year_list(&self) {
         let imp = self.imp();
-        let list = &imp.year_list;
-
-        while let Some(child) = list.first_child() {
-            child.unparent();
-        }
+        while let Some(child) = imp.year_list.first_child() { child.unparent(); }
 
         let commits = imp.all_commits.borrow();
-        let years = timeline_filter::group_by_year(&commits);
-
+        // correct name: years_in_range
+        let years = timeline_filter::years_in_range(&commits);
         for (year, count) in &years {
             let row = commit_controller::build_year_row(*year, *count);
-            list.append(&row);
+            imp.year_list.append(&row);
         }
 
         *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
@@ -468,23 +371,19 @@ impl TemporalExplorerWindow {
         imp.timeline_header_title.set_subtitle("");
     }
 
-    // ── Year selected ──────────────────────────────────────────────────────────────────────
+    // ── Year selected ─────────────────────────────────────────────────────────
 
     fn on_year_selected(&self, year: i32) {
         let imp = self.imp();
         imp.selected_year.set(year);
-
-        let list = &imp.month_list;
-        while let Some(child) = list.first_child() {
-            child.unparent();
-        }
+        while let Some(child) = imp.month_list.first_child() { child.unparent(); }
 
         let commits = imp.all_commits.borrow();
-        let months = timeline_filter::group_by_month(&commits, year);
-
+        // correct name: months_for_year
+        let months = timeline_filter::months_for_year(&commits, year);
         for (month, count) in &months {
             let row = commit_controller::build_month_row(*month, *count);
-            list.append(&row);
+            imp.month_list.append(&row);
         }
 
         *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
@@ -494,22 +393,17 @@ impl TemporalExplorerWindow {
         imp.timeline_header_title.set_subtitle("");
     }
 
-    // ── Month selected ─────────────────────────────────────────────────────────────────────
+    // ── Month selected ────────────────────────────────────────────────────────
 
     fn on_month_selected(&self, month: u32) {
         let imp = self.imp();
         let year = imp.selected_year.get();
-
-        let list = &imp.commit_list;
-        while let Some(child) = list.first_child() {
-            child.unparent();
-        }
+        while let Some(child) = imp.commit_list.first_child() { child.unparent(); }
 
         let commits = imp.all_commits.borrow().clone();
-        let filtered = timeline_filter::filter_by_month(&commits, year, month);
-
-        // populate_commit_list takes (&ListBox, &[CommitInfo]) — no cancel arg
-        commit_controller::populate_commit_list(&list, &filtered);
+        // correct name: commits_for_month
+        let filtered = timeline_filter::commits_for_month(&commits, year, month);
+        commit_controller::populate_commit_list(&imp.commit_list, &filtered);
 
         *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
         imp.timeline_stack.set_visible_child_name("commits");
@@ -520,12 +414,11 @@ impl TemporalExplorerWindow {
         ));
     }
 
-    // ── Timeline back ──────────────────────────────────────────────────────────────────────
+    // ── Timeline back ─────────────────────────────────────────────────────────
 
     fn timeline_pop(&self) {
         let imp = self.imp();
-        let level = *imp.timeline_level.borrow();
-        match level {
+        match *imp.timeline_level.borrow() {
             TimelineLevel::Commits => {
                 *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
                 imp.timeline_stack.set_visible_child_name("months");
@@ -543,11 +436,10 @@ impl TemporalExplorerWindow {
         }
     }
 
-    // ── Commit selected ────────────────────────────────────────────────────────────────────
+    // ── Commit selected ───────────────────────────────────────────────────────
 
     fn on_commit_selected(&self, hash: String) {
         let imp = self.imp();
-
         *imp.current_hash.borrow_mut() = Some(hash.clone());
         *imp.current_dir.borrow_mut() = PathBuf::new();
         imp.history_back.borrow_mut().clear();
@@ -560,49 +452,38 @@ impl TemporalExplorerWindow {
             imp.commit_date_label.set_label(&Self::format_timestamp(commit.timestamp));
             imp.commit_info_bar.set_revealed(true);
         }
-
         self.navigate_to_dir(PathBuf::new());
     }
 
-    // ── Directory navigation ───────────────────────────────────────────────────────────────
+    // ── Directory navigation ──────────────────────────────────────────────────
 
     pub fn navigate_to_dir(&self, dir: PathBuf) {
         let imp = self.imp();
-        let hash = match imp.current_hash.borrow().clone() {
-            Some(h) => h,
-            None => return,
-        };
-        let repo_path = match imp.repo_path.borrow().clone() {
-            Some(p) => p,
-            None => return,
-        };
+        let hash = match imp.current_hash.borrow().clone() { Some(h) => h, None => return };
+        let repo_path = match imp.repo_path.borrow().clone() { Some(p) => p, None => return };
         let repo_name = imp.repo_name.borrow().clone();
 
         *imp.current_dir.borrow_mut() = dir.clone();
 
-        // address_bar::rebuild_address_bar takes the box + repo name + dir + two closures
         let win_ab1 = self.clone();
         let win_ab2 = self.clone();
-        let address_bar_widget = imp.address_bar.clone();
         address_bar::rebuild_address_bar(
-            &address_bar_widget,
+            &imp.address_bar.clone(),
             &repo_name,
             &dir,
             move |path: PathBuf| { win_ab1.push_dir(path); },
             move || { win_ab2.enter_location_mode(); },
         );
-
         self.update_nav_buttons();
 
         let cancel = Arc::new(AtomicBool::new(false));
         if let Some(prev) = imp.load_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
         }
-        *imp.load_cancel.borrow_mut() = Some(cancel.clone());
+        *imp.load_cancel.borrow_mut() = Some(cancel);
 
         let dir_clone = dir.clone();
         let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<TreeNode>, String>>(1);
-
         std::thread::spawn(move || {
             let result = git2::Repository::open(&repo_path)
                 .map_err(|e| e.to_string())
@@ -615,41 +496,42 @@ impl TemporalExplorerWindow {
         });
 
         let win = self.clone();
-        glib::idle_add_local(move || {
-            match rx.try_recv() {
-                Ok(result) => {
-                    match result {
-                        Ok(nodes) => win.render_dir(nodes),
-                        Err(e) => win.show_error(&format!("Error reading tree: {e}")),
-                    }
-                    glib::ControlFlow::Break
+        glib::idle_add_local(move || match rx.try_recv() {
+            Ok(result) => {
+                match result {
+                    Ok(nodes) => win.render_dir(nodes),
+                    Err(e) => win.show_error(&format!("Error reading tree: {e}")),
                 }
-                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-                Err(_) => glib::ControlFlow::Break,
+                glib::ControlFlow::Break
             }
+            Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+            Err(_) => glib::ControlFlow::Break,
         });
     }
 
     fn render_dir(&self, nodes: Vec<TreeNode>) {
         let imp = self.imp();
         let mode = *imp.view_mode.borrow();
+        // hash needed by build_list_view / build_grid_view as 2nd argument
+        let hash = imp.current_hash.borrow().clone().unwrap_or_default();
+
         let win1 = self.clone();
         let win2 = self.clone();
-
         let on_enter_dir: OnEnterDir = Box::new(move |path: PathBuf| { win1.push_dir(path); });
-        let on_open_file: OnOpenFile = Box::new(move |path: &std::path::Path, _hash: &str| {
+        let on_open_file: OnOpenFile = Box::new(move |path: &std::path::Path, _h: &str| {
             win2.preview_file(path);
         });
 
         let widget: gtk::Widget = match mode {
-            ViewMode::List => list_view::build_list_view(&nodes, on_enter_dir, on_open_file).upcast(),
-            ViewMode::Grid => grid_view::build_grid_view(&nodes, on_enter_dir, on_open_file).upcast(),
+            ViewMode::List =>
+                list_view::build_list_view(&nodes, &hash, on_enter_dir, on_open_file).upcast(),
+            ViewMode::Grid =>
+                grid_view::build_grid_view(&nodes, &hash, on_enter_dir, on_open_file).upcast(),
         };
-
         self.replace_right_panel(widget);
     }
 
-    // ── Right-panel management ─────────────────────────────────────────────────────────────
+    // ── Right-panel management ────────────────────────────────────────────────
 
     pub fn replace_right_panel(&self, widget: gtk::Widget) {
         let imp = self.imp();
@@ -664,50 +546,23 @@ impl TemporalExplorerWindow {
         imp.right_panel_stack.set_visible_child_name("empty");
     }
 
-    // ── File preview ───────────────────────────────────────────────────────────────────────
+    // ── File preview ──────────────────────────────────────────────────────────
+    // show_file_preview(parent, repo, revision, path) — opens repo internally,
+    // no need to spawn a thread here; the materializer call is cheap.
 
     pub fn preview_file(&self, path: &std::path::Path) {
-        let hash = match self.imp().current_hash.borrow().clone() {
-            Some(h) => h,
-            None => return,
-        };
-        let repo_path = match self.imp().repo_path.borrow().clone() {
-            Some(p) => p,
-            None => return,
-        };
+        let hash = match self.imp().current_hash.borrow().clone() { Some(h) => h, None => return };
+        let repo_path = match self.imp().repo_path.borrow().clone() { Some(p) => p, None => return };
 
-        let path_clone = path.to_path_buf();
-        let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<u8>, String>>(1);
-
-        std::thread::spawn(move || {
-            let result = git2::Repository::open(&repo_path)
-                .map_err(|e| e.to_string())
-                .and_then(|repo| {
-                    SnapshotResolver::new(&repo)
-                        .read_file(&hash, &path_clone)
-                        .map_err(|e| e.to_string())
-                });
-            let _ = tx.send(result);
-        });
-
-        let win = self.clone();
-        let p = path.to_path_buf();
-        glib::idle_add_local(move || {
-            match rx.try_recv() {
-                Ok(result) => {
-                    match result {
-                        Ok(bytes) => file_preview::show_file_preview(&win, &p, bytes),
-                        Err(e)    => win.show_error(&format!("Cannot preview file: {e}")),
-                    }
-                    glib::ControlFlow::Break
-                }
-                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-                Err(_) => glib::ControlFlow::Break,
+        match git2::Repository::open(&repo_path) {
+            Ok(repo) => {
+                file_preview::show_file_preview(self, &repo, &hash, path);
             }
-        });
+            Err(e) => self.show_error(&format!("Cannot open repository: {e}")),
+        }
     }
 
-    // ── Navigation helpers ─────────────────────────────────────────────────────────────────
+    // ── Navigation helpers ────────────────────────────────────────────────────
 
     pub fn push_dir(&self, dir: PathBuf) {
         let imp = self.imp();
@@ -719,8 +574,7 @@ impl TemporalExplorerWindow {
 
     fn navigate_back(&self) {
         let imp = self.imp();
-        let prev = imp.history_back.borrow_mut().pop();
-        if let Some(dir) = prev {
+        if let Some(dir) = imp.history_back.borrow_mut().pop() {
             let cur = imp.current_dir.borrow().clone();
             imp.history_forward.borrow_mut().push(cur);
             self.navigate_to_dir(dir);
@@ -729,8 +583,7 @@ impl TemporalExplorerWindow {
 
     fn navigate_forward(&self) {
         let imp = self.imp();
-        let next = imp.history_forward.borrow_mut().pop();
-        if let Some(dir) = next {
+        if let Some(dir) = imp.history_forward.borrow_mut().pop() {
             let cur = imp.current_dir.borrow().clone();
             imp.history_back.borrow_mut().push(cur);
             self.navigate_to_dir(dir);
@@ -743,7 +596,7 @@ impl TemporalExplorerWindow {
         imp.nav_forward_button.set_sensitive(!imp.history_forward.borrow().is_empty());
     }
 
-    // ── Location bar (Nautilus-style) ──────────────────────────────────────────────────────
+    // ── Location bar ──────────────────────────────────────────────────────────
 
     pub fn enter_location_mode(&self) {
         let imp = self.imp();
@@ -759,11 +612,10 @@ impl TemporalExplorerWindow {
 
     fn navigate_to_typed_path(&self, text: &str) {
         self.leave_location_mode();
-        let path = PathBuf::from(text.trim());
-        self.push_dir(path);
+        self.push_dir(PathBuf::from(text.trim()));
     }
 
-    // ── View mode toggle ───────────────────────────────────────────────────────────────────
+    // ── View mode toggle ──────────────────────────────────────────────────────
 
     fn toggle_view_mode(&self) {
         let imp = self.imp();
@@ -778,22 +630,15 @@ impl TemporalExplorerWindow {
             }
         };
         *imp.view_mode.borrow_mut() = new_mode;
-
         let dir = imp.current_dir.borrow().clone();
-        if imp.current_hash.borrow().is_some() {
-            self.navigate_to_dir(dir);
-        }
+        if imp.current_hash.borrow().is_some() { self.navigate_to_dir(dir); }
     }
 
-    // ── Search ─────────────────────────────────────────────────────────────────────────────
+    // ── Search ────────────────────────────────────────────────────────────────
 
     fn on_search_changed(&self, query: String) {
         let imp = self.imp();
-
-        if let Some(source) = imp.search_debounce.borrow_mut().take() {
-            source.remove();
-        }
-
+        if let Some(source) = imp.search_debounce.borrow_mut().take() { source.remove(); }
         let win = self.clone();
         let source = glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
             win.run_search(query.clone());
@@ -810,12 +655,10 @@ impl TemporalExplorerWindow {
         if let Some(prev) = imp.search_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
         }
-        *imp.search_cancel.borrow_mut() = Some(cancel.clone());
+        *imp.search_cancel.borrow_mut() = Some(cancel);
 
         let list = imp.commit_list.clone();
-        while let Some(child) = list.first_child() {
-            child.unparent();
-        }
+        while let Some(child) = list.first_child() { child.unparent(); }
 
         let all = imp.all_commits.borrow().clone();
         let selected_year = imp.selected_year.get();
@@ -850,22 +693,20 @@ impl TemporalExplorerWindow {
                 .collect()
         };
 
-        // populate_commit_list signature: (&ListBox, &[CommitInfo])
         commit_controller::populate_commit_list(&list, &filtered);
     }
 
-    // ── Error display ──────────────────────────────────────────────────────────────────────
+    // ── Error display ─────────────────────────────────────────────────────────
 
     fn show_error(&self, message: &str) {
         eprintln!("[TemporalExplorer] {message}");
         let dialog = adw::AlertDialog::new(Some(&gettext("Error")), Some(message));
-        // AlertDialogExt and AdwDialogExt are imported at the top of the file
         AlertDialogExt::add_response(&dialog, "ok", &gettext("OK"));
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
-    // ── Timestamp formatter ────────────────────────────────────────────────────────────────
-    // chrono removed — uses glib::DateTime (already a dependency, no new crate needed).
+    // ── Timestamp formatter ───────────────────────────────────────────────────
+    // chrono removed — glib::DateTime (zero new deps)
 
     fn format_timestamp(ts: i64) -> String {
         glib::DateTime::from_unix_local(ts)
