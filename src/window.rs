@@ -131,7 +131,11 @@ mod imp {
         pub selected_year:    Cell<i32>,
         pub loading_commits:  Cell<bool>,
         pub dir_cache:        RefCell<DirCache>,
-        pub search_debounce:  RefCell<Option<glib::SourceId>>,
+        // Debounce cancel flag — shared with the pending timeout closure.
+        // When a new keystroke arrives we flip this to `true`; the closure
+        // checks it on entry and returns Break without running the search.
+        // No SourceId is stored, so there is nothing to remove and no panic.
+        pub search_debounce:  RefCell<Option<Arc<AtomicBool>>>,
         pub search_cancel:    RefCell<Option<Arc<AtomicBool>>>,
         pub load_cancel:      RefCell<Option<Arc<AtomicBool>>>,
     }
@@ -172,22 +176,10 @@ glib::wrapper! {
 
 // ── Free helpers ───────────────────────────────────────────────────────────────
 
-// Uses container.remove() in a loop — avoids leaving live GObject
-// references that could race with concurrent idle_add_local callbacks.
 fn clear_box(container: &gtk::Box) {
     while let Some(child) = container.first_child() {
         container.remove(&child);
     }
-}
-
-/// Cancel a pending debounce timer without crashing.
-///
-/// `SourceId::remove()` panics when the GLib source was already consumed
-/// (the timeout fired and returned `ControlFlow::Break`) because GLib already
-/// freed it. We wrap the call in `catch_unwind` so that race is silently
-/// ignored — the timer is gone either way, which is exactly what we want.
-fn cancel_debounce(source: glib::SourceId) {
-    let _ = std::panic::catch_unwind(|| source.remove());
 }
 
 impl TemporalExplorerWindow {
@@ -214,7 +206,6 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         imp.view_toggle_button.connect_clicked(move |_| { win.toggle_view_mode(); });
 
-        // GTK4: GestureClick replaces the removed connect_button_press_event
         let win_g = self.clone();
         let gesture = gtk::GestureClick::new();
         gesture.set_button(1);
@@ -232,7 +223,6 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         imp.timeline_back_button.connect_clicked(move |_| { win.timeline_pop(); });
 
-        // row.data::<T>() is unsafe — wrap every call
         let win = self.clone();
         imp.year_list.connect_row_activated(move |_, row| {
             let year = unsafe {
@@ -321,7 +311,6 @@ impl TemporalExplorerWindow {
     }
 
     // ── Timeline loading ───────────────────────────────────────────────────────
-    // glib 0.18 removed MainContext::channel — mpsc + idle_add_local instead.
 
     fn load_timeline(&self, _cancel: Arc<AtomicBool>) {
         let repo_path = match self.imp().repo_path.borrow().clone() {
@@ -568,7 +557,7 @@ impl TemporalExplorerWindow {
         }
     }
 
-    // ── Navigation helpers ──────────────────────────────────────────────────
+    // ── Navigation helpers ────────────────────────────────────────────────────
 
     pub fn push_dir(&self, dir: PathBuf) {
         let imp = self.imp();
@@ -655,19 +644,27 @@ impl TemporalExplorerWindow {
 
     fn on_search_changed(&self, query: String) {
         let imp = self.imp();
-        // Cancel any pending debounce timer safely.
-        // SourceId::remove() panics if the source was already consumed by GLib
-        // (timeout fired, returned ControlFlow::Break). catch_unwind absorbs
-        // that panic — the result is the same: timer is gone.
-        if let Some(source) = imp.search_debounce.borrow_mut().take() {
-            cancel_debounce(source);
+
+        // Cancel the previous pending debounce by flipping its flag to true.
+        // The timeout closure checks this flag on entry and returns Break
+        // immediately without running the search. This avoids ever calling
+        // SourceId::remove(), which panics in glib 0.22 when the source was
+        // already consumed by GLib (timeout fired, returned ControlFlow::Break).
+        if let Some(prev) = imp.search_debounce.borrow().as_ref() {
+            prev.store(true, Ordering::Relaxed);
         }
+
+        let flag = Arc::new(AtomicBool::new(false));
+        *imp.search_debounce.borrow_mut() = Some(flag.clone());
+
         let win = self.clone();
-        let source = glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
+        glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
+            if flag.load(Ordering::Relaxed) {
+                return glib::ControlFlow::Break;
+            }
             win.run_search(query.clone());
             glib::ControlFlow::Break
         });
-        *imp.search_debounce.borrow_mut() = Some(source);
     }
 
     fn run_search(&self, query: String) {
