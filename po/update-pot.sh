@@ -12,7 +12,7 @@
 #  Step 1 — Rust source scan (.rs with gettext())
 #  Step 2 — Blueprint scan (.blp) via grep lookbehind: _("..") pattern
 #  Step 3 — Native UI scan (.ui with translatable="yes") via xgettext Glade
-#  Step 4 — Merge all partial .pot files with msgcat
+#  Step 4 — Merge partial .pot files via Python (no msgcat dependency)
 #  Step 5 — POTFILES.in regeneration
 #  Step 6 — Bidirectional LINGUAS <-> .po sync + msgmerge
 #
@@ -36,15 +36,6 @@ echo ""
 PKG_VER=$(grep -m1 '^version' "$ROOT/Cargo.toml" | sed 's/.*= *"//;s/"//')
 DATE=$(date +"%Y-%m-%d %H:%M%z")
 
-# Helper: write a minimal valid .pot header (msgcat requires MIME-Version)
-_empty_pot() {
-    printf 'msgid ""\nmsgstr ""\n'
-    printf '"MIME-Version: 1.0\\n"\n'
-    printf '"Content-Type: text/plain; charset=UTF-8\\n"\n'
-    printf '"Content-Transfer-Encoding: 8bit\\n"\n'
-    printf '\n'
-}
-
 # ── 1. Rust files ───────────────────────────────────────────────────────────────
 echo "[1/6] Scanning Rust files (.rs with gettext())..."
 mapfile -t RUST_FILES < <(
@@ -67,7 +58,7 @@ if [[ ${#RUST_FILES[@]} -gt 0 ]]; then
     RS_COUNT=$(grep -c '^msgid ' "$TMP/rust.pot" 2>/dev/null || echo 0)
     echo "   → rust.pot: $RS_COUNT entries"
 else
-    _empty_pot > "$TMP/rust.pot"
+    touch "$TMP/rust.pot"
 fi
 
 # ── 2. Blueprint files (.blp) ───────────────────────────────────────────────────
@@ -79,10 +70,7 @@ mapfile -t BLP_FILES < <(
 )
 echo "   → ${#BLP_FILES[@]} .blp files found"
 
-# Blueprint syntax uses _("string") — not XML, xgettext Glade cannot parse it.
-# Extract with lookbehind regex matching content inside _("..").
 {
-    _empty_pot
     for blp in "${BLP_FILES[@]}"; do
         rel="${blp#"$ROOT/"}"
         grep -oP '(?<=_\(")[^"]+(?=")' "$blp" 2>/dev/null \
@@ -92,9 +80,9 @@ echo "   → ${#BLP_FILES[@]} .blp files found"
             printf 'msgstr ""\n\n'
         done
     done
-} > "$TMP/blp.pot"
-BLP_COUNT=$(grep -c '^msgid ' "$TMP/blp.pot" 2>/dev/null || echo 0)
-echo "   → blp.pot: $BLP_COUNT entries"
+} > "$TMP/blp.entries"
+BLP_COUNT=$(grep -c '^msgid ' "$TMP/blp.entries" 2>/dev/null || echo 0)
+echo "   → blp.entries: $BLP_COUNT entries"
 
 # ── 3. Native UI files (.ui with translatable="yes") ────────────────────────
 echo "[3/6] Scanning native UI files (.ui with translatable=\"yes\")..."
@@ -114,45 +102,73 @@ if [[ ${#UI_FILES[@]} -gt 0 ]]; then
         --package-version="$PKG_VER" \
         --output="$TMP/ui.pot" \
         "${UI_FILES[@]}" 2>/dev/null || true
-    UI_COUNT=$(grep -c '^msgid ' "$TMP/ui.pot" 2>/dev/null || echo 0)
-    echo "   → ui.pot: $UI_COUNT entries"
-else
-    _empty_pot > "$TMP/ui.pot"
 fi
+[[ -f "$TMP/ui.pot" ]] || touch "$TMP/ui.pot"
+UI_COUNT=$(grep -c '^msgid ' "$TMP/ui.pot" 2>/dev/null || echo 0)
+echo "   → ui.pot: $UI_COUNT entries"
 
-# Garantir que ui.pot exista mesmo se xgettext falhou
-[[ -f "$TMP/ui.pot" ]] || _empty_pot > "$TMP/ui.pot"
+# ── 4. Merge via Python (sem dependencia de msgcat) ────────────────────────────
+echo "[4/6] Merging rust.pot + blp.entries + ui.pot..."
+python3 - "$TMP/rust.pot" "$TMP/blp.entries" "$TMP/ui.pot" "$OUT" \
+         "$PKG_VER" "$DATE" << 'PYEOF'
+import sys, re, os
 
-# ── 4. Merge rust.pot + blp.pot + ui.pot ────────────────────────────────────────
-echo "[4/6] Merging rust.pot + blp.pot + ui.pot..."
-msgcat \
-    --use-first \
-    --output="$TMP/merged.pot" \
-    "$TMP/rust.pot" \
-    "$TMP/blp.pot" \
-    "$TMP/ui.pot" 2>/dev/null || {
-        # Fallback: concatenar manualmente se msgcat falhar
-        echo "   ⚠ msgcat falhou, usando fallback manual..."
-        {
-            _empty_pot
-            grep -h '^#:\|^msgid\|^msgstr' \
-                "$TMP/rust.pot" "$TMP/blp.pot" "$TMP/ui.pot" \
-                | grep -v '^msgid ""$\|^msgstr ""$' \
-                || true
-        } > "$TMP/merged.pot"
-    }
+rust_pot, blp_entries, ui_pot, out_path, pkg_ver, date = sys.argv[1:]
 
-sed \
-    -e "s|^\"Project-Id-Version:.*|\"Project-Id-Version: temporal-explorer $PKG_VER\\\\n\"|" \
-    -e "s|^\"POT-Creation-Date:.*|\"POT-Creation-Date: $DATE\\\\n\"|" \
-    -e "s|^\"PO-Revision-Date:.*|\"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\\\n\"|" \
-    -e "s|^\"Last-Translator:.*|\"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\\\n\"|" \
-    -e "s|^\"Language-Team:.*|\"Language-Team: LANGUAGE <LL@li.org>\\\\n\"|" \
-    -e "s|^\"Language:.*|\"Language: \\\\n\"|" \
-    "$TMP/merged.pot" > "$OUT"
+def extract_entries(path):
+    """Return list of (refs, msgid) from a .pot/.entries file, skip header."""
+    entries = []
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        return entries
+    with open(path, encoding='utf-8') as f:
+        content = f.read()
+    # Split on blank lines
+    blocks = re.split(r'\n{2,}', content.strip())
+    for block in blocks:
+        lines = block.strip().splitlines()
+        msgid_match = re.search(r'^msgid "(.+)"$', block, re.MULTILINE)
+        if not msgid_match:
+            continue  # skip header block (msgid "")
+        msgid = msgid_match.group(1)
+        refs = [l.strip() for l in lines if l.startswith('#:')]
+        entries.append((refs, msgid))
+    return entries
+
+seen = {}
+ordered = []
+
+for path in [rust_pot, blp_entries, ui_pot]:
+    for refs, msgid in extract_entries(path):
+        if msgid not in seen:
+            seen[msgid] = refs
+            ordered.append(msgid)
+        else:
+            seen[msgid] = seen[msgid] + refs
+
+with open(out_path, 'w', encoding='utf-8') as f:
+    f.write('msgid ""\n')
+    f.write('msgstr ""\n')
+    f.write(f'"Project-Id-Version: temporal-explorer {pkg_ver}\\n"\n')
+    f.write(f'"POT-Creation-Date: {date}\\n"\n')
+    f.write('"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n"\n')
+    f.write('"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n"\n')
+    f.write('"Language-Team: LANGUAGE <LL@li.org>\\n"\n')
+    f.write('"Language: \\n"\n')
+    f.write('"MIME-Version: 1.0\\n"\n')
+    f.write('"Content-Type: text/plain; charset=UTF-8\\n"\n')
+    f.write('"Content-Transfer-Encoding: 8bit\\n"\n')
+    f.write('\n')
+    for msgid in ordered:
+        refs = seen[msgid]
+        for r in refs:
+            f.write(f'{r}\n')
+        f.write(f'msgid "{msgid}"\n')
+        f.write('msgstr ""\n')
+        f.write('\n')
+print(f'   → {out_path} written ({len(ordered)} total entries)')
+PYEOF
 
 TOTAL=$(grep -c '^msgid ' "$OUT" 2>/dev/null || echo 0)
-echo "   → $OUT written ($TOTAL total entries)"
 
 # ── 5. Update POTFILES.in ────────────────────────────────────────────────────────
 echo "[5/6] Updating POTFILES.in..."
