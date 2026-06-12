@@ -1,60 +1,39 @@
 using Gtk 4.0;
+using Adw 1;
 
-/* file-list-row.blp
- *
- * Copyright 2026 John Peter Sá
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- *
- * Template for a single file/directory entry in the list view.
- * Extracted from views/list_view.rs :: build_file_row().
- *
- * The Rust code sets at runtime:
- *   - file_row_icon.icon-name         → mime/type icon
- *   - file_row_name_label.label       → file or directory name
- *   - file_row_ext_label.label        → extension badge (files only)
- *   - file_row_submodule_badge.label  → "submodule" badge (submodules only)
- *   - file_row_chevron.visible        → true for directories
- */
+/* Rust sets: title (name), file_row_ext_label.label, file_row_submodule_badge.label,
+              file_row_icon.icon-name, file_row_chevron.visible */
+template $FileListRow : Adw.ActionRow {
+  activatable: true;
 
-template $FileListRow : Gtk.ListBoxRow {
-  child: Box {
-    orientation: horizontal;
-    margin-top: 4;
-    margin-bottom: 4;
-    margin-start: 12;
-    margin-end: 8;
-    spacing: 8;
+  [prefix]
+  Image file_row_icon {
+    pixel-size: 16;
+    valign: center;
+  }
 
-    Image file_row_icon {
-      pixel-size: 16;
-      valign: center;
-    }
+  [suffix]
+  Label file_row_ext_label {
+    label: "";
+    visible: false;
+    valign: center;
+    styles ["caption", "dim-label"]
+  }
 
-    Label file_row_name_label {
-      label: "";
-      xalign: 0.0;
-      hexpand: true;
-      ellipsize: end;
-    }
+  [suffix]
+  Label file_row_submodule_badge {
+    label: "submodule";
+    visible: false;
+    valign: center;
+    styles ["caption", "dim-label"]
+  }
 
-    Label file_row_ext_label {
-      label: "";
-      visible: false;
-      styles ["caption", "dim-label"]
-    }
-
-    Label file_row_submodule_badge {
-      label: "submodule";
-      visible: false;
-      styles ["caption", "dim-label"]
-    }
-
-    Image file_row_chevron {
-      icon-name: "go-next-symbolic";
-      pixel-size: 12;
-      visible: false;
-      styles ["dim-label"]
-    }
-  };
+  [suffix]
+  Image file_row_chevron {
+    icon-name: "go-next-symbolic";
+    pixel-size: 12;
+    visible: false;
+    valign: center;
+    styles ["dim-label"]
+  }
 }

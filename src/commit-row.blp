@@ -1,39 +1,8 @@
 using Gtk 4.0;
+using Adw 1;
 
-/* commit-row.blp
- *
- * Copyright 2026 John Peter Sá
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- *
- * Template for a single commit entry row in the sidebar commit list.
- * Extracted from commit_controller.rs :: build_commit_row().
- *
- * The Rust code sets at runtime:
- *   - commit_summary_label.label  → commit summary text
- *   - commit_meta_label.label     → "hash · author · date" meta line
- */
-
-template $CommitRow : Gtk.ListBoxRow {
-  child: Box {
-    orientation: vertical;
-    margin-top: 6;
-    margin-bottom: 6;
-    margin-start: 12;
-    margin-end: 12;
-    spacing: 2;
-
-    Label commit_summary_label {
-      label: "";
-      xalign: 0.0;
-      ellipsize: end;
-      styles ["body"]
-    }
-
-    Label commit_meta_label {
-      label: "";
-      xalign: 0.0;
-      styles ["caption", "dim-label"]
-    }
-  };
+/* Rust sets: commit_summary_label.label (title), commit_meta_label.label (subtitle) */
+template $CommitRow : Adw.ActionRow {
+  subtitle-lines: 1;
+  activatable: true;
 }

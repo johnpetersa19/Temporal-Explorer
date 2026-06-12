@@ -22,7 +22,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             visible: false;
             styles ["flat"]
           }
-
           title-widget: Adw.WindowTitle timeline_header_title {
             title: _("Timeline");
           };
@@ -30,14 +29,10 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
 
         content: Box {
           orientation: vertical;
-          spacing: 0;
 
           SearchEntry commit_search_entry {
             placeholder-text: _("Search commits…");
-            margin-start: 8;
-            margin-end: 8;
-            margin-top: 8;
-            margin-bottom: 8;
+            margin: 8;
           }
 
           Stack timeline_stack {
@@ -94,7 +89,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             sensitive: false;
             styles ["flat"]
           }
-
           [start]
           Button nav_forward_button {
             icon-name: "go-next-symbolic";
@@ -102,14 +96,12 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             sensitive: false;
             styles ["flat"]
           }
-
           [start]
           Button open_repo_button {
             icon-name: "folder-open-symbolic";
             tooltip-text: _("Open Repository");
             styles ["flat"]
           }
-
           [start]
           ToggleButton show_sidebar_button {
             icon-name: "sidebar-show-symbolic";
@@ -119,53 +111,41 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
           }
 
           [title]
-          Box {
-            orientation: horizontal;
-            spacing: 6;
-            styles ["header-toolbar-box"]
+          Stack toolbar_switcher {
+            valign: center;
+            hexpand: true;
+            transition-type: crossfade;
+            transition-duration: 150;
 
-            Stack toolbar_switcher {
-              valign: center;
-              hexpand: true;
-              transition-type: crossfade;
-              transition-duration: 150;
-
-              StackPage {
-                name: "pathbar";
-                child: ScrolledWindow {
-                  hscrollbar-policy: external;
-                  vscrollbar-policy: never;
-                  propagate-natural-width: true;
-
-                  Box address_bar {
-                    orientation: horizontal;
-                    spacing: 0;
-                    valign: center;
-                    styles ["nautilus-pathbar"]
-                  }
-                };
-              }
-
-              StackPage {
-                name: "location";
-                child: Box {
+            StackPage {
+              name: "pathbar";
+              child: ScrolledWindow {
+                hscrollbar-policy: external;
+                vscrollbar-policy: never;
+                propagate-natural-width: true;
+                Box address_bar {
                   orientation: horizontal;
-                  spacing: 0;
-                  styles ["linked", "location-bar"]
+                  valign: center;
+                  styles ["nautilus-pathbar"]
+                }
+              };
+            }
 
-                  Entry location_entry {
-                    hexpand: true;
-                    placeholder-text: _("Type a path and press Enter…");
-                    input-purpose: url;
-                    primary-icon-name: "folder-symbolic";
-                  }
-
-                  Button location_cancel_btn {
-                    icon-name: "window-close-symbolic";
-                    tooltip-text: _("Cancel");
-                  }
-                };
-              }
+            StackPage {
+              name: "location";
+              child: Box {
+                styles ["linked", "location-bar"]
+                Entry location_entry {
+                  hexpand: true;
+                  placeholder-text: _("Type a path and press Enter\u2026");
+                  input-purpose: url;
+                  primary-icon-name: "folder-symbolic";
+                }
+                Button location_cancel_btn {
+                  icon-name: "window-close-symbolic";
+                  tooltip-text: _("Cancel");
+                }
+              };
             }
           }
 
@@ -175,7 +155,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             tooltip-text: _("Toggle View");
             styles ["flat"]
           }
-
           [end]
           MenuButton {
             primary: true;
@@ -185,11 +164,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
           }
         }
 
-        /* Right-panel stack: flips between the empty state and live content.
-           "empty"   → shown before any commit is selected.
-           "content" → mount-point for list/grid views built at runtime.
-           We never call set_content() on content_toolbar_view; the stack
-           lives as its permanent content so its parent is always valid. */
         content: Stack right_panel_stack {
           transition-type: crossfade;
           transition-duration: 150;
@@ -198,22 +172,12 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
 
           StackPage {
             name: "empty";
-            child: Box {
-              orientation: vertical;
-
-              Adw.WindowTitle window_title {
-                title: _("Temporal Explorer");
-                subtitle: _("No repository selected");
-                visible: false;
-              }
-
-              Adw.StatusPage empty_state {
-                icon-name: "folder-symbolic";
-                title: _("No Snapshot Selected");
-                description: _("Open a Git repository and select a commit from the timeline to browse its file tree.");
-                vexpand: true;
-                hexpand: true;
-              }
+            child: Adw.StatusPage empty_state {
+              icon-name: "folder-symbolic";
+              title: _("No Snapshot Selected");
+              description: _("Open a Git repository and select a commit from the timeline to browse its file tree.");
+              vexpand: true;
+              hexpand: true;
             };
           }
 
@@ -230,20 +194,17 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
         [bottom]
         Gtk.ActionBar commit_info_bar {
           revealed: false;
-
           [start]
           Label commit_hash_label {
             label: "";
             styles ["monospace"]
           }
-
           [start]
           Label commit_message_label {
             label: "";
             ellipsize: end;
             max-width-chars: 60;
           }
-
           [end]
           Label commit_date_label {
             label: "";
@@ -257,17 +218,8 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
 
 menu primary_menu {
   section {
-    item {
-      label: _("_Preferences");
-      action: "app.preferences";
-    }
-    item {
-      label: _("_Keyboard Shortcuts");
-      action: "app.shortcuts";
-    }
-    item {
-      label: _("_About Temporal Explorer");
-      action: "app.about";
-    }
+    item { label: _("_Preferences"); action: "app.preferences"; }
+    item { label: _("_Keyboard Shortcuts"); action: "app.shortcuts"; }
+    item { label: _("_About Temporal Explorer"); action: "app.about"; }
   }
 }

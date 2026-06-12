@@ -1,26 +1,10 @@
 using Gtk 4.0;
 
-/* file-grid-cell.blp
- *
- * Copyright 2026 John Peter Sá
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- *
- * Template for a single file/directory cell in the grid view.
- * Extracted from views/grid_view.rs :: build_grid_cell().
- *
- * The Rust code sets at runtime:
- *   - grid_cell_icon.icon-name    → mime/type icon
- *   - grid_cell_name_label.label  → file or directory name
- */
-
+/* Rust sets: grid_cell_icon.icon-name, grid_cell_name_label.label */
 template $FileGridCell : Gtk.FlowBoxChild {
   child: Box {
     orientation: vertical;
-    margin-top: 8;
-    margin-bottom: 8;
-    margin-start: 8;
-    margin-end: 8;
+    margin: 8;
     spacing: 6;
 
     Image grid_cell_icon {
@@ -30,7 +14,6 @@ template $FileGridCell : Gtk.FlowBoxChild {
 
     Label grid_cell_name_label {
       label: "";
-      xalign: 0.5;
       justify: center;
       wrap: true;
       wrap-mode: word_char;

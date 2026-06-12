@@ -1,43 +1,16 @@
 using Gtk 4.0;
+using Adw 1;
 
-/* month-row.blp
- *
- * Copyright 2026 John Peter Sá
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- *
- * Template for a month entry in the timeline sidebar.
- * Extracted from commit_controller.rs :: build_month_row().
- *
- * The Rust code sets at runtime:
- *   - month_label.label       → month name (e.g. "January")
- *   - month_count_badge.label → commit count (e.g. "12 commits")
- */
+/* Rust sets: month_label.label (title), month_count_badge.label (subtitle) */
+template $MonthRow : Adw.ActionRow {
+  subtitle-lines: 1;
+  activatable: true;
 
-template $MonthRow : Gtk.ListBoxRow {
-  child: Box {
-    orientation: horizontal;
-    margin-top: 8;
-    margin-bottom: 8;
-    margin-start: 12;
-    margin-end: 12;
-    spacing: 6;
-
-    Label month_label {
-      label: "";
-      xalign: 0.0;
-      hexpand: true;
-    }
-
-    Label month_count_badge {
-      label: "";
-      styles ["caption", "dim-label"]
-    }
-
-    Image {
-      icon-name: "go-next-symbolic";
-      pixel-size: 12;
-      styles ["dim-label"]
-    }
-  };
+  [suffix]
+  Image {
+    icon-name: "go-next-symbolic";
+    pixel-size: 12;
+    valign: center;
+    styles ["dim-label"]
+  }
 }

@@ -1,44 +1,16 @@
 using Gtk 4.0;
+using Adw 1;
 
-/* year-row.blp
- *
- * Copyright 2026 John Peter Sá
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- *
- * Template for a year entry in the timeline sidebar.
- * Extracted from commit_controller.rs :: build_year_row().
- *
- * The Rust code sets at runtime:
- *   - year_label.label       → year string (e.g. "2024")
- *   - year_count_badge.label → commit count (e.g. "42 commits")
- */
+/* Rust sets: year_label.label (title), year_count_badge.label (subtitle) */
+template $YearRow : Adw.ActionRow {
+  subtitle-lines: 1;
+  activatable: true;
 
-template $YearRow : Gtk.ListBoxRow {
-  child: Box {
-    orientation: horizontal;
-    margin-top: 8;
-    margin-bottom: 8;
-    margin-start: 12;
-    margin-end: 12;
-    spacing: 6;
-
-    Label year_label {
-      label: "";
-      xalign: 0.0;
-      hexpand: true;
-      styles ["heading"]
-    }
-
-    Label year_count_badge {
-      label: "";
-      styles ["caption", "dim-label"]
-    }
-
-    Image {
-      icon-name: "go-next-symbolic";
-      pixel-size: 12;
-      styles ["dim-label"]
-    }
-  };
+  [suffix]
+  Image {
+    icon-name: "go-next-symbolic";
+    pixel-size: 12;
+    valign: center;
+    styles ["dim-label"]
+  }
 }

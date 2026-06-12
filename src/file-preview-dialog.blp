@@ -1,24 +1,9 @@
 using Gtk 4.0;
 using Adw 1;
 
-/* file-preview-dialog.blp
- *
- * Copyright 2026 John Peter Sá
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- *
- * Template for the file preview modal dialog.
- * Extracted from file_preview.rs :: build_preview_dialog().
- *
- * The Rust code sets at runtime:
- *   - preview_window_title.title / subtitle
- *   - preview_text_view.buffer text
- *   - preview_path_label.label
- *   - copy_button clicked signal
- */
-
+/* Rust sets: preview_window_title.title/subtitle, preview_text_view.buffer,
+              preview_path_label.label, copy_button signal */
 template $FilePreviewDialog : Adw.Window {
-  title: "";
   modal: true;
   default-width: 760;
   default-height: 540;
@@ -26,10 +11,7 @@ template $FilePreviewDialog : Adw.Window {
   content: Adw.ToolbarView {
     [top]
     Adw.HeaderBar {
-      title-widget: Adw.WindowTitle preview_window_title {
-        title: "";
-        subtitle: "";
-      };
+      title-widget: Adw.WindowTitle preview_window_title {};
 
       [end]
       Button copy_button {
@@ -42,7 +24,6 @@ template $FilePreviewDialog : Adw.Window {
     content: ScrolledWindow preview_scrolled {
       vexpand: true;
       hexpand: true;
-
       child: TextView preview_text_view {
         editable: false;
         cursor-visible: false;
