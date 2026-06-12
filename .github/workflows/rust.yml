@@ -1,4 +1,4 @@
-name: Rust
+name: Rust (Arch)
 
 on:
   push:
@@ -12,30 +12,46 @@ env:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    container:
+      image: archlinux:base
 
     steps:
     - uses: actions/checkout@v4
-    - name: Instalar dependências do sistema
+
+    - name: Update system and install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
+        pacman -Syu --noconfirm
+        pacman -S --noconfirm --needed \
+          base-devel \
+          git \
           meson \
-          ninja-build \
-          libgtk-4-dev \
-          libadwaita-1-dev \
-          libglib2.0-dev \
-          libgit2-dev \
-          pkg-config \
+          ninja \
+          pkgconf \
+          gtk4 \
+          libadwaita \
+          glib2 \
+          libgit2 \
           blueprint-compiler \
           appstream \
           desktop-file-utils \
           gettext \
-          libxml2-utils
-    - name: Build com Meson
-      env:
-        PKG_CONFIG_PATH: /usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
+          libxml2
+
+    - name: Check GLib via pkg-config
+      run: |
+        echo "Default pc_path:"
+        pkgconf --variable pc_path pkg-config || true
+
+        echo "glib-2.0 version:"
+        pkgconf --modversion glib-2.0
+
+        echo "glib-2.0 flags:"
+        pkgconf --cflags --libs glib-2.0
+
+    - name: Build with Meson
       run: |
         meson setup builddir
         meson compile -C builddir
+
     - name: Run tests
       run: meson test -C builddir
