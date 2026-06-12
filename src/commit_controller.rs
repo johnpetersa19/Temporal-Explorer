@@ -31,33 +31,17 @@
 //! are in place until a `gtk::ListView` (model/factory) migration lands:
 //!
 //! * [`MAX_RENDERED_ROWS`]: cap on rows rendered by [`populate_commit_list`].
-//!   Rows beyond the cap are not rendered; a hint tells the user to search.
-//! * `HARD_APPEND_CAP`: safety limit for live-append during background
-//!   loading, preventing unbounded growth on kernel-sized repositories.
-//!
-//! Both caps affect only the **visible widget list** — `all_commits` in
-//! `window.rs` always holds the full dataset and search operates on it.
+//! * `HARD_APPEND_CAP`: safety limit for live-append during background loading.
 //!
 //! Row insertion is always **batched across idle frames** ([`POPULATE_BATCH`] /
 //! `APPEND_BATCH` rows per frame) so the GTK main loop never stalls.
 //!
 //! # Stale-batch cancellation
 //!
-//! Each call to [`populate_commit_list`], [`populate_year_list`] and
-//! [`populate_month_list`] increments an **`AtomicU64` generation counter**
-//! stored in a thread-local map keyed by the `ListBox` pointer address.
-//! Every idle frame checks that its captured generation still matches the
-//! counter before touching any widget. If the counter has advanced, the
-//! frame becomes a no-op and exits immediately.
-//!
-//! The map entry is removed via a `connect_destroy` hook registered the
-//! first time a `ListBox` is seen, so the map stays bounded to the number
-//! of currently-live `ListBox` instances and stale-address collisions cannot
-//! occur after a widget is reallocated at the same memory address.
-//!
-//! Additionally, children are removed by snapshotting the child list first
-//! and then calling `unparent()` on each captured widget, so the removal
-//! loop never races with iterator state inside the GTK widget tree.
+//! Each call to [`populate_commit_list`] increments an **`AtomicU64` generation
+//! counter** stored in a thread-local map keyed by the `ListBox` pointer address.
+//! Every idle frame checks that its captured generation still matches the counter
+//! before touching any widget.
 
 use gettextrs::gettext;
 use gtk::glib;
@@ -87,30 +71,11 @@ const MAX_RENDERED_ROWS: usize = 5_000;
 const HARD_APPEND_CAP: usize = 15_000;
 
 // ── Generation counter helpers ────────────────────────────────────────────
-//
-// We store an Arc<AtomicU64> in a thread-local keyed by the ListBox pointer
-// address. This avoids GObject qdata FFI entirely.
-//
-// The map entry is cleaned up via connect_destroy so it stays bounded to the
-// number of currently-live ListBox instances.  Without this cleanup, two bugs
-// could occur:
-//
-//   1. Memory leak — entries accumulate for the process lifetime.
-//   2. Stale-address collision — if a destroyed ListBox is reallocated at
-//      the same address, the new instance inherits the old generation counter
-//      and its first idle batch is immediately considered stale and skipped.
 
 thread_local! {
-    /// Maps ListBox raw pointer address → generation counter.
-    /// Entries are inserted on first use and removed on widget destruction.
     static GENERATIONS: RefCell<HashMap<usize, Arc<AtomicU64>>> = RefCell::new(HashMap::new());
 }
 
-/// Returns the generation counter for `list_box`, creating it if absent.
-///
-/// On first creation a `connect_destroy` handler is registered so the entry
-/// is removed from [`GENERATIONS`] when GTK finalizes the widget, keeping
-/// the map bounded and preventing stale-address collisions.
 fn get_or_create_generation(list_box: &gtk::ListBox) -> Arc<AtomicU64> {
     let key = list_box.as_ptr() as usize;
     GENERATIONS.with(|map| {
@@ -118,25 +83,19 @@ fn get_or_create_generation(list_box: &gtk::ListBox) -> Arc<AtomicU64> {
         if let Some(arc) = m.get(&key) {
             return arc.clone();
         }
-        // First time we see this ListBox: create the counter and register a
-        // destroy hook that removes the entry when the widget is finalized.
         let arc = Arc::new(AtomicU64::new(0));
         m.insert(key, arc.clone());
-        drop(m); // release borrow before connecting the signal
+        drop(m);
 
         list_box.connect_destroy(move |lb| {
             let dead_key = lb.as_ptr() as usize;
-            GENERATIONS.with(|m| {
-                m.borrow_mut().remove(&dead_key);
-            });
+            GENERATIONS.with(|m| { m.borrow_mut().remove(&dead_key); });
         });
 
         arc
     })
 }
 
-/// Increments the generation for `list_box` and returns the new value.
-/// Call this at the start of every populate to invalidate pending batches.
 fn next_generation(list_box: &gtk::ListBox) -> u64 {
     let counter = get_or_create_generation(list_box);
     counter.fetch_add(1, Ordering::Relaxed) + 1
@@ -144,24 +103,14 @@ fn next_generation(list_box: &gtk::ListBox) -> u64 {
 
 // ── Safe ListBox clear ─────────────────────────────────────────────────────
 
-/// Removes all children from `list_box` safely.
-///
-/// Snapshots the child list first, then calls `unparent()` on each captured
-/// widget. This prevents iterator-invalidation races where a concurrent GTK
-/// idle frame observes a partially-mutated sibling chain while the loop is
-/// still running, which causes the `gtk_widget_insert_after` assertion failures.
 fn clear_listbox(list_box: &gtk::ListBox) {
-    // Collect all current children into a Vec before mutating the tree.
     let mut children: Vec<gtk::Widget> = Vec::new();
     let mut child = list_box.first_child();
     while let Some(w) = child {
         child = w.next_sibling();
         children.push(w);
     }
-    // Now unparent all of them in one batch — no live iteration of the tree.
-    for w in children {
-        w.unparent();
-    }
+    for w in children { w.unparent(); }
 }
 
 // ── Row builders ──────────────────────────────────────────────────
@@ -309,12 +258,7 @@ fn build_truncation_hint_row(total: usize, rendered: usize) -> gtk::ListBoxRow {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /// Populates `list_box` with rows for each commit in `commits`.
-///
-/// Increments the generation counter on `list_box` so that any idle frames
-/// still running from a previous call will detect the stale generation and
-/// abort, preventing use-after-free crashes in GTK widget internals.
 pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
-    // Advance generation — invalidates all pending idle batches for this list.
     let gen = next_generation(list_box);
     let gen_counter = get_or_create_generation(list_box);
 
@@ -327,16 +271,11 @@ pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     let truncated = total > MAX_RENDERED_ROWS;
 
     if render_count <= POPULATE_BATCH {
-        // Small list: build all rows synchronously into a local Vec first,
-        // then append them in one contiguous block to avoid any window where
-        // an interleaved idle frame could see a partial sibling chain.
         let rows: Vec<gtk::ListBoxRow> = commits[..render_count]
             .iter()
             .map(build_commit_row)
             .collect();
-        for row in &rows {
-            list_box.append(row);
-        }
+        for row in &rows { list_box.append(row); }
         if truncated {
             list_box.append(&build_truncation_hint_row(total, render_count));
         }
@@ -349,50 +288,7 @@ pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     schedule_batch_populate(list_weak, remaining, total, truncated, gen, gen_counter);
 }
 
-/// Populates `list_box` with year rows derived from `commits`.
-///
-/// Uses the same generation-counter + safe-clear pattern as
-/// [`populate_commit_list`] to prevent concurrent idle-frame races.
-pub fn populate_year_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
-    // Invalidate any pending idle batches for this list.
-    next_generation(list_box);
-
-    // Build all rows into a local Vec before touching the widget tree.
-    let rows: Vec<gtk::ListBoxRow> = timeline_filter::years_in_range(commits)
-        .into_iter()
-        .map(|(year, count)| build_year_row(year, count))
-        .collect();
-
-    clear_listbox(list_box);
-
-    for row in &rows {
-        list_box.append(row);
-    }
-}
-
-/// Populates `list_box` with month rows for `year` derived from `commits`.
-///
-/// Uses the same generation-counter + safe-clear pattern as
-/// [`populate_commit_list`] to prevent concurrent idle-frame races.
-pub fn populate_month_list(list_box: &gtk::ListBox, commits: &[CommitInfo], year: i32) {
-    // Invalidate any pending idle batches for this list.
-    next_generation(list_box);
-
-    // Build all rows into a local Vec before touching the widget tree.
-    let rows: Vec<gtk::ListBoxRow> = timeline_filter::months_for_year(commits, year)
-        .into_iter()
-        .map(|(month, count)| build_month_row(month, count))
-        .collect();
-
-    clear_listbox(list_box);
-
-    for row in &rows {
-        list_box.append(row);
-    }
-}
-
 /// Appends a batch of new commits to `list_box` WITHOUT clearing existing rows.
-///
 /// Reserved for the future `gtk::ListView` migration.
 #[allow(dead_code)]
 pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
@@ -416,9 +312,7 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
     if to_append.is_empty() { return; }
 
     if to_append.len() <= APPEND_BATCH {
-        for commit in &to_append {
-            list_box.append(&build_commit_row(commit));
-        }
+        for commit in &to_append { list_box.append(&build_commit_row(commit)); }
         return;
     }
 
@@ -438,15 +332,10 @@ fn schedule_batch_populate(
     gen_counter: Arc<AtomicU64>,
 ) {
     glib::idle_add_local_once(move || {
-        // Abort if a newer populate call has superseded this batch.
-        if gen_counter.load(Ordering::Relaxed) != gen {
-            return;
-        }
+        if gen_counter.load(Ordering::Relaxed) != gen { return; }
 
         let Some(list_box) = list_weak.upgrade() else { return };
 
-        // Build the next batch into a local Vec before appending,
-        // so the widget tree is mutated in one atomic block.
         let mut rem = remaining.borrow_mut();
         let end = POPULATE_BATCH.min(rem.len());
         let batch: Vec<gtk::ListBoxRow> = rem
@@ -456,14 +345,9 @@ fn schedule_batch_populate(
         let still_pending = !rem.is_empty();
         drop(rem);
 
-        // Double-check generation hasn't advanced while we were building rows.
-        if gen_counter.load(Ordering::Relaxed) != gen {
-            return;
-        }
+        if gen_counter.load(Ordering::Relaxed) != gen { return; }
 
-        for row in &batch {
-            list_box.append(row);
-        }
+        for row in &batch { list_box.append(row); }
 
         if still_pending {
             schedule_batch_populate(list_weak, remaining.clone(), total, truncated, gen, gen_counter);
@@ -489,9 +373,7 @@ fn schedule_batch_append(
             .collect();
         let still_pending = !rem.is_empty();
         drop(rem);
-        for row in &batch {
-            list_box.append(row);
-        }
+        for row in &batch { list_box.append(row); }
         if still_pending {
             schedule_batch_append(list_weak, remaining.clone());
         }
@@ -502,9 +384,7 @@ fn schedule_batch_append(
 
 #[allow(dead_code)]
 pub fn filter_commits<'a>(commits: &'a [CommitInfo], query: &str) -> Vec<&'a CommitInfo> {
-    if query.is_empty() {
-        return commits.iter().collect();
-    }
+    if query.is_empty() { return commits.iter().collect(); }
     let q = query.to_lowercase();
     commits
         .iter()
@@ -517,6 +397,7 @@ pub fn filter_commits<'a>(commits: &'a [CommitInfo], query: &str) -> Vec<&'a Com
 }
 
 /// Returns the human-readable item-count subtitle shown in the header.
+#[allow(dead_code)]
 pub fn item_count_subtitle(n: usize) -> String {
     if n == 1 {
         gettext("1 item")
