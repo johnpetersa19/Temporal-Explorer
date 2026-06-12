@@ -29,8 +29,11 @@ jobs:
           blueprint-compiler \
           appstream \
           desktop-file-utils \
-          gettext
+          gettext \
+          libxml2-utils
     - name: Build com Meson
+      env:
+        PKG_CONFIG_PATH: /usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
       run: |
         meson setup builddir
         meson compile -C builddir
