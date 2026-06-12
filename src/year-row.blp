@@ -1,16 +1,27 @@
 using Gtk 4.0;
-using Adw 1;
 
-/* Rust sets: year_label.label (title), year_count_badge.label (subtitle) */
-template $YearRow : Adw.ActionRow {
-  subtitle-lines: 1;
-  activatable: true;
+template $YearRow : Gtk.ListBoxRow {
+  child: Box {
+    orientation: horizontal;
+    margin-top: 8;
+    margin-bottom: 8;
+    margin-start: 12;
+    margin-end: 12;
+    spacing: 6;
 
-  [suffix]
-  Image {
-    icon-name: "go-next-symbolic";
-    pixel-size: 12;
-    valign: center;
-    styles ["dim-label"]
-  }
+    Label year_label {
+      hexpand: true;
+      styles ["heading"]
+    }
+
+    Label year_count_badge {
+      styles ["caption", "dim-label"]
+    }
+
+    Image {
+      icon-name: "go-next-symbolic";
+      pixel-size: 12;
+      styles ["dim-label"]
+    }
+  };
 }

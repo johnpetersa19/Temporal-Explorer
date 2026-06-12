@@ -1,16 +1,26 @@
 using Gtk 4.0;
-using Adw 1;
 
-/* Rust sets: month_label.label (title), month_count_badge.label (subtitle) */
-template $MonthRow : Adw.ActionRow {
-  subtitle-lines: 1;
-  activatable: true;
+template $MonthRow : Gtk.ListBoxRow {
+  child: Box {
+    orientation: horizontal;
+    margin-top: 8;
+    margin-bottom: 8;
+    margin-start: 12;
+    margin-end: 12;
+    spacing: 6;
 
-  [suffix]
-  Image {
-    icon-name: "go-next-symbolic";
-    pixel-size: 12;
-    valign: center;
-    styles ["dim-label"]
-  }
+    Label month_label {
+      hexpand: true;
+    }
+
+    Label month_count_badge {
+      styles ["caption", "dim-label"]
+    }
+
+    Image {
+      icon-name: "go-next-symbolic";
+      pixel-size: 12;
+      styles ["dim-label"]
+    }
+  };
 }

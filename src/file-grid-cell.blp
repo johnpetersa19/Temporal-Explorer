@@ -1,6 +1,5 @@
 using Gtk 4.0;
 
-/* Rust sets: grid_cell_icon.icon-name, grid_cell_name_label.label */
 template $FileGridCell : Gtk.FlowBoxChild {
   child: Box {
     orientation: vertical;
@@ -13,7 +12,6 @@ template $FileGridCell : Gtk.FlowBoxChild {
     }
 
     Label grid_cell_name_label {
-      label: "";
       justify: center;
       wrap: true;
       wrap-mode: word_char;

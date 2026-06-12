@@ -1,8 +1,21 @@
 using Gtk 4.0;
-using Adw 1;
 
-/* Rust sets: commit_summary_label.label (title), commit_meta_label.label (subtitle) */
-template $CommitRow : Adw.ActionRow {
-  subtitle-lines: 1;
-  activatable: true;
+template $CommitRow : Gtk.ListBoxRow {
+  child: Box {
+    orientation: vertical;
+    margin-top: 6;
+    margin-bottom: 6;
+    margin-start: 12;
+    margin-end: 12;
+    spacing: 2;
+
+    Label commit_summary_label {
+      ellipsize: end;
+      styles ["body"]
+    }
+
+    Label commit_meta_label {
+      styles ["caption", "dim-label"]
+    }
+  };
 }

@@ -1,8 +1,6 @@
 using Gtk 4.0;
 using Adw 1;
 
-/* Rust sets: preview_window_title.title/subtitle, preview_text_view.buffer,
-              preview_path_label.label, copy_button signal */
 template $FilePreviewDialog : Adw.Window {
   modal: true;
   default-width: 760;
@@ -11,7 +9,10 @@ template $FilePreviewDialog : Adw.Window {
   content: Adw.ToolbarView {
     [top]
     Adw.HeaderBar {
-      title-widget: Adw.WindowTitle preview_window_title {};
+      title-widget: Adw.WindowTitle preview_window_title {
+        title: "";
+        subtitle: "";
+      };
 
       [end]
       Button copy_button {
@@ -24,6 +25,7 @@ template $FilePreviewDialog : Adw.Window {
     content: ScrolledWindow preview_scrolled {
       vexpand: true;
       hexpand: true;
+
       child: TextView preview_text_view {
         editable: false;
         cursor-visible: false;
@@ -40,7 +42,6 @@ template $FilePreviewDialog : Adw.Window {
     Gtk.ActionBar {
       [start]
       Label preview_path_label {
-        label: "";
         selectable: true;
         ellipsize: start;
         styles ["caption", "dim-label"]
