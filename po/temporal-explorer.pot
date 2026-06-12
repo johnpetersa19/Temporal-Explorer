@@ -217,6 +217,11 @@ msgstr ""
 msgid "Copy content"
 msgstr ""
 
+#. file-list-row.blp
+#: src/file-list-row.blp
+msgid "submodule"
+msgstr ""
+
 #. views/list_view.rs
 #: src/views/list_view.rs
 msgid "Empty directory"

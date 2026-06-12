@@ -202,7 +202,7 @@ msgid "December"
 msgstr "Dezembro"
 
 #. file_preview.rs
-#: src/file_preview.rs src/file-preview-dialog.blp
+#: src/file_preview.rs
 msgid "Could not read file"
 msgstr "Não foi possível ler o arquivo"
 
@@ -217,6 +217,11 @@ msgstr "Prévia truncada em"
 #: src/file_preview.rs src/file-preview-dialog.blp
 msgid "Copy content"
 msgstr "Copiar conteúdo"
+
+#. file-list-row.blp
+#: src/file-list-row.blp
+msgid "submodule"
+msgstr "submódulo"
 
 #. views/list_view.rs e views/grid_view.rs
 #: src/views/list_view.rs src/views/grid_view.rs
