@@ -75,7 +75,7 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-// ── Limits ───────────────────────────────────────────────────────────
+// ── Limits ───────────────────────────────────────────────────────────────────
 
 /// Hard cap for [`HistoryReader::list_commits`] (non-paginated).
 /// Above this, callers should use [`HistoryReader::list_commits_paginated`].
@@ -107,7 +107,7 @@ const SEARCH_COMMITS_MAX: usize = 5_000;
 /// threshold does not vary with the caller's pagination preference.
 const MIN_COMMITS_FOR_PARALLEL: usize = 2_000;
 
-// ── Internal helpers ──────────────────────────────────────────────────────────
+// ── Internal helpers ───────────────────────────────────────────────────────────────────
 
 /// Converts a git2 tree entry kind + path into the corresponding [`TreeNode`].
 ///
@@ -153,7 +153,7 @@ fn push_head_safe(walk: &mut git2::Revwalk<'_>, repo: &Repository) -> Result<(),
     }
 }
 
-// ── CpuPool ────────────────────────────────────────────────────────────────
+// ── CpuPool ──────────────────────────────────────────────────────────────────────
 
 /// Runtime CPU detection and derived thread-pool sizes.
 #[derive(Debug, Clone, Copy)]
@@ -187,7 +187,7 @@ impl Default for CpuPool {
     fn default() -> Self { Self::detect() }
 }
 
-// ── CommitInfo ───────────────────────────────────────────────────────────────
+// ── CommitInfo ───────────────────────────────────────────────────────────────────────────
 
 /// Lightweight representation of a single commit, used to populate the UI list.
 #[derive(Debug, Clone)]
@@ -217,7 +217,7 @@ impl CommitInfo {
     }
 }
 
-// ── SubmoduleInfo / SubmoduleStatus ──────────────────────────────────────────────
+// ── SubmoduleInfo / SubmoduleStatus ──────────────────────────────────────────────────────
 
 /// Initialization / checkout status of a submodule.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -289,7 +289,7 @@ pub fn detect_submodules_at(repo_path: &Path) -> Result<Vec<SubmoduleInfo>, git2
     detect_submodules(&repo)
 }
 
-// ── HistoryReader ──────────────────────────────────────────────────────────────────
+// ── HistoryReader ──────────────────────────────────────────────────────────────────────────────
 
 /// Opens a Git repository and provides access to its commit history.
 ///
@@ -521,7 +521,7 @@ impl HistoryReader {
     pub fn into_git2(self) -> Repository { self.repo }
 }
 
-// ── TreeNode ───────────────────────────────────────────────────────────────
+// ── TreeNode ───────────────────────────────────────────────────────────────────────────
 
 /// A single node in a materialized snapshot tree.
 #[derive(Debug, Clone)]
@@ -545,7 +545,7 @@ impl TreeNode {
     pub fn is_submodule(&self) -> bool { matches!(self, TreeNode::Submodule(_)) }
 }
 
-// ── DirCache ───────────────────────────────────────────────────────────────
+// ── DirCache ───────────────────────────────────────────────────────────────────────────
 
 /// Simple LRU cache for directory listings keyed by `(commit_hash, dir_path)`.
 #[derive(Debug)]
@@ -597,7 +597,7 @@ impl Default for DirCache {
     fn default() -> Self { Self::new() }
 }
 
-// ── SnapshotResolver ───────────────────────────────────────────────────────────────
+// ── SnapshotResolver ──────────────────────────────────────────────────────────────────────────────
 
 /// Resolves a commit hash (or any Git revision string) into a raw Git tree.
 pub struct SnapshotResolver<'repo> {
@@ -643,16 +643,46 @@ impl<'repo> SnapshotResolver<'repo> {
 
     /// Full-tree walk, capped at [`MAX_FULL_TREE_ENTRIES`] entries and
     /// [`MAX_TREE_DEPTH`] levels.
+    ///
+    /// Hitting either cap is **not** treated as an error: the function returns
+    /// `Ok` with the nodes collected so far and logs the truncation reason to
+    /// stderr.  Only genuine git2 I/O failures propagate as `Err`.
     pub fn resolve_tree(&self, revision: &str) -> Result<Vec<TreeNode>, git2::Error> {
         let obj = self.repo.revparse_single(revision)?;
         let commit = obj.peel_to_commit()?;
         let tree = commit.tree()?;
         let materializer = SnapshotMaterializer::new(self.repo);
-        materializer.materialize(&tree, PathBuf::new(), 0, MAX_FULL_TREE_ENTRIES)
+        // materialize_inner uses MaterializeOutcome to distinguish truncation
+        // (Ok variant) from real git2 errors.  resolve_tree maps both
+        // Truncated and Complete to Ok, never surfacing the limit as Err.
+        match materializer.materialize_inner(&tree, PathBuf::new(), 0, MAX_FULL_TREE_ENTRIES)? {
+            MaterializeOutcome::Complete(nodes) => Ok(nodes),
+            MaterializeOutcome::Truncated(nodes, reason) => {
+                eprintln!("[git_engine] resolve_tree: tree truncated ({reason})");
+                Ok(nodes)
+            }
+        }
     }
 }
 
-// ── SnapshotMaterializer ───────────────────────────────────────────────────────────────
+// ── MaterializeOutcome ──────────────────────────────────────────────────────────────────────────
+
+/// Internal result of [`SnapshotMaterializer::materialize_inner`].
+///
+/// Separates the "limit reached" signal from true git2 I/O errors so that
+/// [`SnapshotResolver::resolve_tree`] can return `Ok` on truncation instead
+/// of propagating a fake `Err` to the UI.
+///
+/// This enum is private to the module and must not be exposed in the public API.
+enum MaterializeOutcome {
+    /// Walk completed without hitting any limit.
+    Complete(Vec<TreeNode>),
+    /// Walk was cut short at an entry or depth limit.  The `String` contains a
+    /// human-readable reason logged to stderr by the caller.
+    Truncated(Vec<TreeNode>, String),
+}
+
+// ── SnapshotMaterializer ───────────────────────────────────────────────────────────────────────────────
 
 /// Converts a raw Git tree object into a navigable list of [`TreeNode`]s.
 pub struct SnapshotMaterializer<'repo> {
@@ -662,10 +692,13 @@ pub struct SnapshotMaterializer<'repo> {
 impl<'repo> SnapshotMaterializer<'repo> {
     pub fn new(repo: &'repo Repository) -> Self { Self { repo } }
 
-    /// Recursively walks `tree` and returns a flat, depth-first list of nodes.
+    /// Public entry point kept for API compatibility.
     ///
-    /// Aborts early when `limit` is reached or `MAX_TREE_DEPTH` is exceeded.
-    /// Entries with missing or empty names are silently skipped.
+    /// Delegates to [`materialize_inner`] and maps [`MaterializeOutcome`] back
+    /// to the original `Result<Vec<TreeNode>, git2::Error>` signature:
+    /// - `Complete`  → `Ok(nodes)`
+    /// - `Truncated` → `Ok(nodes)` (truncation is not an error)
+    /// - git2 I/O failures → `Err(e)` (propagated unchanged)
     pub fn materialize(
         &self,
         tree: &git2::Tree<'_>,
@@ -673,22 +706,46 @@ impl<'repo> SnapshotMaterializer<'repo> {
         depth: usize,
         limit: usize,
     ) -> Result<Vec<TreeNode>, git2::Error> {
+        match self.materialize_inner(tree, prefix, depth, limit)? {
+            MaterializeOutcome::Complete(nodes) => Ok(nodes),
+            MaterializeOutcome::Truncated(nodes, _reason) => Ok(nodes),
+        }
+    }
+
+    /// Core recursive walk.  Returns a [`MaterializeOutcome`] so that callers
+    /// can distinguish a clean finish from a limit-induced truncation without
+    /// abusing `Err` as a control-flow signal.
+    ///
+    /// Only genuine git2 I/O errors (e.g. `find_tree` failures) are returned
+    /// as `Err`.  Reaching the entry cap or the depth cap is encoded as
+    /// `Ok(Truncated(...))`.
+    fn materialize_inner(
+        &self,
+        tree: &git2::Tree<'_>,
+        prefix: PathBuf,
+        depth: usize,
+        limit: usize,
+    ) -> Result<MaterializeOutcome, git2::Error> {
         if depth > MAX_TREE_DEPTH {
-            return Err(git2::Error::from_str(&format!(
-                "Tree depth limit ({MAX_TREE_DEPTH}) exceeded at '{}'. \
-                 Truncating subtree.",
-                prefix.display()
-            )));
+            return Ok(MaterializeOutcome::Truncated(
+                Vec::new(),
+                format!(
+                    "depth limit ({MAX_TREE_DEPTH}) exceeded at '{}'",
+                    prefix.display()
+                ),
+            ));
         }
 
         let mut nodes = Vec::new();
         for entry in tree.iter() {
             if nodes.len() >= limit {
-                return Err(git2::Error::from_str(&format!(
-                    "Tree too large for full walk ({} entries reached limit {}). \
-                     Use resolve_dir for interactive browsing.",
-                    nodes.len(), limit,
-                )));
+                return Ok(MaterializeOutcome::Truncated(
+                    nodes,
+                    format!(
+                        "{} entries reached limit {limit} — use resolve_dir for interactive browsing",
+                        limit,
+                    ),
+                ));
             }
 
             let name = match entry.name() {
@@ -703,10 +760,19 @@ impl<'repo> SnapshotMaterializer<'repo> {
                 }
                 Some(ObjectType::Tree) => {
                     nodes.push(TreeNode::Dir(path.clone()));
-                    let subtree = self.repo.find_tree(entry.id())?;
+                    let subtree = self.repo.find_tree(entry.id())?; // real I/O error — propagate
                     let remaining = limit.saturating_sub(nodes.len());
-                    let mut children = self.materialize(&subtree, path, depth + 1, remaining)?;
-                    nodes.append(&mut children);
+                    match self.materialize_inner(&subtree, path, depth + 1, remaining)? {
+                        MaterializeOutcome::Complete(mut children) => {
+                            nodes.append(&mut children);
+                        }
+                        MaterializeOutcome::Truncated(mut children, reason) => {
+                            nodes.append(&mut children);
+                            // Propagate the truncation signal upward so the
+                            // top-level caller (resolve_tree) can log it once.
+                            return Ok(MaterializeOutcome::Truncated(nodes, reason));
+                        }
+                    }
                 }
                 Some(ObjectType::Commit) => {
                     nodes.push(TreeNode::Submodule(path));
@@ -714,7 +780,7 @@ impl<'repo> SnapshotMaterializer<'repo> {
                 _ => {}
             }
         }
-        Ok(nodes)
+        Ok(MaterializeOutcome::Complete(nodes))
     }
 
     /// Reads the raw byte content of a file at `path` in the given `revision`.
