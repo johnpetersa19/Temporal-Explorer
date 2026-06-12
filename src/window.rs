@@ -34,6 +34,22 @@
 //! | Git history / tree reads    | [`crate::git_engine`]         |
 //! | Timeline grouping logic     | [`crate::timeline_filter`]    |
 //!
+//! ## Right-panel layout
+//!
+//! `content_toolbar_view` has a permanent `Stack` child (`right_panel_stack`)
+//! with two named pages:
+//!
+//! ```
+//! right_panel_stack
+//!   ├── "empty"   → adw::StatusPage (never re-parented)
+//!   └── "content" → gtk::Box right_panel_content  (dynamic views appended here)
+//! ```
+//!
+//! `replace_right_panel` clears `right_panel_content`, appends the new widget,
+//! and flips the stack to "content".  `show_empty_state` clears the box and
+//! flips back to "empty".  `set_content()` on `content_toolbar_view` is never
+//! called at runtime, so the "parent must be NULL" assertion can never fire.
+//!
 //! ## Timeline navigation
 //!
 //! The left sidebar is a 3-level drill-down:
@@ -78,17 +94,11 @@ pub enum ViewMode { #[default] List, Grid }
 // ── TimelineLevel ──────────────────────────────────────────────────────────────────────────
 
 /// Which page of the sidebar `timeline_stack` is currently visible.
-///
-/// Declared `pub` so the `pub` field in `imp::TemporalExplorerWindow`
-/// does not trigger the `private_interfaces` lint.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum TimelineLevel {
-    /// Top level: list of years.
     #[default]
     Years,
-    /// Second level: list of months for a selected year.
     Months,
-    /// Third level: list of commits for a selected (year, month).
     Commits,
 }
 
@@ -125,9 +135,7 @@ mod imp {
 
         // Nautilus-style toolbar_switcher Stack
         #[template_child] pub toolbar_switcher:     TemplateChild<gtk::Stack>,
-        // "pathbar" page
         #[template_child] pub address_bar:          TemplateChild<gtk::Box>,
-        // "location" page
         #[template_child] pub location_entry:       TemplateChild<gtk::Entry>,
         #[template_child] pub location_cancel_btn:  TemplateChild<gtk::Button>,
 
@@ -140,10 +148,12 @@ mod imp {
         #[template_child] pub commit_search_entry:   TemplateChild<gtk::SearchEntry>,
         #[template_child] pub commit_list:           TemplateChild<gtk::ListBox>,
 
-        // Right panel
+        // Right panel — permanent stack (never re-parented)
+        #[template_child] pub content_toolbar_view: TemplateChild<adw::ToolbarView>,
+        #[template_child] pub right_panel_stack:    TemplateChild<gtk::Stack>,
+        #[template_child] pub right_panel_content:  TemplateChild<gtk::Box>,
         #[template_child] pub empty_state:          TemplateChild<adw::StatusPage>,
         #[template_child] pub split_view:           TemplateChild<adw::OverlaySplitView>,
-        #[template_child] pub content_toolbar_view: TemplateChild<adw::ToolbarView>,
 
         // Bottom bar
         #[template_child] pub commit_info_bar:      TemplateChild<gtk::ActionBar>,
@@ -163,29 +173,12 @@ mod imp {
         pub view_mode:        RefCell<ViewMode>,
         pub repo_name:        RefCell<String>,
 
-        // TIMELINE: tracks the current sidebar drill-down level.
         pub timeline_level:   RefCell<TimelineLevel>,
-        // TIMELINE: the year currently expanded at the Months level.
         pub selected_year:    Cell<i32>,
-
-        // SEARCH: tracks whether the background pagination thread is still
-        // running.  While `true` the `commit_search_entry` is kept
-        // insensitive so the user cannot search an incomplete dataset.
         pub loading_commits:  Cell<bool>,
-
-        // PERF: LRU cache for (hash, dir) → Arc<Vec<TreeNode>>.
         pub dir_cache:        RefCell<DirCache>,
-
-        // PERF: search debounce timer handle.
         pub search_debounce:  RefCell<Option<glib::SourceId>>,
-
-        // PERF: cancellation token for the in-flight search background task.
         pub search_cancel:    RefCell<Option<Arc<AtomicBool>>>,
-
-        // LOAD: cancellation token for the in-flight repository loading idle.
-        // Mirrors `search_cancel`: when a new repository is opened the
-        // previous token is set to `true` so the stale idle_add_local closure
-        // exits on its next tick instead of appending stale commits.
         pub load_cancel:      RefCell<Option<Arc<AtomicBool>>>,
     }
 
@@ -227,10 +220,8 @@ glib::wrapper! {
 
 /// Removes all children from a `gtk::Box` safely.
 ///
-/// Snapshots the child list into a `Vec` **before** calling any `unparent()`.
-/// This prevents iterator-invalidation races where a GLib idle frame holds a
-/// stale `previous_sibling` pointer into the partially-mutated widget tree,
-/// which would trigger `gtk_widget_insert_after` assertion failures.
+/// Snapshots the child list into a `Vec` before calling any `unparent()`
+/// to prevent iterator-invalidation races with pending idle frames.
 fn clear_box(container: &gtk::Box) {
     let mut children: Vec<gtk::Widget> = Vec::new();
     let mut w = container.first_child();
@@ -253,56 +244,28 @@ impl TemporalExplorerWindow {
     fn setup_styles(&self) {
         let provider = gtk::CssProvider::new();
         provider.load_from_string("
-            /* ── Path bar pill container ──────────────────────────────────────────── */
             .nautilus-pathbar {
                 background-color: color-mix(in srgb, currentColor 8%, transparent);
                 border-radius: 9999px;
                 padding: 2px 4px;
                 min-height: 32px;
             }
-
-            /* ── Individual path segment buttons ──────────────────────────── */
             .nautilus-path-button {
                 min-width: 8px;
                 border-radius: 9999px;
                 padding: 0 8px;
                 min-height: 28px;
             }
-            .nautilus-path-button label {
-                font-weight: 600;
-            }
+            .nautilus-path-button label { font-weight: 600; }
             .nautilus-path-button:not(.current-dir) label,
-            .nautilus-path-button:not(.current-dir) image {
-                opacity: 0.55;
-            }
+            .nautilus-path-button:not(.current-dir) image { opacity: 0.55; }
             .nautilus-path-button:not(.current-dir):hover label,
-            .nautilus-path-button:not(.current-dir):hover image {
-                opacity: 0.85;
-            }
-            .nautilus-path-button.current-dir {
-                background: none;
-                box-shadow: none;
-            }
-
-            /* ── Chevron separators ───────────────────────────────────────────── */
-            .nautilus-path-separator {
-                opacity: 0.35;
-                margin: 0 1px;
-                -gtk-icon-size: 12px;
-            }
-
-            /* ── Location entry ────────────────────────────────────────────────── */
-            .location-bar {
-                min-width: 320px;
-            }
-            .location-bar entry {
-                border-radius: 9999px 0 0 9999px;
-            }
-            .location-bar button {
-                border-radius: 0 9999px 9999px 0;
-            }
-
-            /* ── Grid view cells ─────────────────────────────────────────────────── */
+            .nautilus-path-button:not(.current-dir):hover image { opacity: 0.85; }
+            .nautilus-path-button.current-dir { background: none; box-shadow: none; }
+            .nautilus-path-separator { opacity: 0.35; margin: 0 1px; -gtk-icon-size: 12px; }
+            .location-bar { min-width: 320px; }
+            .location-bar entry { border-radius: 9999px 0 0 9999px; }
+            .location-bar button { border-radius: 0 9999px 9999px 0; }
             .nautilus-view-cell {
                 border-radius: 8px;
                 padding: 8px 6px 6px 6px;
@@ -320,8 +283,6 @@ impl TemporalExplorerWindow {
                 background-color: color-mix(in srgb, @accent_bg_color 28%, transparent);
                 outline-color: @accent_bg_color;
             }
-
-            /* ── List view rows ─────────────────────────────────────────────────────── */
             .nautilus-list-row {
                 border-radius: 6px;
                 transition: background-color 120ms ease;
@@ -333,8 +294,6 @@ impl TemporalExplorerWindow {
             row:selected .nautilus-list-row {
                 background-color: color-mix(in srgb, @accent_bg_color 18%, transparent);
             }
-
-            /* ── Commit info bar ────────────────────────────────────────────────────── */
             .commit-hash {
                 font-family: monospace;
                 font-size: 0.85em;
@@ -368,7 +327,6 @@ impl TemporalExplorerWindow {
             #[weak(rename_to = w)] self, move |_| w.toggle_view_mode()
         ));
 
-        // ── Timeline drill-down signals ──────────────────────────────────────────────────
         imp.timeline_back_button.connect_clicked(glib::clone!(
             #[weak(rename_to = w)] self, move |_| w.on_timeline_back()
         ));
@@ -384,7 +342,6 @@ impl TemporalExplorerWindow {
             #[weak(rename_to = w)] self, move |_, row| w.on_commit_selected(row)
         ));
 
-        // PERF: debounce search — fire only after 200 ms of inactivity.
         imp.commit_search_entry.connect_search_changed(glib::clone!(
             #[weak(rename_to = w)] self,
             move |e| {
@@ -421,9 +378,7 @@ impl TemporalExplorerWindow {
         let weak_self = self.downgrade();
         key_ctrl.connect_key_pressed(move |_, key, _, _| {
             if key == gtk::gdk::Key::Escape {
-                if let Some(w) = weak_self.upgrade() {
-                    w.show_pathbar();
-                }
+                if let Some(w) = weak_self.upgrade() { w.show_pathbar(); }
                 return glib::Propagation::Stop;
             }
             glib::Propagation::Proceed
@@ -435,7 +390,7 @@ impl TemporalExplorerWindow {
         ));
     }
 
-    // ── toolbar_switcher helpers ───────────────────────────────────────────────────────────────────
+    // ── toolbar_switcher helpers ──────────────────────────────────────────────────────────────────
 
     fn show_pathbar(&self) {
         self.imp().toolbar_switcher.set_visible_child_name("pathbar");
@@ -454,65 +409,38 @@ impl TemporalExplorerWindow {
 
     fn navigate_to_location_text(&self, text: &str) {
         let trimmed = text.trim().trim_matches('/');
-        let target = if trimmed.is_empty() {
-            PathBuf::new()
-        } else {
-            PathBuf::from(trimmed)
-        };
+        let target = if trimmed.is_empty() { PathBuf::new() } else { PathBuf::from(trimmed) };
 
-        // Validate the target path against the current commit snapshot *before*
-        // touching the navigation history.  enter_dir pushes the previous dir
-        // onto history_back unconditionally; if we let an invalid path through,
-        // the bad entry ends up in the stack and the Back button replays the
-        // same error in a loop.
-        //
-        // The root (empty path) is always valid when a commit is selected, so
-        // we skip the probe for that case.
         if !target.as_os_str().is_empty() {
             let imp = self.imp();
             let hash = match imp.current_hash.borrow().clone() {
                 Some(h) => h,
-                None => return, // No commit selected — nothing to navigate into.
+                None => return,
             };
-
-            // Fast path: already in the dir-cache — no need to hit git2.
             let cached = imp.dir_cache.borrow_mut().get(&hash, target.as_path()).is_some();
             if !cached {
                 let repo_ref = imp.repository.borrow();
                 let repo = match repo_ref.as_ref() {
                     Some(r) => r,
-                    None => {
-                        self.show_error_toast(&gettext("No repository open."));
-                        return;
-                    }
+                    None => { self.show_error_toast(&gettext("No repository open.")); return; }
                 };
                 let resolver = SnapshotResolver::new(repo);
                 if let Err(e) = resolver.resolve_dir(&hash, target.as_path()) {
                     drop(repo_ref);
                     self.show_error_toast(&format!("{}: {e}", gettext("Cannot resolve snapshot")));
-                    return; // Do NOT enter history_back / current_dir.
+                    return;
                 }
-                // Resolved successfully; drop the borrow before enter_dir
-                // acquires it again inside browse_dir_inner.
                 drop(repo_ref);
             }
         }
-
         self.enter_dir(target);
     }
 
-    // ── Timeline drill-down ────────────────────────────────────────────────────────────────────────
+    // ── Timeline drill-down ───────────────────────────────────────────────────────────────────────
 
     fn show_year_list(&self) {
         let imp = self.imp();
-
-        // Cancel any in-flight idle batches for month_list before clearing the
-        // Stack page. Passing an empty slice increments the generation counter
-        // so pending batch frames self-cancel on their next tick, preventing
-        // gtk_widget_insert_after races when the widget tree is mutated while
-        // a stale batch is still queued.
         commit_controller::populate_month_list(&imp.month_list, &[], 0);
-
         *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
         imp.timeline_stack.set_visible_child_name("years");
         imp.timeline_back_button.set_visible(false);
@@ -524,15 +452,13 @@ impl TemporalExplorerWindow {
     fn on_year_selected(&self, row: &gtk::ListBoxRow) {
         let year: i32 = match row.widget_name().parse() {
             Ok(y) => y,
-            Err(_) => return, // Malformed widget_name: ignore silently instead of using year=0
+            Err(_) => return,
         };
         let imp = self.imp();
         imp.selected_year.set(year);
-
         let all = imp.all_commits.borrow();
         commit_controller::populate_month_list(&imp.month_list, &all, year);
         drop(all);
-
         *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
         imp.timeline_stack.set_visible_child_name("months");
         imp.timeline_back_button.set_visible(true);
@@ -545,24 +471,19 @@ impl TemporalExplorerWindow {
     fn on_month_selected(&self, row: &gtk::ListBoxRow) {
         let month: u32 = match row.widget_name().parse() {
             Ok(m) if m >= 1 && m <= 12 => m,
-            _ => return, // month=0 or >12 is invalid in the Gregorian calendar: ignore silently
+            _ => return,
         };
         let imp = self.imp();
         let year = imp.selected_year.get();
-
         let commits = {
             let all = imp.all_commits.borrow();
             timeline_filter::commits_for_month(&all, year, month)
         };
-
         commit_controller::populate_commit_list(&imp.commit_list, &commits);
-
         *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
         imp.timeline_stack.set_visible_child_name("commits");
         imp.timeline_back_button.set_visible(true);
-        imp.timeline_header_title.set_title(
-            timeline_filter::month_name(month)
-        );
+        imp.timeline_header_title.set_title(timeline_filter::month_name(month));
         imp.timeline_header_title.set_subtitle(&year.to_string());
         imp.commit_search_entry.set_visible(true);
         imp.commit_info_bar.set_revealed(false);
@@ -576,14 +497,7 @@ impl TemporalExplorerWindow {
             TimelineLevel::Months  => self.show_year_list(),
             TimelineLevel::Commits => {
                 let imp = self.imp();
-
-                // Cancel any in-flight idle batches for commit_list before
-                // switching the Stack page. Passing an empty slice increments
-                // the generation counter so pending batch frames self-cancel
-                // on their next tick, preventing gtk_widget_insert_after
-                // races against the next populate_commit_list call.
                 commit_controller::populate_commit_list(&imp.commit_list, &[]);
-
                 let year = imp.selected_year.get();
                 *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
                 imp.timeline_stack.set_visible_child_name("months");
@@ -650,17 +564,10 @@ impl TemporalExplorerWindow {
     fn load_repository(&self, path: PathBuf) {
         let imp = self.imp();
 
-        // Cancel any stale idle_add_local from a previous load_repository()
-        // call that may still be draining commits into all_commits.
-        // Without this, opening Repo B immediately after Repo A would cause
-        // the old idle to append A's commits into B's all_commits vec.
         if let Some(old_cancel) = imp.load_cancel.borrow().as_ref() {
             old_cancel.store(true, Ordering::Relaxed);
         }
 
-        // Open the repository exactly once for validation.
-        // The resulting HistoryReader is reused: its inner git2::Repository is
-        // extracted for tree/snapshot browsing, avoiding a second open() call.
         let reader = match HistoryReader::open(&path) {
             Ok(r) => r,
             Err(e) => {
@@ -668,9 +575,6 @@ impl TemporalExplorerWindow {
                 return;
             }
         };
-
-        // Extract the git2::Repository from the HistoryReader so we don't open
-        // the same path a second time.
         let repo = reader.into_git2();
 
         let repo_name = path
@@ -704,7 +608,6 @@ impl TemporalExplorerWindow {
         ));
 
         let (tx, rx) = std::sync::mpsc::channel::<Vec<CommitInfo>>();
-
         std::thread::spawn(move || {
             if let Ok(bg_reader) = HistoryReader::open(&path) {
                 let _ = bg_reader.list_commits_paginated(500, |page| {
@@ -713,16 +616,12 @@ impl TemporalExplorerWindow {
             }
         });
 
-        // Fresh cancellation token for this load session.
         let cancel = Arc::new(AtomicBool::new(false));
         *imp.load_cancel.borrow_mut() = Some(Arc::clone(&cancel));
 
         let weak_self = self.downgrade();
         glib::idle_add_local(move || {
-            // Exit immediately if a newer load_repository() call has started.
-            if cancel.load(Ordering::Relaxed) {
-                return glib::ControlFlow::Break;
-            }
+            if cancel.load(Ordering::Relaxed) { return glib::ControlFlow::Break; }
             match rx.try_recv() {
                 Ok(page) => {
                     if let Some(w) = weak_self.upgrade() {
@@ -766,7 +665,6 @@ impl TemporalExplorerWindow {
 
     fn on_search_changed(&self, query: &str) {
         let imp = self.imp();
-
         if imp.loading_commits.get() { return; }
         { let last = imp.last_query.borrow(); if *last == query { return; } }
         *imp.last_query.borrow_mut() = query.to_owned();
@@ -774,13 +672,10 @@ impl TemporalExplorerWindow {
         if let Some(old_cancel) = imp.search_cancel.borrow().as_ref() {
             old_cancel.store(true, Ordering::Relaxed);
         }
-
         let cancel = Arc::new(AtomicBool::new(false));
         *imp.search_cancel.borrow_mut() = Some(Arc::clone(&cancel));
 
         let all: Vec<CommitInfo> = imp.all_commits.borrow().clone();
-        // year==0 means no year is selected (Years screen or after Back);
-        // in that case the search spans all commits across every year.
         let year = imp.selected_year.get();
         let query_owned = query.to_owned();
 
@@ -790,12 +685,9 @@ impl TemporalExplorerWindow {
         }
 
         let (tx, rx) = std::sync::mpsc::channel::<Vec<CommitInfo>>();
-
         std::thread::spawn(move || {
             let q = query_owned.to_lowercase();
             let mut results = Vec::new();
-            // When year==0 no year filter is active — search all commits.
-            // When year!=0 scope results to that year only.
             let iter: Box<dyn Iterator<Item = &CommitInfo> + Send> = if year == 0 {
                 Box::new(all.iter())
             } else {
@@ -856,7 +748,7 @@ impl TemporalExplorerWindow {
         self.browse_dir(&hash, &PathBuf::new());
     }
 
-    // ── Navigation ───────────────────────────────────────────────────────────────────────────────
+    // ── Navigation ──────────────────────────────────────────────────────────────────────────────
 
     fn enter_dir(&self, dir: PathBuf) {
         let imp = self.imp();
@@ -923,16 +815,11 @@ impl TemporalExplorerWindow {
                 Some(r) => r,
                 None => { self.show_error_toast(&gettext("No repository open.")); return; }
             };
-
             let resolver = SnapshotResolver::new(repo);
             match resolver.resolve_dir(hash, dir.as_path()) {
                 Ok(n) => {
                     drop(repo_ref);
-                    imp.dir_cache.borrow_mut().insert(
-                        hash.to_owned(),
-                        dir.clone(),
-                        n.clone(),
-                    );
+                    imp.dir_cache.borrow_mut().insert(hash.to_owned(), dir.clone(), n.clone());
                     n
                 }
                 Err(e) => {
@@ -988,28 +875,14 @@ impl TemporalExplorerWindow {
         let view_mode = *imp.view_mode.borrow();
         let widget: gtk::Widget = match view_mode {
             ViewMode::List => list_view::build_list_view(
-                &children,
-                hash,
-                Box::new(glib::clone!(
-                    #[weak(rename_to = w)] self,
-                    move |dir| w.enter_dir(dir)
-                )),
-                Box::new(glib::clone!(
-                    #[weak(rename_to = w)] self,
-                    move |path, hash| w.open_file_preview(path, hash)
-                )),
+                &children, hash,
+                Box::new(glib::clone!(#[weak(rename_to = w)] self, move |dir| w.enter_dir(dir))),
+                Box::new(glib::clone!(#[weak(rename_to = w)] self, move |path, hash| w.open_file_preview(path, hash))),
             ),
             ViewMode::Grid => grid_view::build_grid_view(
-                &children,
-                hash,
-                Box::new(glib::clone!(
-                    #[weak(rename_to = w)] self,
-                    move |dir| w.enter_dir(dir)
-                )),
-                Box::new(glib::clone!(
-                    #[weak(rename_to = w)] self,
-                    move |path, hash| w.open_file_preview(path, hash)
-                )),
+                &children, hash,
+                Box::new(glib::clone!(#[weak(rename_to = w)] self, move |dir| w.enter_dir(dir))),
+                Box::new(glib::clone!(#[weak(rename_to = w)] self, move |path, hash| w.open_file_preview(path, hash))),
             ),
         };
         self.replace_right_panel(widget);
@@ -1032,29 +905,30 @@ impl TemporalExplorerWindow {
     fn show_empty_state(&self) {
         let imp = self.imp();
         imp.toolbar_switcher.set_visible_child_name("pathbar");
-        // Safe snapshot-then-unparent: never iterate the live sibling chain
-        // while mutating it. A concurrent idle frame may hold a stale
-        // previous_sibling pointer, which would crash with
-        // gtk_widget_insert_after assertion failures.
         clear_box(&imp.address_bar);
         imp.window_title.set_visible(true);
         imp.nav_back_button.set_sensitive(false);
         imp.nav_forward_button.set_sensitive(false);
-        self.replace_right_panel(imp.empty_state.clone().upcast());
+        // Clear the content box and flip to the "empty" page.
+        // The empty_state StatusPage is never moved — it always lives inside
+        // the "empty" StackPage, so its parent pointer stays valid.
+        clear_box(&imp.right_panel_content);
+        imp.right_panel_stack.set_visible_child_name("empty");
     }
 
     fn replace_right_panel(&self, widget: gtk::Widget) {
-        // adw::ToolbarView replaces and unparents the previous content
-        // atomically when set_content(Some(...)) is called. Calling
-        // set_content(None) first is both redundant and harmful: it creates
-        // a window where the old widget has been unparented but any still-queued
-        // glib::idle_add_local frames (from list_view/grid_view builds) will
-        // attempt to access its layout manager, triggering:
-        //   Gtk-CRITICAL: gtk_widget_get_layout_manager: assertion 'GTK_IS_WIDGET (widget)' failed
-        self.imp().content_toolbar_view.set_content(Some(&widget));
+        // Instead of calling set_content() on content_toolbar_view (which
+        // would require the widget to have no parent), we append into the
+        // permanent right_panel_content Box and flip the stack to "content".
+        // This never re-parents any template child and never triggers the
+        // adw_toolbar_view_set_content parent assertion.
+        let imp = self.imp();
+        clear_box(&imp.right_panel_content);
+        imp.right_panel_content.append(&widget);
+        imp.right_panel_stack.set_visible_child_name("content");
     }
 
-    // ── Utilities ──────────────────────────────────────────────────────────────────────────────
+    // ── Utilities ─────────────────────────────────────────────────────────────────────────────
 
     fn show_error_toast(&self, message: &str) {
         let toast = adw::Toast::builder().title(message).timeout(4).build();

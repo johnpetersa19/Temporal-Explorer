@@ -15,7 +15,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
       sidebar: Adw.ToolbarView {
         [top]
         Adw.HeaderBar {
-          /* Back button — shown only when drilling into months or commits */
           [start]
           Button timeline_back_button {
             icon-name: "go-previous-symbolic";
@@ -33,7 +32,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
           orientation: vertical;
           spacing: 0;
 
-          /* Search bar — only meaningful at the commits level */
           SearchEntry commit_search_entry {
             placeholder-text: _("Search commits…");
             margin-start: 8;
@@ -42,19 +40,16 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             margin-bottom: 8;
           }
 
-          /* ── Timeline drill-down stack ────────────────────────────────────────── */
           Stack timeline_stack {
             vexpand: true;
             transition-type: slide_left_right;
             transition-duration: 200;
 
-            /* Level 0 — year list */
             StackPage {
               name: "years";
               child: ScrolledWindow {
                 vexpand: true;
                 hscrollbar-policy: never;
-
                 ListBox year_list {
                   selection-mode: single;
                   styles ["navigation-sidebar"]
@@ -62,13 +57,11 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
               };
             }
 
-            /* Level 1 — month list for selected year */
             StackPage {
               name: "months";
               child: ScrolledWindow {
                 vexpand: true;
                 hscrollbar-policy: never;
-
                 ListBox month_list {
                   selection-mode: single;
                   styles ["navigation-sidebar"]
@@ -76,13 +69,11 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
               };
             }
 
-            /* Level 2 — commit list for selected month */
             StackPage {
               name: "commits";
               child: ScrolledWindow {
                 vexpand: true;
                 hscrollbar-policy: never;
-
                 ListBox commit_list {
                   selection-mode: single;
                   styles ["navigation-sidebar"]
@@ -194,21 +185,45 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
           }
         }
 
-        content: Box {
-          orientation: vertical;
+        /* Right-panel stack: flips between the empty state and live content.
+           "empty"   → shown before any commit is selected.
+           "content" → mount-point for list/grid views built at runtime.
+           We never call set_content() on content_toolbar_view; the stack
+           lives as its permanent content so its parent is always valid. */
+        content: Stack right_panel_stack {
+          transition-type: crossfade;
+          transition-duration: 150;
+          vexpand: true;
+          hexpand: true;
 
-          Adw.WindowTitle window_title {
-            title: _("Temporal Explorer");
-            subtitle: _("No repository selected");
-            visible: false;
+          StackPage {
+            name: "empty";
+            child: Box {
+              orientation: vertical;
+
+              Adw.WindowTitle window_title {
+                title: _("Temporal Explorer");
+                subtitle: _("No repository selected");
+                visible: false;
+              }
+
+              Adw.StatusPage empty_state {
+                icon-name: "folder-symbolic";
+                title: _("No Snapshot Selected");
+                description: _("Open a Git repository and select a commit from the timeline to browse its file tree.");
+                vexpand: true;
+                hexpand: true;
+              }
+            };
           }
 
-          Adw.StatusPage empty_state {
-            icon-name: "folder-symbolic";
-            title: _("No Snapshot Selected");
-            description: _("Open a Git repository and select a commit from the timeline to browse its file tree.");
-            vexpand: true;
-            hexpand: true;
+          StackPage {
+            name: "content";
+            child: Box right_panel_content {
+              orientation: vertical;
+              vexpand: true;
+              hexpand: true;
+            };
           }
         };
 
