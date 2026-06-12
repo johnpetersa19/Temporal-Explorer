@@ -505,6 +505,14 @@ impl TemporalExplorerWindow {
 
     fn show_year_list(&self) {
         let imp = self.imp();
+
+        // Cancel any in-flight idle batches for month_list before clearing the
+        // Stack page. Passing an empty slice increments the generation counter
+        // so pending batch frames self-cancel on their next tick, preventing
+        // gtk_widget_insert_after races when the widget tree is mutated while
+        // a stale batch is still queued.
+        commit_controller::populate_month_list(&imp.month_list, &[], 0);
+
         *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
         imp.timeline_stack.set_visible_child_name("years");
         imp.timeline_back_button.set_visible(false);
@@ -568,6 +576,14 @@ impl TemporalExplorerWindow {
             TimelineLevel::Months  => self.show_year_list(),
             TimelineLevel::Commits => {
                 let imp = self.imp();
+
+                // Cancel any in-flight idle batches for commit_list before
+                // switching the Stack page. Passing an empty slice increments
+                // the generation counter so pending batch frames self-cancel
+                // on their next tick, preventing gtk_widget_insert_after
+                // races against the next populate_commit_list call.
+                commit_controller::populate_commit_list(&imp.commit_list, &[]);
+
                 let year = imp.selected_year.get();
                 *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
                 imp.timeline_stack.set_visible_child_name("months");
