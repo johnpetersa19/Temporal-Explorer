@@ -418,7 +418,14 @@ impl TemporalExplorerWindow {
 
     fn timeline_pop(&self) {
         let imp = self.imp();
-        match *imp.timeline_level.borrow() {
+
+        // Drop the immutable borrow before calling borrow_mut() below.
+        // Capturing the Copy value in a scoped block ensures the Ref guard
+        // is released before any subsequent borrow_mut() call, preventing
+        // the "RefCell already borrowed" runtime panic.
+        let current_level = { *imp.timeline_level.borrow() };
+
+        match current_level {
             TimelineLevel::Commits => {
                 *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
                 imp.timeline_stack.set_visible_child_name("months");
