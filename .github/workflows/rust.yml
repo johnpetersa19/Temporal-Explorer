@@ -62,7 +62,8 @@ jobs:
         echo "=== blueprint-compiler version ==="
         blueprint-compiler --version
 
-        BLP_FILES=$(find . -name '*.blp' -not -path './.git/*')
+        # Collect all .blp files as absolute paths so we can group by directory
+        BLP_FILES=$(find "$(pwd)" -name '*.blp' -not -path '*/.git/*' | sort)
 
         if [ -z "$BLP_FILES" ]; then
           echo "No .blp files found — skipping lint."
@@ -73,18 +74,45 @@ jobs:
         echo "$BLP_FILES"
         echo ""
 
+        # batch-compile requires: output-dir  input-dir  filename [filename ...]
+        # The filenames must be relative to input-dir, so we group files by their
+        # parent directory and call batch-compile once per directory.
         FAILED=0
-        for f in $BLP_FILES; do
-          echo "--- Checking: $f ---"
-          # blueprint-compiler batch-compile compiles to a temp dir;
-          # any parse/type error is printed to stderr and exits non-zero.
-          if ! blueprint-compiler batch-compile /tmp/blp-check "$(dirname "$f")" "$(basename "$f")" 2>&1; then
-            echo "FAIL: $f"
-            FAILED=1
-          else
-            echo "OK:   $f"
+        PREV_DIR=""
+        FILES_IN_DIR=""
+
+        run_batch() {
+          dir="$1"
+          files="$2"
+          out="/tmp/blp-check/$(echo "$dir" | tr '/' '_')"
+          mkdir -p "$out"
+          echo "--- Compiling directory: $dir ---"
+          # shellcheck disable=SC2086
+          if ! blueprint-compiler batch-compile "$out" "$dir" $files 2>&1; then
+            echo "FAIL in $dir"
+            return 1
           fi
-        done
+          echo "OK:  $dir"
+          return 0
+        }
+
+        while IFS= read -r abs_file; do
+          dir="$(dirname "$abs_file")"
+          base="$(basename "$abs_file")"
+          if [ "$dir" != "$PREV_DIR" ] && [ -n "$PREV_DIR" ]; then
+            run_batch "$PREV_DIR" "$FILES_IN_DIR" || FAILED=1
+            FILES_IN_DIR=""
+          fi
+          FILES_IN_DIR="$FILES_IN_DIR $base"
+          PREV_DIR="$dir"
+        done <<EOF
+        $BLP_FILES
+        EOF
+
+        # flush the last directory
+        if [ -n "$PREV_DIR" ] && [ -n "$FILES_IN_DIR" ]; then
+          run_batch "$PREV_DIR" "$FILES_IN_DIR" || FAILED=1
+        fi
 
         if [ "$FAILED" -eq 1 ]; then
           echo ""
