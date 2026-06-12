@@ -575,14 +575,7 @@ impl DirCache {
             .entries
             .iter()
             .position(|((h, d), _)| h == hash && d == dir)?;
-        // INVARIANT: `pos` was just returned by `Iterator::position` on
-        // `self.entries` with no intervening mutation, so the index is
-        // guaranteed to be in-bounds.  Using `expect` instead of `unwrap`
-        // documents this contract and produces a meaningful panic message
-        // if the invariant is ever broken by a future refactor (e.g. after
-        // introducing interior mutability or concurrent access).
-        let entry = self.entries.remove(pos)
-            .expect("pos is valid: it was just returned by position() on the same VecDeque");
+        let entry = self.entries.remove(pos)?;
         let arc = Arc::clone(&entry.1);
         self.entries.push_front(entry);
         Some(arc)
