@@ -419,10 +419,11 @@ impl TemporalExplorerWindow {
     fn timeline_pop(&self) {
         let imp = self.imp();
 
-        // Drop the immutable borrow before calling borrow_mut() below.
+        // Drop the immutable borrow BEFORE any borrow_mut() call below.
         // Capturing the Copy value in a scoped block ensures the Ref guard
-        // is released before any subsequent borrow_mut() call, preventing
-        // the "RefCell already borrowed" runtime panic.
+        // is released immediately, preventing the "RefCell already borrowed"
+        // runtime panic (src/window.rs:428) triggered when the back-button
+        // was clicked while GTK signal re-entrancy kept a borrow alive.
         let current_level = { *imp.timeline_level.borrow() };
 
         match current_level {
