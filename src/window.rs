@@ -172,9 +172,8 @@ glib::wrapper! {
 
 // ── Free helpers ───────────────────────────────────────────────────────────────
 
-// Uses gtk::Box::remove_all_children() — the atomic GTK4 API that removes
-// every child in a single pass without leaving live GObject references that
-// could race with concurrent idle_add_local callbacks populating the same box.
+// Uses container.remove() in a loop — avoids leaving live GObject
+// references that could race with concurrent idle_add_local callbacks.
 fn clear_box(container: &gtk::Box) {
     while let Some(child) = container.first_child() {
         container.remove(&child);
@@ -286,9 +285,10 @@ impl TemporalExplorerWindow {
 
     pub fn load_repository(&self, path: PathBuf) {
         let cancel = Arc::new(AtomicBool::new(false));
-        if let Some(prev) = self.imp().load_cancel.borrow_mut().take() {
+        // Extract and drop the borrow_mut before the next borrow_mut call.
+        { if let Some(prev) = self.imp().load_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
-        }
+        }}
         *self.imp().load_cancel.borrow_mut() = Some(cancel.clone());
 
         match git2::Repository::open(&path) {
@@ -353,9 +353,6 @@ impl TemporalExplorerWindow {
 
     fn populate_year_list(&self) {
         let imp = self.imp();
-        // remove_all() is the atomic GTK4 API — avoids the parent-mismatch
-        // assertion failures that the manual first_child/unparent loop caused
-        // when an in-flight idle_add_local batch still held sibling pointers.
         imp.year_list.remove_all();
 
         let commits = imp.all_commits.borrow();
@@ -377,7 +374,6 @@ impl TemporalExplorerWindow {
     fn on_year_selected(&self, year: i32) {
         let imp = self.imp();
         imp.selected_year.set(year);
-        // remove_all() — same rationale as populate_year_list above.
         imp.month_list.remove_all();
 
         let commits = imp.all_commits.borrow();
@@ -399,7 +395,6 @@ impl TemporalExplorerWindow {
     fn on_month_selected(&self, month: u32) {
         let imp = self.imp();
         let year = imp.selected_year.get();
-        // remove_all() — same rationale as populate_year_list above.
         imp.commit_list.remove_all();
 
         let commits = imp.all_commits.borrow().clone();
@@ -419,12 +414,7 @@ impl TemporalExplorerWindow {
 
     fn timeline_pop(&self) {
         let imp = self.imp();
-
-        // Drop the immutable borrow BEFORE any borrow_mut() call below.
-        // Capturing the Copy value in a scoped block ensures the Ref guard
-        // is released immediately, preventing the "RefCell already borrowed"
-        // runtime panic (src/window.rs:428) triggered when the back-button
-        // was clicked while GTK signal re-entrancy kept a borrow alive.
+        // Capture the Copy value and drop the Ref before any borrow_mut().
         let current_level = { *imp.timeline_level.borrow() };
 
         match current_level {
@@ -454,13 +444,17 @@ impl TemporalExplorerWindow {
         imp.history_back.borrow_mut().clear();
         imp.history_forward.borrow_mut().clear();
 
-        let commits = imp.all_commits.borrow();
-        if let Some(commit) = commits.iter().find(|c| c.hash.starts_with(&hash[..7.min(hash.len())])) {
-            imp.commit_hash_label.set_label(&commit.hash[..8.min(commit.hash.len())]);
-            imp.commit_message_label.set_label(&commit.summary);
-            imp.commit_date_label.set_label(&Self::format_timestamp(commit.timestamp));
-            imp.commit_info_bar.set_revealed(true);
-        }
+        // Borrow all_commits, extract what we need, drop the Ref before
+        // navigate_to_dir (which will borrow other fields).
+        {
+            let commits = imp.all_commits.borrow();
+            if let Some(commit) = commits.iter().find(|c| c.hash.starts_with(&hash[..7.min(hash.len())])) {
+                imp.commit_hash_label.set_label(&commit.hash[..8.min(commit.hash.len())]);
+                imp.commit_message_label.set_label(&commit.summary);
+                imp.commit_date_label.set_label(&Self::format_timestamp(commit.timestamp));
+                imp.commit_info_bar.set_revealed(true);
+            }
+        } // Ref dropped here
         self.navigate_to_dir(PathBuf::new());
     }
 
@@ -486,9 +480,9 @@ impl TemporalExplorerWindow {
         self.update_nav_buttons();
 
         let cancel = Arc::new(AtomicBool::new(false));
-        if let Some(prev) = imp.load_cancel.borrow_mut().take() {
+        { if let Some(prev) = imp.load_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
-        }
+        }}
         *imp.load_cancel.borrow_mut() = Some(cancel);
 
         let dir_clone = dir.clone();
@@ -573,25 +567,34 @@ impl TemporalExplorerWindow {
     pub fn push_dir(&self, dir: PathBuf) {
         let imp = self.imp();
         let prev = imp.current_dir.borrow().clone();
-        imp.history_back.borrow_mut().push(prev);
-        imp.history_forward.borrow_mut().clear();
+        // Push to history and clear forward, then drop the RefMut before
+        // navigate_to_dir which reads history_back via update_nav_buttons.
+        { imp.history_back.borrow_mut().push(prev); }
+        { imp.history_forward.borrow_mut().clear(); }
         self.navigate_to_dir(dir);
     }
 
     fn navigate_back(&self) {
         let imp = self.imp();
-        if let Some(dir) = imp.history_back.borrow_mut().pop() {
+        // Pop the target dir and drop the RefMut BEFORE calling navigate_to_dir,
+        // which internally calls update_nav_buttons -> history_back.borrow().
+        // Keeping the RefMut alive across that call caused "RefCell already
+        // mutably borrowed" at line 601.
+        let dir = { imp.history_back.borrow_mut().pop() };
+        if let Some(dir) = dir {
             let cur = imp.current_dir.borrow().clone();
-            imp.history_forward.borrow_mut().push(cur);
+            { imp.history_forward.borrow_mut().push(cur); }
             self.navigate_to_dir(dir);
         }
     }
 
     fn navigate_forward(&self) {
         let imp = self.imp();
-        if let Some(dir) = imp.history_forward.borrow_mut().pop() {
+        // Same fix as navigate_back — drop the RefMut before navigate_to_dir.
+        let dir = { imp.history_forward.borrow_mut().pop() };
+        if let Some(dir) = dir {
             let cur = imp.current_dir.borrow().clone();
-            imp.history_back.borrow_mut().push(cur);
+            { imp.history_back.borrow_mut().push(cur); }
             self.navigate_to_dir(dir);
         }
     }
@@ -606,7 +609,9 @@ impl TemporalExplorerWindow {
 
     pub fn enter_location_mode(&self) {
         let imp = self.imp();
-        let current = imp.current_dir.borrow();
+        // Clone the path value and drop the Ref before grab_focus() which
+        // can emit signals that re-enter this borrow.
+        let current = { imp.current_dir.borrow().clone() };
         imp.location_entry.set_text(current.to_str().unwrap_or(""));
         imp.location_entry.grab_focus();
         imp.toolbar_switcher.set_visible_child_name("location");
@@ -625,8 +630,7 @@ impl TemporalExplorerWindow {
 
     fn toggle_view_mode(&self) {
         let imp = self.imp();
-
-        // Drop the immutable borrow before calling borrow_mut() below.
+        // Capture Copy value, drop the Ref, then mutate and check separately.
         let current_mode = { *imp.view_mode.borrow() };
 
         let new_mode = match current_mode {
@@ -640,9 +644,13 @@ impl TemporalExplorerWindow {
             }
         };
 
-        *imp.view_mode.borrow_mut() = new_mode;
+        // Write new_mode, then drop the RefMut before the borrow() below.
+        { *imp.view_mode.borrow_mut() = new_mode; }
+
         let dir = imp.current_dir.borrow().clone();
-        if imp.current_hash.borrow().is_some() { self.navigate_to_dir(dir); }
+        // Check current_hash with a scoped borrow, drop before navigate_to_dir.
+        let has_hash = { imp.current_hash.borrow().is_some() };
+        if has_hash { self.navigate_to_dir(dir); }
     }
 
     // ── Search ────────────────────────────────────────────────────────────────
@@ -663,13 +671,12 @@ impl TemporalExplorerWindow {
         *imp.last_query.borrow_mut() = query.clone();
 
         let cancel = Arc::new(AtomicBool::new(false));
-        if let Some(prev) = imp.search_cancel.borrow_mut().take() {
+        { if let Some(prev) = imp.search_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
-        }
+        }}
         *imp.search_cancel.borrow_mut() = Some(cancel);
 
         let list = imp.commit_list.clone();
-        // remove_all() — same rationale as populate_year_list.
         list.remove_all();
 
         let all = imp.all_commits.borrow().clone();
