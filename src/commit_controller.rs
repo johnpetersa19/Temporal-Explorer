@@ -103,14 +103,18 @@ fn next_generation(list_box: &gtk::ListBox) -> u64 {
 
 // ── Safe ListBox clear ─────────────────────────────────────────────────────
 
+/// Removes all children from `list_box` safely.
+///
+/// Previously this walked `first_child` / `next_sibling` and called
+/// `unparent()` manually, which could leave GObject references in an
+/// invalid state when a stale idle-batch still held widget handles —
+/// triggering `gtk_widget_insert_after` parent-mismatch assertions and
+/// `g_object_ref: G_IS_OBJECT` failures.
+///
+/// `ListBox::remove_all()` is the native GTK4 API that removes all rows
+/// atomically and is safe to call even when idle callbacks are pending.
 fn clear_listbox(list_box: &gtk::ListBox) {
-    let mut children: Vec<gtk::Widget> = Vec::new();
-    let mut child = list_box.first_child();
-    while let Some(w) = child {
-        child = w.next_sibling();
-        children.push(w);
-    }
-    for w in children { w.unparent(); }
+    list_box.remove_all();
 }
 
 // ── Row builders ──────────────────────────────────────────────────
