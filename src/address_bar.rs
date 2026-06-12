@@ -28,18 +28,11 @@
 //!
 //! - [`rebuild_address_bar`] – clears and re-populates the path-bar [`gtk::Box`]
 //!   with pill-shaped segment buttons.
-//! - [`switch_to_location_entry`] – updates the text entry with the current path
-//!   and switches the toolbar stack to the `"location"` page.
 
 use gtk::prelude::*;
 use std::path::PathBuf;
 
 /// Removes all children from a `gtk::Box` safely.
-///
-/// Snapshots the child list first, then calls `unparent()` on each captured
-/// widget. This prevents iterator-invalidation races where a concurrent GTK
-/// idle frame observes a partially-mutated sibling chain, causing
-/// `gtk_widget_insert_after` assertion failures.
 fn clear_box(container: &gtk::Box) {
     let mut children: Vec<gtk::Widget> = Vec::new();
     let mut child = container.first_child();
@@ -58,11 +51,6 @@ fn clear_box(container: &gtk::Box) {
 /// becomes a clickable segment that calls `on_segment_clicked` with its
 /// full accumulated path.  The last (current) segment calls
 /// `on_current_clicked` instead (which typically opens the location entry).
-///
-/// # Example layout
-/// ```text
-///  [📁 my-repo]  ›  [src]  ›  [views]   ← last segment is current-dir
-/// ```
 pub fn rebuild_address_bar(
     bar: &gtk::Box,
     repo_name: &str,
@@ -70,8 +58,6 @@ pub fn rebuild_address_bar(
     on_segment_clicked: impl Fn(PathBuf) + Clone + 'static,
     on_current_clicked: impl Fn() + Clone + 'static,
 ) {
-    // Safe snapshot-then-unparent: never iterate the live widget tree while
-    // mutating it, as a concurrent idle frame may be holding a sibling ref.
     clear_box(bar);
 
     struct Seg {
@@ -91,11 +77,7 @@ pub fn rebuild_address_bar(
     for comp in dir.components() {
         let s = comp.as_os_str().to_string_lossy().to_string();
         acc.push(&s);
-        segs.push(Seg {
-            label: s,
-            icon: None,
-            target: acc.clone(),
-        });
+        segs.push(Seg { label: s, icon: None, target: acc.clone() });
     }
 
     let total = segs.len();
@@ -111,9 +93,7 @@ pub fn rebuild_address_bar(
         let btn = gtk::Button::new();
         btn.add_css_class("flat");
         btn.add_css_class("nautilus-path-button");
-        if is_current {
-            btn.add_css_class("current-dir");
-        }
+        if is_current { btn.add_css_class("current-dir"); }
 
         let row = gtk::Box::new(gtk::Orientation::Horizontal, 4);
         if let Some(ic) = seg.icon {
@@ -139,25 +119,4 @@ pub fn rebuild_address_bar(
 
         bar.append(&btn);
     }
-}
-
-/// Prepares and focuses the location-entry widget.
-///
-/// Sets the entry text to the stringified `current_dir`, switches the
-/// toolbar stack to the `"location"` page, grabs focus, and selects all
-/// text so the user can type immediately.
-pub fn switch_to_location_entry(
-    toolbar_switcher: &gtk::Stack,
-    location_entry: &gtk::Entry,
-    current_dir: &PathBuf,
-) {
-    let path_text = if current_dir.as_os_str().is_empty() {
-        String::new()
-    } else {
-        current_dir.to_string_lossy().to_string()
-    };
-    location_entry.set_text(&path_text);
-    toolbar_switcher.set_visible_child_name("location");
-    location_entry.grab_focus();
-    location_entry.select_region(0, -1);
 }
