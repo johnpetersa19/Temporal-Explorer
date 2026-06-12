@@ -111,7 +111,7 @@ msgid "Could not read file"
 msgstr ""
 
 #: src/file_preview.rs
-msgid "Binary file \u2014 preview not available."
+msgid "Binary file — preview not available."
 msgstr ""
 
 #: src/file_preview.rs
