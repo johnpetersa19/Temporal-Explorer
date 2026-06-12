@@ -1,0 +1,135 @@
+/* temporal-explorer.css
+ *
+ * Copyright 2026 John Peter Sá
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+/* Application-level CSS extracted from window.rs :: setup_styles().
+ * Loaded via GResource — see temporal-explorer.gresource.xml.
+ *
+ * Rust loader in window.rs::setup_styles():
+ *   let provider = gtk::CssProvider::new();
+ *   provider.load_from_resource(
+ *       "/io/github/johnpetersa19/TemporalExplorer/temporal-explorer.css",
+ *   );
+ *   gtk::style_context_add_provider_for_display(
+ *       &display, &provider,
+ *       gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+ *   );
+ */
+
+/* ── Address / path bar ─────────────────────────────────────────────── */
+
+.nautilus-pathbar {
+    background-color: color-mix(in srgb, currentColor 8%, transparent);
+    border-radius: 9999px;
+    padding: 2px 4px;
+    min-height: 32px;
+}
+
+.nautilus-path-button {
+    min-width: 8px;
+    border-radius: 9999px;
+    padding: 0 8px;
+    min-height: 28px;
+}
+
+.nautilus-path-button label {
+    font-weight: 600;
+}
+
+.nautilus-path-button:not(.current-dir) label,
+.nautilus-path-button:not(.current-dir) image {
+    opacity: 0.55;
+}
+
+.nautilus-path-button:not(.current-dir):hover label,
+.nautilus-path-button:not(.current-dir):hover image {
+    opacity: 0.85;
+}
+
+.nautilus-path-button.current-dir {
+    background: none;
+    box-shadow: none;
+}
+
+.nautilus-path-separator {
+    opacity: 0.35;
+    margin: 0 1px;
+    -gtk-icon-size: 12px;
+}
+
+/* ── Location entry bar ──────────────────────────────────────────────── */
+
+.location-bar {
+    min-width: 320px;
+}
+
+.location-bar entry {
+    border-radius: 9999px 0 0 9999px;
+}
+
+.location-bar button {
+    border-radius: 0 9999px 9999px 0;
+}
+
+/* ── Grid view cells ─────────────────────────────────────────────────── */
+
+.nautilus-view-cell {
+    border-radius: 8px;
+    padding: 8px 6px 6px 6px;
+    transition: background-color 150ms ease;
+}
+
+.nautilus-view-cell:hover {
+    background-color: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+flowboxchild:selected .nautilus-view-cell {
+    background-color: color-mix(in srgb, @accent_bg_color 18%, transparent);
+    outline: 1.5px solid color-mix(in srgb, @accent_bg_color 60%, transparent);
+    outline-offset: -1.5px;
+}
+
+flowboxchild:selected:focus .nautilus-view-cell {
+    background-color: color-mix(in srgb, @accent_bg_color 28%, transparent);
+    outline-color: @accent_bg_color;
+}
+
+/* ── List view rows ──────────────────────────────────────────────────── */
+
+.nautilus-list-row {
+    border-radius: 6px;
+    transition: background-color 120ms ease;
+}
+
+.nautilus-list-row:hover {
+    background-color: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+row:selected .nautilus-list-row {
+    background-color: color-mix(in srgb, @accent_bg_color 18%, transparent);
+}
+
+/* ── Commit hash label ───────────────────────────────────────────────── */
+
+.commit-hash {
+    font-family: monospace;
+    font-size: 0.85em;
+    opacity: 0.75;
+    letter-spacing: 0.04em;
+}

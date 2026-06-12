@@ -1,0 +1,67 @@
+using Gtk 4.0;
+using Adw 1;
+
+/* file-list-row.blp
+ *
+ * Copyright 2026 John Peter Sá
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Template for a single row in the list-view file browser panel.
+ * Extracted from views/list_view.rs :: build_file_row().
+ *
+ * The Rust code sets at runtime:
+ *   - file_row_icon.icon-name        → mime or folder symbolic icon name
+ *   - file_row_name_label.label      → file or directory name
+ *
+ * Visibility is toggled depending on TreeNode variant:
+ *   - Dir:       file_row_chevron.set_visible(true)
+ *   - Submodule: file_row_submodule_badge.set_visible(true)
+ *   - File:      file_row_ext_label.set_label(ext); file_row_ext_label.set_visible(true)
+ */
+
+template $FileListRow : Gtk.ListBoxRow {
+  child: Box {
+    orientation: horizontal;
+    spacing: 10;
+    margin-top: 5;
+    margin-bottom: 5;
+    margin-start: 12;
+    margin-end: 12;
+    styles ["nautilus-list-row"]
+
+    Image file_row_icon {
+      pixel-size: 16;
+    }
+
+    Label file_row_name_label {
+      label: "";
+      xalign: 0.0;
+      hexpand: true;
+      ellipsize: end;
+    }
+
+    /* Shown for directories */
+    Image file_row_chevron {
+      icon-name: "go-next-symbolic";
+      pixel-size: 12;
+      visible: false;
+      styles ["dim-label"]
+    }
+
+    /* Shown for submodules */
+    Image file_row_submodule_badge {
+      icon-name: "vcs-branch-symbolic";
+      pixel-size: 12;
+      visible: false;
+      styles ["dim-label"]
+    }
+
+    /* Shown for files — displays extension */
+    Label file_row_ext_label {
+      label: "";
+      visible: false;
+      styles ["caption", "dim-label"]
+    }
+  };
+}

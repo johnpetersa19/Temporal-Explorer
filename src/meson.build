@@ -7,7 +7,15 @@ blueprint_compiler = find_program('blueprint-compiler', version: '>= 0.12')
 
 blueprints = custom_target(
   'blueprints',
-  input: files('window.blp'),
+  input: files(
+    'window.blp',
+    'file-preview-dialog.blp',
+    'commit-row.blp',
+    'year-row.blp',
+    'month-row.blp',
+    'file-list-row.blp',
+    'file-grid-cell.blp',
+  ),
   output: '.',
   command: [
     blueprint_compiler, 'batch-compile', '@OUTPUT@', '@CURRENT_SOURCE_DIR@', '@INPUT@'
@@ -16,7 +24,7 @@ blueprints = custom_target(
 
 # ── GResources ──────────────────────────────────────────────────────────────
 # source_dir includes the blueprint build output directory so that
-# glib-compile-resources can locate the generated window.ui file.
+# glib-compile-resources can locate the generated .ui files.
 gnome.compile_resources(
   'temporal-explorer',
   'temporal-explorer.gresource.xml',

@@ -1,0 +1,44 @@
+using Gtk 4.0;
+using Adw 1;
+
+/* file-grid-cell.blp
+ *
+ * Copyright 2026 John Peter Sá
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Template for a single cell in the grid-view file browser panel.
+ * Extracted from views/grid_view.rs :: build_grid_cell().
+ *
+ * The Rust code sets at runtime:
+ *   - grid_cell_icon.icon-name       → full mime or folder icon name (64 px)
+ *   - grid_cell_name_label.label     → file or directory name
+ */
+
+template $FileGridCell : Gtk.Box {
+  orientation: vertical;
+  spacing: 6;
+  margin-top: 6;
+  margin-bottom: 6;
+  margin-start: 6;
+  margin-end: 6;
+  width-request: 96;
+  styles ["nautilus-view-cell"]
+
+  Image grid_cell_icon {
+    pixel-size: 64;
+    halign: center;
+  }
+
+  Label grid_cell_name_label {
+    label: "";
+    halign: center;
+    justify: center;
+    wrap: true;
+    wrap-mode: word_char;
+    max-width-chars: 12;
+    lines: 3;
+    ellipsize: end;
+    styles ["caption"]
+  }
+}

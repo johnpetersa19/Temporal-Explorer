@@ -1,0 +1,69 @@
+using Gtk 4.0;
+using Adw 1;
+
+/* file-preview-dialog.blp
+ *
+ * Copyright 2026 John Peter Sá
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Template for the file preview modal dialog.
+ * Extracted from file_preview.rs :: build_preview_dialog().
+ *
+ * The Rust code sets at runtime:
+ *   - preview_window_title.title / subtitle
+ *   - preview_text_view.buffer text
+ *   - preview_path_label.label
+ *   - copy_button clicked signal
+ */
+
+template $FilePreviewDialog : Adw.Window {
+  title: "";
+  modal: true;
+  default-width: 760;
+  default-height: 540;
+
+  content: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      title-widget: Adw.WindowTitle preview_window_title {
+        title: "";
+        subtitle: "";
+      };
+
+      [end]
+      Button copy_button {
+        icon-name: "edit-copy-symbolic";
+        tooltip-text: _("Copy content");
+        styles ["flat"]
+      }
+    }
+
+    content: ScrolledWindow preview_scrolled {
+      vexpand: true;
+      hexpand: true;
+
+      child: TextView preview_text_view {
+        editable: false;
+        cursor-visible: false;
+        monospace: true;
+        wrap-mode: none;
+        left-margin: 12;
+        right-margin: 12;
+        top-margin: 12;
+        bottom-margin: 12;
+      };
+    };
+
+    [bottom]
+    Gtk.ActionBar {
+      [start]
+      Label preview_path_label {
+        label: "";
+        selectable: true;
+        ellipsize: start;
+        styles ["caption", "dim-label"]
+      }
+    }
+  };
+}

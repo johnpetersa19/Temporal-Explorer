@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
   <gresource prefix="/io/github/johnpetersa19/TemporalExplorer">
-    <!-- window.ui is generated from window.blp by blueprint-compiler at build time -->
+    <!-- Static UI files compiled from .blp by blueprint-compiler at build time -->
     <file preprocess="xml-stripblanks">window.ui</file>
     <file preprocess="xml-stripblanks">shortcuts-dialog.ui</file>
+    <file preprocess="xml-stripblanks">file-preview-dialog.ui</file>
+    <file preprocess="xml-stripblanks">commit-row.ui</file>
+    <file preprocess="xml-stripblanks">year-row.ui</file>
+    <file preprocess="xml-stripblanks">month-row.ui</file>
+    <file preprocess="xml-stripblanks">file-list-row.ui</file>
+    <file preprocess="xml-stripblanks">file-grid-cell.ui</file>
+    <!-- Application CSS -->
+    <file>temporal-explorer.css</file>
   </gresource>
 </gresources>
