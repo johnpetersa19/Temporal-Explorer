@@ -34,10 +34,8 @@ jobs:
           libxml2-utils
         # Ensure pkg-config can find glib
         sudo find /usr/lib -name "glib-2.0.pc" -o -name "gobject-2.0.pc"
-        export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH"
+        echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
     - name: Build com Meson
-      env:
-        PKG_CONFIG_PATH: /usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
       run: |
         meson setup builddir
         meson compile -C builddir
