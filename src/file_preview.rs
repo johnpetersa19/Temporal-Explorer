@@ -132,7 +132,7 @@ fn build_preview_dialog(
 
     let win_title = adw::WindowTitle::builder()
         .title(title)
-        .subtitle(&format!("{}\u2026", &revision[..revision.len().min(12)]))
+        .subtitle(&format!("{}\u{2026}", &revision[..revision.len().min(12)]))
         .build();
 
     let header = adw::HeaderBar::new();
