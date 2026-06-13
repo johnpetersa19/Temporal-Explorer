@@ -72,6 +72,11 @@ Adw.ShortcutsDialog shortcuts_dialog {
     }
 
     Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Filter by File Type");
+      accelerator: "<Primary><Shift>T";
+    }
+
+    Adw.ShortcutsItem {
       title: C_("shortcuts dialog", "Clear All Filters");
       accelerator: "<Primary>Escape";
     }
@@ -115,6 +120,11 @@ Adw.ShortcutsDialog shortcuts_dialog {
       title: C_("shortcuts dialog", "Choose Visible Columns");
       accelerator: "<Primary><Shift>C";
     }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "File Grid Captions");
+      accelerator: "<Primary><Shift>G";
+    }
   }
 
   // ===== COMMIT ACTIONS =====
@@ -139,6 +149,16 @@ Adw.ShortcutsDialog shortcuts_dialog {
     Adw.ShortcutsItem {
       title: C_("shortcuts dialog", "Open Context Menu");
       accelerator: "<Shift>F10";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Batch Operations on Commits");
+      accelerator: "<Primary><Shift>B";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Show Merge Conflicts");
+      accelerator: "<Primary><Shift>M";
     }
   }
 

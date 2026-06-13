@@ -6,3 +6,7 @@
 
 #[cfg(test)]
 mod git_engine_tests;
+
+// Gap 2 — timeline_filter and FilterState unit tests.
+#[cfg(test)]
+mod timeline_filter_tests;

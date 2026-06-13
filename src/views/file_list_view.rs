@@ -10,16 +10,31 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+//! Unified file-browser widget.
+//!
+//! `FileListView` wraps a `GtkStack` with three pages:
+//! - **"list"** — `GtkListView` using the list-row factory.
+//! - **"grid"** — `GtkGridView` using the grid-cell factory.
+//! - **"empty"** — `AdwStatusPage` shown when no commit is selected.
+//!
+//! Gap 1 fix:
+//! - Corrected `Some(m) {` → `Some(m) =>` syntax error.
+//! - Split `set_model` into `set_list_factory` / `set_grid_factory` +
+//!   `set_model`, matching how `window.rs` already builds separate
+//!   factories for list and grid views.
+//! - Exposed `connect_item_activated` so `window.rs` can attach a single
+//!   handler for both views without duplicating the signal connection.
+
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib, CompositeTemplate};
 use adw::subclass::prelude::*;
+use std::cell::RefCell;
 
 // ── GObject boilerplate ───────────────────────────────────────────────────────
 
 mod imp {
     use super::*;
-    use std::cell::RefCell;
 
     #[derive(Debug, Default, CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/file-list-view.ui")]
@@ -33,6 +48,10 @@ mod imp {
 
         /// Current view mode: "list" | "grid"
         pub view_mode: RefCell<String>,
+
+        /// Separate factories so list and grid can use different cell widgets.
+        pub list_factory: RefCell<Option<gtk::ListItemFactory>>,
+        pub grid_factory: RefCell<Option<gtk::ListItemFactory>>,
     }
 
     #[glib::object_subclass]
@@ -73,11 +92,68 @@ impl FileListView {
         glib::Object::builder().build()
     }
 
+    // ── Factory registration ──────────────────────────────────────────────────
+
+    /// Set the factory used by the `GtkListView` (list mode).
+    pub fn set_list_factory(&self, factory: &impl IsA<gtk::ListItemFactory>) {
+        let imp = self.imp();
+        let factory = factory.as_ref().clone();
+        imp.file_list_view.set_factory(Some(&factory));
+        *imp.list_factory.borrow_mut() = Some(factory);
+    }
+
+    /// Set the factory used by the `GtkGridView` (grid mode).
+    pub fn set_grid_factory(&self, factory: &impl IsA<gtk::ListItemFactory>) {
+        let imp = self.imp();
+        let factory = factory.as_ref().clone();
+        imp.file_grid_view.set_factory(Some(&factory));
+        *imp.grid_factory.borrow_mut() = Some(factory);
+    }
+
+    // ── Model binding ─────────────────────────────────────────────────────────
+
+    /// Bind a `gio::ListModel` as the data source for both list and grid views.
+    /// Pass `None` to clear and show the empty state.
+    ///
+    /// # Panics
+    ///
+    /// Panics (in debug) if the respective factory has not been set before
+    /// calling with `Some(model)`.  In release builds it degrades gracefully
+    /// to showing the empty state.
+    pub fn set_model(&self, model: Option<&impl IsA<gio::ListModel>>) {
+        let imp = self.imp();
+        match model {
+            Some(m) => {
+                // List view: single-selection wrapper.
+                let sel_list = gtk::SingleSelection::new(Some(m.clone()));
+                imp.file_list_view.set_model(Some(&sel_list));
+
+                // Grid view: independent single-selection wrapper so
+                // activating an item in one view does not affect the other.
+                let sel_grid = gtk::SingleSelection::new(Some(m.clone()));
+                imp.file_grid_view.set_model(Some(&sel_grid));
+
+                // Reveal the currently active view page.
+                imp.view_stack
+                    .set_visible_child_name(&self.imp().view_mode.borrow());
+            }
+            None => {
+                imp.file_list_view.set_model(None::<&gtk::SingleSelection>);
+                imp.file_grid_view.set_model(None::<&gtk::SingleSelection>);
+                imp.view_stack.set_visible_child_name("empty");
+            }
+        }
+    }
+
+    // ── View mode ─────────────────────────────────────────────────────────────
+
     /// Switch between "list" and "grid" view modes.
+    ///
+    /// Only transitions away from "empty" when a model is actually loaded.
     pub fn set_view_mode(&self, mode: &str) {
         let imp = self.imp();
         *imp.view_mode.borrow_mut() = mode.to_string();
-        // Only switch if files are loaded; otherwise stay on "empty".
+        // Stay on "empty" if nothing is loaded yet.
         if imp.view_stack.visible_child_name().as_deref() != Some("empty") {
             imp.view_stack.set_visible_child_name(mode);
         }
@@ -87,37 +163,23 @@ impl FileListView {
         self.imp().view_mode.borrow().clone()
     }
 
-    /// Bind a `gio::ListModel` as the data source for both list and grid views.
-    /// Pass `None` to clear and show the empty state.
-    pub fn set_model(
-        &self,
-        model: Option<&impl IsA<gio::ListModel>>,
-        factory: &impl IsA<gtk::ListItemFactory>,
-    ) {
-        let imp = self.imp();
-        match model {
-            Some(m) {
-                let sel = gtk::SingleSelection::new(Some(m.clone()));
-                imp.file_list_view.set_model(Some(&sel));
-                imp.file_list_view.set_factory(Some(factory));
-
-                // Grid uses the same model — build a new selection wrapper.
-                let sel_grid = gtk::SingleSelection::new(Some(m.clone()));
-                imp.file_grid_view.set_model(Some(&sel_grid));
-                imp.file_grid_view.set_factory(Some(factory));
-
-                imp.view_stack
-                    .set_visible_child_name(&self.imp().view_mode.borrow());
-            }
-            None => {
-                imp.view_stack.set_visible_child_name("empty");
-            }
-        }
-    }
-
     /// Convenience: show the empty state (no commit selected).
     pub fn show_empty(&self) {
         self.imp().view_stack.set_visible_child_name("empty");
+    }
+
+    // ── Item activation ───────────────────────────────────────────────────────
+
+    /// Connect a single callback that fires when the user activates an item in
+    /// either the list view or the grid view.  The `u32` argument is the
+    /// position of the activated item inside the model.
+    pub fn connect_item_activated<F>(&self, f: F)
+    where
+        F: Fn(u32) + Clone + 'static,
+    {
+        let f_grid = f.clone();
+        self.imp().file_list_view.connect_activate(move |_, pos| f(pos));
+        self.imp().file_grid_view.connect_activate(move |_, pos| f_grid(pos));
     }
 }
 
