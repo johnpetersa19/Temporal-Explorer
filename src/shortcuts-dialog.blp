@@ -1,0 +1,184 @@
+using Gtk 4.0;
+using Adw 1;
+
+Adw.ShortcutsDialog shortcuts_dialog {
+
+  // ===== NAVIGATION =====
+  Adw.ShortcutsSection {
+    title: C_("shortcuts dialog", "Navigation");
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to Previous Commit");
+      accelerator: "<alt>Left";
+      direction: ltr;
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to Previous Commit");
+      accelerator: "<alt>Right";
+      direction: rtl;
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to Next Commit");
+      accelerator: "<alt>Right";
+      direction: ltr;
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to Next Commit");
+      accelerator: "<alt>Left";
+      direction: rtl;
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to First Commit");
+      accelerator: "<Primary>Home";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to Latest Commit (HEAD)");
+      accelerator: "<Primary>End";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Open Repository");
+      accelerator: "<Primary>O";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Refresh / Reload");
+      accelerator: "F5 <Primary>R";
+    }
+  }
+
+  // ===== SEARCH & FILTER =====
+  Adw.ShortcutsSection {
+    title: C_("shortcuts dialog", "Search & Filter");
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Search Commits");
+      accelerator: "<Primary>F";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Open Filter Popover");
+      accelerator: "<Primary><Shift>F";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Open Date Range Dialog");
+      accelerator: "<Primary><Shift>D";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Clear All Filters");
+      accelerator: "<Primary>Escape";
+    }
+  }
+
+  // ===== VIEW =====
+  Adw.ShortcutsSection {
+    title: C_("shortcuts dialog", "View");
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "List View");
+      accelerator: "<Primary>1";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Grid View");
+      accelerator: "<Primary>2";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Zoom In");
+      accelerator: "<Primary>plus";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Zoom Out");
+      accelerator: "<Primary>minus";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Reset Zoom");
+      accelerator: "<Primary>0";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Show/Hide Sidebar");
+      action-name: "win.toggle-sidebar";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Choose Visible Columns");
+      accelerator: "<Primary><Shift>C";
+    }
+  }
+
+  // ===== COMMIT ACTIONS =====
+  Adw.ShortcutsSection {
+    title: C_("shortcuts dialog", "Commit Actions");
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Copy Commit SHA");
+      accelerator: "<Primary>C";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Show Commit Details");
+      accelerator: "<Primary>I Return";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Preview Selected File");
+      accelerator: "space";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Open Context Menu");
+      accelerator: "<Shift>F10";
+    }
+  }
+
+  // ===== SELECTION =====
+  Adw.ShortcutsSection {
+    title: C_("shortcuts dialog", "Selection");
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Select All Commits");
+      accelerator: "<Primary>A";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Select Commits Matching Pattern");
+      accelerator: "<Primary>S";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Invert Selection");
+      accelerator: "<Primary><Shift>I";
+    }
+  }
+
+  // ===== APP =====
+  Adw.ShortcutsSection {
+    title: C_("shortcuts dialog", "App");
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Preferences");
+      action-name: "app.preferences";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Show Shortcuts");
+      action-name: "app.shortcuts";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Quit");
+      action-name: "app.quit";
+    }
+  }
+}

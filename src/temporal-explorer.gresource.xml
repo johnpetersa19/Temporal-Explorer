@@ -2,7 +2,7 @@
 <gresources>
   <gresource prefix="/io/github/johnpetersa19/temporal_explorer">
     <file>temporal-explorer.css</file>
-    <file preprocess="xml-stripblanks">shortcuts-dialog.ui</file>
+    <file preprocess="xml-stripblanks" alias="shortcuts-dialog.ui">shortcuts-dialog.ui</file>
 
     <!-- Phase 1: Core UI -->
     <file preprocess="xml-stripblanks" alias="window.ui">window.ui</file>

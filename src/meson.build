@@ -1,10 +1,6 @@
 pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
 gnome = import('gnome')
 
-blueprint_files = files(
-  'address_bar.rs',
-)
-
 blueprints = custom_target('blueprints',
   input: files(
     'batch-operations-dialog.blp',
@@ -25,6 +21,7 @@ blueprints = custom_target('blueprints',
     'preferences-dialog.blp',
     'search-filter-popover.blp',
     'select-commits-by-pattern.blp',
+    'shortcuts-dialog.blp',
     'ssh-passphrase-dialog.blp',
     'toolbar.blp',
     'view-controls.blp',
