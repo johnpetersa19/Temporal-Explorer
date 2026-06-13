@@ -44,6 +44,8 @@ use crate::address_bar;
 use crate::git_engine::{CommitInfo, DirCache, HistoryReader, SnapshotResolver, TreeNode};
 use crate::commit_controller;
 use crate::file_preview;
+use crate::search_filter_popover::{SearchFilterPopover, FilterState};
+use crate::date_range_dialog::DateRangeDialog;
 use crate::timeline_filter;
 use crate::views::{list_view, grid_view};
 use crate::views::list_view::{OnEnterDir, OnOpenFile};
@@ -105,6 +107,10 @@ mod imp {
         #[template_child] pub commit_search_entry:   TemplateChild<gtk::SearchEntry>,
         #[template_child] pub commit_list:           TemplateChild<gtk::ListBox>,
 
+        // ── Filter button (injected into the toolbar at runtime) ───────────────
+        pub filter_button:  RefCell<Option<gtk::ToggleButton>>,
+        pub filter_popover: RefCell<Option<SearchFilterPopover>>,
+
         #[template_child] pub content_toolbar_view: TemplateChild<adw::ToolbarView>,
         #[template_child] pub right_panel_stack:    TemplateChild<gtk::Stack>,
         #[template_child] pub right_panel_content:  TemplateChild<gtk::Box>,
@@ -133,6 +139,8 @@ mod imp {
         pub dir_cache:        RefCell<DirCache>,
         pub search_debounce:  RefCell<Option<Arc<AtomicBool>>>,
         pub search_cancel:    RefCell<Option<Arc<AtomicBool>>>,
+
+        pub filter_state:     RefCell<FilterState>,
         pub load_cancel:      RefCell<Option<Arc<AtomicBool>>>,
     }
 
@@ -297,6 +305,8 @@ impl TemporalExplorerWindow {
         imp.commit_search_entry.connect_search_changed(move |entry| {
             win.on_search_changed(entry.text().to_string());
         });
+
+        self.setup_filter_popover();
     }
 
     // ── CSS loader ────────────────────────────────────────────────────────────
@@ -350,6 +360,28 @@ impl TemporalExplorerWindow {
                 self.imp().history_forward.borrow_mut().clear();
                 self.imp().window_title.set_title(&repo_name);
                 self.imp().window_title.set_subtitle(path.to_str().unwrap_or(""));
+
+                // Populate filter chips with actual repo data.
+                // Authors are derived from the commit list (populated after
+                // load_timeline returns), so we defer chip population to
+                // after all_commits is filled — see the idle callback in
+                // load_timeline() below.
+                if let Some(ref pop) = *self.imp().filter_popover.borrow() {
+                    if let Some(ref repo_wrapper) = *self.imp().repository.borrow() {
+                        let branches: Vec<String> = repo_wrapper
+                            .branches(Some(git2::BranchType::Local))
+                            .map(|iter| {
+                                iter.filter_map(|b| {
+                                    b.ok().and_then(|(b, _)| {
+                                        b.name().ok().flatten().map(|n| n.to_string())
+                                    })
+                                }).collect()
+                            })
+                            .unwrap_or_default();
+                        pop.populate_branch_chips(&branches);
+                    }
+                }
+
                 self.load_timeline(cancel);
             }
             Err(e) => self.show_error(&format!("{}: {e}", gettext("Failed to open repository"))),
@@ -380,6 +412,16 @@ impl TemporalExplorerWindow {
                 win.imp().loading_commits.set(false);
                 match commits {
                     Ok(list) => {
+                        // Populate author chips now that commits are loaded.
+                        if let Some(ref pop) = *win.imp().filter_popover.borrow() {
+                            let mut seen = std::collections::HashSet::new();
+                            let authors: Vec<String> = list.iter()
+                                .map(|c| c.author.clone())
+                                .filter(|a| seen.insert(a.clone()))
+                                .collect();
+                            pop.populate_author_chips(&authors);
+                        }
+
                         *win.imp().all_commits.borrow_mut() = list;
                         win.populate_year_list();
                         win.imp().split_view.set_show_sidebar(true);
@@ -712,6 +754,9 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         *imp.last_query.borrow_mut() = query.clone();
 
+        // Snapshot active filter state for this search run.
+        let active_filter = imp.filter_state.borrow().clone();
+
         let cancel = Arc::new(AtomicBool::new(false));
         { if let Some(prev) = imp.search_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
@@ -733,9 +778,9 @@ impl TemporalExplorerWindow {
             imp.timeline_header_title.set_subtitle("");
         }
 
-        let filtered: Vec<CommitInfo> = if query.is_empty() {
-            // Empty query: show only commits in the selected year (if any)
-            // or all commits.
+        let filtered: Vec<CommitInfo> = if query.is_empty() && active_filter.is_empty() {
+            // Empty query and no active filters: show only commits in the
+            // selected year (if any) or all commits.
             if selected_year != 0 {
                 all.into_iter()
                     .filter(|c| {
@@ -752,20 +797,23 @@ impl TemporalExplorerWindow {
             all.into_iter()
                 .filter(|c| {
                     // ── Year scope guard ──────────────────────────────────────
-                    // When the user navigated into a specific year first, keep
-                    // results scoped to that year unless the query itself is a
-                    // date/hash that spans multiple years.
                     let year_ok = selected_year == 0 || {
                         glib::DateTime::from_unix_local(c.timestamp)
                             .map(|d| d.year() == selected_year)
                             .unwrap_or(false)
                     };
-
                     if !year_ok { return false; }
 
+                    // ── FilterState gate ──────────────────────────────────────
+                    // When filters are active, commits must pass them even if
+                    // the text query is empty.
+                    if !active_filter.matches(c) { return false; }
+
+                    // If there is no text query, a commit that passed the
+                    // FilterState gate is included.
+                    if q.is_empty() { return true; }
+
                     // ── Text fields ───────────────────────────────────────────
-                    // summary / description, full hash, short hash (7 chars),
-                    // author name.
                     let short_hash = &c.hash[..7.min(c.hash.len())];
                     let text_match =
                         c.summary.to_lowercase().contains(&q)
@@ -774,8 +822,6 @@ impl TemporalExplorerWindow {
                         || c.author.to_lowercase().contains(&q);
 
                     // ── Calendar fields ───────────────────────────────────────
-                    // ISO date, year-month, year, full/abbreviated month name
-                    // (English + translated), human datetime string.
                     let date_match = matches_calendar(c.timestamp, &q);
 
                     text_match || date_match
@@ -784,6 +830,62 @@ impl TemporalExplorerWindow {
         };
 
         commit_controller::populate_commit_list(&list, &filtered);
+    }
+
+    // ── Filter popover wiring ─────────────────────────────────────────────────
+
+    fn setup_filter_popover(&self) {
+        let popover = SearchFilterPopover::new();
+
+        // Build a ToggleButton anchored next to the search entry.
+        let btn = gtk::ToggleButton::builder()
+            .icon_name("funnel-symbolic")
+            .tooltip_text(gettext("Filters"))
+            .css_classes(vec!["flat".to_string()])
+            .build();
+
+        popover.set_parent(&btn);
+
+        // Toggle popover visibility with the button.
+        {
+            let pop = popover.clone();
+            btn.connect_toggled(move |b| {
+                if b.is_active() { pop.popup(); } else { pop.popdown(); }
+            });
+        }
+
+        // Sync button state when the popover closes via keyboard / click-outside.
+        {
+            let b = btn.clone();
+            popover.connect_closed(move |_| { b.set_active(false); });
+        }
+
+        // React to filter changes: store new state, then re-run search.
+        {
+            let win = self.clone();
+            popover.connect_local("filters-changed", false, move |_| {
+                let pop = win.imp().filter_popover.borrow();
+                if let Some(ref p) = *pop {
+                    *win.imp().filter_state.borrow_mut() = p.current_filter();
+                }
+                drop(pop);
+                let q = win.imp().last_query.borrow().clone();
+                win.run_search(q);
+                None
+            });
+        }
+
+        // Insert the ToggleButton as the last child of the search entry's
+        // parent GtkBox (the header search bar row).
+        if let Some(parent) = self.imp().commit_search_entry
+            .parent()
+            .and_then(|w| w.downcast::<gtk::Box>().ok())
+        {
+            parent.append(&btn);
+        }
+
+        *self.imp().filter_button.borrow_mut()  = Some(btn);
+        *self.imp().filter_popover.borrow_mut() = Some(popover);
     }
 
     // ── Error display ─────────────────────────────────────────────────────────
