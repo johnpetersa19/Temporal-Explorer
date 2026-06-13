@@ -22,6 +22,7 @@ mod ssh_passphrase_dialog;
 mod timeline_filter;
 mod toolbar;
 mod view_controls;
+mod views;
 mod window;
 
 use application::Application;
