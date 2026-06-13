@@ -110,56 +110,6 @@ template $FilterTypesDialog: Adw.Dialog {
           child: ListView results_list {
             show-separators: true;
             activate => $on_list_activate() swapped;
-
-            factory: BuilderListItemFactory {
-              template ListItem {
-                child: Box {
-                  margin-start: 16;
-                  margin-end: 16;
-                  margin-top: 14;
-                  margin-bottom: 14;
-                  spacing: 12;
-
-                  Image row_icon {
-                    pixel-size: 32;
-
-                    accessibility {
-                      labelled-by: [row_description]
-                    }
-                  }
-
-                  Box {
-                    orientation: vertical;
-                    spacing: 4;
-                    hexpand: true;
-
-                    Label row_description {
-                      halign: start;
-                      hexpand: true;
-                      ellipsize: end;
-
-                      styles ["body"]
-                    }
-
-                    Label row_subtitle {
-                      halign: start;
-                      hexpand: true;
-                      ellipsize: end;
-
-                      styles ["caption", "dim-label"]
-                    }
-                  }
-
-                  Image row_checkmark {
-                    icon-name: "object-select-symbolic";
-                    pixel-size: 16;
-                    visible: false;
-
-                    styles ["success"]
-                  }
-                };
-              }
-            };
           };
         };
       }
