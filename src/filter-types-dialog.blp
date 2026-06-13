@@ -75,7 +75,7 @@ template $FilterTypesDialog: Adw.Dialog {
               margin-start: 12;
 
               styles ["heading"]
-            };
+            }
 
             FlowBox common_types_box {
               selection-mode: none;
@@ -86,7 +86,7 @@ template $FilterTypesDialog: Adw.Dialog {
               margin-start: 12;
               margin-end: 12;
               child-activated => $on_common_type_activated() swapped;
-            };
+            }
           };
         };
       }
@@ -126,7 +126,7 @@ template $FilterTypesDialog: Adw.Dialog {
                     accessibility {
                       labelled-by: [row_description]
                     }
-                  };
+                  }
 
                   Box {
                     orientation: vertical;
@@ -139,7 +139,7 @@ template $FilterTypesDialog: Adw.Dialog {
                       ellipsize: end;
 
                       styles ["body"]
-                    };
+                    }
 
                     Label row_subtitle {
                       halign: start;
@@ -147,8 +147,8 @@ template $FilterTypesDialog: Adw.Dialog {
                       ellipsize: end;
 
                       styles ["caption", "dim-label"]
-                    };
-                  };
+                    }
+                  }
 
                   Image row_checkmark {
                     icon-name: "object-select-symbolic";
@@ -156,7 +156,7 @@ template $FilterTypesDialog: Adw.Dialog {
                     visible: false;
 
                     styles ["success"]
-                  };
+                  }
                 };
               }
             };
