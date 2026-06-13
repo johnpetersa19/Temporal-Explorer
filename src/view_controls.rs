@@ -13,7 +13,7 @@
 
 use adw::subclass::prelude::*;
 use gtk::{glib, glib::subclass::Signal};
-use gtk::prelude::{ObjectExt, StaticType, ToggleButtonExt, CheckButtonExt, WidgetExt};
+use gtk::prelude::{ObjectExt, StaticType, ToggleButtonExt, CheckButtonExt};
 use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, glib::Enum)]
