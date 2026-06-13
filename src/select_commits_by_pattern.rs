@@ -26,6 +26,7 @@ use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use adw::prelude::*;
+use adw::subclass::prelude::*;
 use std::cell::RefCell;
 use std::sync::OnceLock;
 

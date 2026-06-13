@@ -44,6 +44,7 @@ use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use adw::prelude::*;
+use adw::subclass::prelude::*;
 
 // ── GObject subclass ───────────────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ mod imp {
 
     impl WidgetImpl              for PreferencesDialog {}
     impl AdwDialogImpl           for PreferencesDialog {}
-    impl AdwPreferencesDialogImpl for PreferencesDialog {}
+    impl PreferencesDialogImpl for PreferencesDialog {}
 }
 
 // ── Public wrapper ─────────────────────────────────────────────────────────────

@@ -134,7 +134,7 @@ impl ViewControls {
             let obj = self.clone();
             imp.sort_by_name.connect_toggled(move |btn| {
                 if btn.is_active() {
-                    obj.emit_by_name::<()>("sort-changed", &[&(super::FileSortMode::Name as u32)]);
+                    obj.emit_by_name::<()>("sort-changed", &[&(crate::view_controls::FileSortMode::Name as u32)]);
                 }
             });
         }
@@ -143,7 +143,7 @@ impl ViewControls {
             let obj = self.clone();
             imp.sort_by_status.connect_toggled(move |btn| {
                 if btn.is_active() {
-                    obj.emit_by_name::<()>("sort-changed", &[&(super::FileSortMode::Status as u32)]);
+                    obj.emit_by_name::<()>("sort-changed", &[&(crate::view_controls::FileSortMode::Status as u32)]);
                 }
             });
         }
@@ -152,7 +152,7 @@ impl ViewControls {
             let obj = self.clone();
             imp.sort_by_ext.connect_toggled(move |btn| {
                 if btn.is_active() {
-                    obj.emit_by_name::<()>("sort-changed", &[&(super::FileSortMode::Extension as u32)]);
+                    obj.emit_by_name::<()>("sort-changed", &[&(crate::view_controls::FileSortMode::Extension as u32)]);
                 }
             });
         }

@@ -54,7 +54,7 @@ use crate::history_controls::HistoryControls;
 use crate::view_controls::{ViewControls, FileSortMode};
 use crate::column_chooser::{ColumnChooser, ColumnVisibility};
 use crate::batch_operations_dialog::{BatchOperationsDialog, BatchOp};
-use crate::select_commits_by_pattern::{SelectCommitsByPattern, MatchMode, commit_matches_pattern};
+use crate::select_commits_by_pattern::{SelectCommitsByPattern, commit_matches_pattern};
 use crate::merge_conflict_dialog::{MergeConflictDialog, ConflictInfo};
 use crate::filter_types_dialog::FilterTypesDialog;
 
@@ -399,7 +399,7 @@ impl TemporalExplorerWindow {
         match repo.branch(name, &commit, false) {
             Ok(_) => {
                 let toast = adw::Toast::new(&format!(
-                    "{} \u2018{}\u2019",
+                    "{} \u{2018}{}\u{2019}",
                     gettext("Created branch"),
                     name,
                 ));
@@ -413,7 +413,7 @@ impl TemporalExplorerWindow {
                 }
             }
             Err(e) => {
-                self.show_error(&format!("{} \u2018{}\u2019: {e}", gettext("Failed to create branch"), name));
+                self.show_error(&format!("{} \u{2018}{}\u{2019}: {e}", gettext("Failed to create branch"), name));
             }
         }
     }
@@ -815,7 +815,7 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         dialog.connect_conflict_resolved(move |_, resolution, file_path, apply_all| {
             let msg = format!(
-                "{}: {} \u2018{}\u2019{}",
+                "{}: {} \u{2018}{}\u{2019}{}",
                 gettext("Conflict resolved"),
                 resolution,
                 file_path,

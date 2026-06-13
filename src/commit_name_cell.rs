@@ -87,7 +87,7 @@ mod imp {
         #[template_callback]
         fn on_sha_copy_clicked(&self) {
             let sha = self.full_sha.borrow().clone();
-            if let Some(display) = self.obj().display().downcast_ref::<gdk::Display>() {
+            if let Some(display) = self.obj().display().downcast_ref::<gtk::gdk::Display>() {
                 display.clipboard().set_text(&sha);
             }
             // Show a brief toast via the parent window if available
