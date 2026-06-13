@@ -1,0 +1,196 @@
+// batch-operations-dialog.blp
+//
+// Copyright 2026 John Peter Sá
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Power-user dialog for batch operations on a set of selected commits.
+// Inspired by nautilus-batch-rename-dialog: list of items on the left,
+// operation controls and preview on the right.
+//
+// Supported operations (BatchOp):
+//   • Cherry-pick — replay selected commits onto current branch
+//   • Export patches — write one .patch file per commit to a directory
+//   • Copy SHAs — copy full or short SHAs to clipboard
+
+using Gtk 4.0;
+using Adw 1;
+
+template $BatchOperationsDialog : Adw.Dialog {
+  title: _("Batch Operations");
+  content-width: 720;
+  content-height: 520;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {}
+
+    content: Box {
+      orientation: horizontal;
+
+      // ── Left panel: selected commit list ─────────────────────────────
+      Box {
+        orientation: vertical;
+        width-request: 280;
+
+        styles ["sidebar"]
+
+        // Header row
+        Box {
+          orientation: horizontal;
+          margin-top: 8;
+          margin-bottom: 4;
+          margin-start: 12;
+          margin-end: 8;
+          spacing: 8;
+
+          Label {
+            label: _("Selected commits");
+            hexpand: true;
+            halign: start;
+
+            styles ["heading"]
+          }
+
+          // Live count chip
+          Label commit_count_label {
+            halign: end;
+            valign: center;
+
+            styles ["caption", "dim-label"]
+          }
+        }
+
+        Separator {}
+
+        ScrolledWindow {
+          vexpand: true;
+          hscrollbar-policy: never;
+
+          child: ListBox commit_list {
+            selection-mode: none;
+
+            styles ["boxed-list-separate"]
+          };
+        }
+      }
+
+      Separator {
+        orientation: vertical;
+      }
+
+      // ── Right panel: operation selector + preview ─────────────────────
+      Box {
+        orientation: vertical;
+        hexpand: true;
+        margin-top: 16;
+        margin-bottom: 16;
+        margin-start: 16;
+        margin-end: 16;
+        spacing: 16;
+
+        // Operation chooser
+        Adw.PreferencesGroup {
+          title: _("Operation");
+
+          Adw.ComboRow operation_row {
+            title: _("Action");
+            model: StringList {
+              strings [
+                _("Cherry-pick onto current branch"),
+                _("Export as .patch files"),
+                _("Copy SHAs to clipboard"),
+              ]
+            };
+          }
+
+          // Export-patches: destination path row (shown only for export)
+          Adw.ActionRow export_path_row {
+            title: _("Export directory");
+            visible: false;
+            activatable-widget: export_path_button;
+
+            [suffix]
+            Button export_path_button {
+              icon-name: "folder-open-symbolic";
+              valign: center;
+              tooltip-text: _("Choose export directory");
+
+              styles ["flat"]
+            }
+
+            [suffix]
+            Label export_path_label {
+              ellipsize: end;
+              valign: center;
+              max-width-chars: 24;
+
+              styles ["caption", "dim-label"]
+            }
+          }
+
+          // Cherry-pick: signoff option
+          Adw.SwitchRow signoff_row {
+            title: _("Add Signed-off-by line");
+            visible: false;
+          }
+
+          // Copy SHAs: short vs full
+          Adw.SwitchRow short_sha_row {
+            title: _("Use short SHAs (7 chars)");
+            active: true;
+            visible: false;
+          }
+        }
+
+        // Preview box
+        Adw.PreferencesGroup preview_group {
+          title: _("Preview");
+
+          ScrolledWindow {
+            height-request: 140;
+            hscrollbar-policy: automatic;
+            vscrollbar-policy: automatic;
+
+            child: TextView preview_text {
+              editable: false;
+              monospace: true;
+              top-margin: 8;
+              bottom-margin: 8;
+              left-margin: 8;
+              right-margin: 8;
+              wrap-mode: none;
+            };
+          }
+        }
+
+        // Spacer
+        Box { vexpand: true; }
+
+        // Progress bar (hidden until operation starts)
+        ProgressBar operation_progress {
+          visible: false;
+          pulse-step: 0.1;
+        }
+
+        // Action row
+        Box {
+          orientation: horizontal;
+          spacing: 8;
+          halign: end;
+
+          Button cancel_button {
+            label: _("Cancel");
+            clicked => $on_cancel_clicked() swapped;
+          }
+
+          Button run_button {
+            label: _("Run");
+            clicked => $on_run_clicked() swapped;
+
+            styles ["suggested-action"]
+          }
+        }
+      }
+    };
+  };
+}

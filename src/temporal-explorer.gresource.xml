@@ -23,6 +23,9 @@
     <file preprocess="xml-stripblanks">commit-name-cell.ui</file>
     <file preprocess="xml-stripblanks">branch-sidebar-row.ui</file>
     <file preprocess="xml-stripblanks">file-grid-captions-dialog.ui</file>
+    <!-- Phase 4: power user features -->
+    <file preprocess="xml-stripblanks">batch-operations-dialog.ui</file>
+    <file preprocess="xml-stripblanks">select-commits-by-pattern.ui</file>
     <!-- Application CSS -->
     <file>temporal-explorer.css</file>
   </gresource>

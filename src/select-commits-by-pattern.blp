@@ -1,0 +1,109 @@
+// select-commits-by-pattern.blp
+//
+// Copyright 2026 John Peter Sá
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Dialog to select commits by a glob pattern on their changed file paths.
+// Inspired by nautilus-files-view-select-items, adapted for Git commits.
+//
+// Example patterns:
+//   src/**/*.rs        — any Rust file under src/
+//   *.toml             — any TOML file at repo root
+//   data/icons/**      — anything under data/icons/
+
+using Gtk 4.0;
+using Adw 1;
+
+template $SelectCommitsByPattern : Adw.Dialog {
+  title: _("Select Commits by Pattern");
+  content-width: 420;
+  content-height: 300;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {}
+
+    content: Box {
+      orientation: vertical;
+      margin-top: 16;
+      margin-bottom: 16;
+      margin-start: 16;
+      margin-end: 16;
+      spacing: 16;
+
+      // Pattern input
+      Adw.PreferencesGroup {
+        title: _("File Path Pattern");
+        description: _("Glob syntax: * matches any string, ** crosses directories.");
+
+        Adw.EntryRow pattern_entry {
+          title: _("Pattern");
+          text: "**/*.rs";
+          show-apply-button: true;
+          apply => $on_pattern_apply() swapped;
+        }
+      }
+
+      // Options
+      Adw.PreferencesGroup {
+        title: _("Options");
+
+        Adw.ComboRow match_mode_row {
+          title: _("Match mode");
+          model: StringList {
+            strings [
+              _("Any changed file matches"),
+              _("All changed files match"),
+            ]
+          };
+        }
+
+        Adw.SwitchRow case_insensitive_row {
+          title: _("Case insensitive");
+        }
+      }
+
+      // Match count feedback
+      Box {
+        orientation: horizontal;
+        halign: center;
+        spacing: 6;
+
+        Image {
+          icon-name: "system-search-symbolic";
+          pixel-size: 16;
+
+          styles ["dim-label"]
+        }
+
+        Label match_count_label {
+          label: _("Enter a pattern to preview matches");
+
+          styles ["caption", "dim-label"]
+        }
+      }
+
+      Box { vexpand: true; }
+
+      // Action row
+      Box {
+        orientation: horizontal;
+        halign: end;
+        spacing: 8;
+
+        Button cancel_button {
+          label: _("Cancel");
+          clicked => $on_cancel_clicked() swapped;
+        }
+
+        Button select_button {
+          label: _("Select Commits");
+          sensitive: false;
+          clicked => $on_select_clicked() swapped;
+
+          styles ["suggested-action"]
+        }
+      }
+    };
+  };
+}
