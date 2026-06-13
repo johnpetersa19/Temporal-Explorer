@@ -1,0 +1,236 @@
+/* search-filter-popover.blp
+ *
+ * Copyright 2026 John Peter Sá
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+using Gtk 4.0;
+using Adw 1;
+
+template $SearchFilterPopover : Popover {
+  position: bottom;
+
+  child: ScrolledWindow {
+    propagate-natural-height: true;
+    propagate-natural-width: true;
+
+    child: Box {
+      orientation: vertical;
+      spacing: 18;
+      margin-top: 12;
+      margin-bottom: 12;
+      margin-start: 12;
+      margin-end: 12;
+      width-request: 300;
+
+      /* ── Date section ────────────────────────────────────────────── */
+      Box {
+        orientation: vertical;
+        spacing: 8;
+
+        Box {
+          spacing: 6;
+
+          Label date_header {
+            label: _("Date Range");
+            hexpand: true;
+            xalign: 0;
+            valign: baseline;
+            styles ["heading"]
+          }
+
+          Button clear_date_button {
+            icon-name: "edit-clear-symbolic";
+            tooltip-text: _("Clear Date Filter");
+            visible: false;
+            styles ["flat", "circular"]
+          }
+        }
+
+        /* Quick-pick date chips — same pattern as nautilus-search-popover */
+        Adw.WrapBox date_chips_box {
+          child-spacing: 6;
+          line-spacing: 6;
+          natural-line-length: 280;
+
+          Button today_button {
+            label: _("_Today");
+            use-underline: true;
+            accessible-role: checkbox;
+          }
+
+          Button yesterday_button {
+            label: _("_Yesterday");
+            use-underline: true;
+            accessible-role: checkbox;
+          }
+
+          Button last_week_button {
+            label: _("Past _Week");
+            use-underline: true;
+            accessible-role: checkbox;
+          }
+
+          Button last_month_button {
+            label: _("Past _Month");
+            use-underline: true;
+            accessible-role: checkbox;
+          }
+
+          Button last_year_button {
+            label: _("Past Y_ear");
+            use-underline: true;
+            accessible-role: checkbox;
+          }
+
+          /* Custom range chip — shown after user picks custom range */
+          Button custom_range_chip {
+            visible: false;
+            accessible-role: checkbox;
+          }
+
+          Button custom_range_button {
+            icon-name: "view-more-horizontal-symbolic";
+            tooltip-text: _("Custom Date Range");
+            styles ["circular"]
+          }
+        }
+      }
+
+      Separator {}
+
+      /* ── Author section ──────────────────────────────────────────── */
+      Box {
+        orientation: vertical;
+        spacing: 8;
+
+        Box {
+          spacing: 6;
+
+          Label author_header {
+            label: _("Author");
+            hexpand: true;
+            xalign: 0;
+            valign: baseline;
+            styles ["heading"]
+          }
+
+          Button clear_author_button {
+            icon-name: "edit-clear-symbolic";
+            tooltip-text: _("Clear Author Filter");
+            visible: false;
+            styles ["flat", "circular"]
+          }
+        }
+
+        SearchEntry author_entry {
+          placeholder-text: _("Filter by author name or email…");
+          hexpand: true;
+        }
+
+        /* Author chips — populated dynamically from unique commit authors */
+        Adw.WrapBox author_chips_box {
+          child-spacing: 6;
+          line-spacing: 6;
+          natural-line-length: 280;
+        }
+      }
+
+      Separator {}
+
+      /* ── Branch section ──────────────────────────────────────────── */
+      Box {
+        orientation: vertical;
+        spacing: 8;
+
+        Box {
+          spacing: 6;
+
+          Label branch_header {
+            label: _("Branch");
+            hexpand: true;
+            xalign: 0;
+            valign: baseline;
+            styles ["heading"]
+          }
+
+          Button clear_branch_button {
+            icon-name: "edit-clear-symbolic";
+            tooltip-text: _("Clear Branch Filter");
+            visible: false;
+            styles ["flat", "circular"]
+          }
+        }
+
+        /* Branch chips — populated dynamically from repo branches */
+        Adw.WrapBox branch_chips_box {
+          child-spacing: 6;
+          line-spacing: 6;
+          natural-line-length: 280;
+        }
+      }
+
+      Separator {}
+
+      /* ── Files changed section ───────────────────────────────────── */
+      Box {
+        orientation: vertical;
+        spacing: 8;
+
+        Label {
+          label: _("Changed Files");
+          xalign: 0;
+          valign: baseline;
+          styles ["heading"]
+        }
+
+        Adw.WrapBox file_type_chips_box {
+          child-spacing: 6;
+          line-spacing: 6;
+          natural-line-length: 280;
+
+          Button file_type_rust_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "text-x-script-symbolic";
+              label: "Rust";
+            };
+          }
+
+          Button file_type_toml_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "text-x-generic-symbolic";
+              label: "TOML";
+            };
+          }
+
+          Button file_type_blueprint_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "image-x-generic-symbolic";
+              label: "Blueprint";
+            };
+          }
+
+          Button file_type_other_button {
+            icon-name: "view-more-horizontal-symbolic";
+            tooltip-text: _("Other File Type");
+            styles ["circular"]
+          }
+        }
+      }
+
+      /* ── Footer: Reset all ───────────────────────────────────────── */
+      Box {
+        halign: end;
+
+        Button reset_all_button {
+          label: _("Reset Filters");
+          styles ["destructive-action"]
+        }
+      }
+    };
+  };
+}
