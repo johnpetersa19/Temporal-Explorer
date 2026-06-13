@@ -125,7 +125,13 @@ jobs:
         echo "All .blp files passed blueprint-compiler lint."
 
     - name: Build with Meson
+      env:
+        PKG_CONFIG_PATH: /usr/lib/pkgconfig:/usr/share/pkgconfig
+        LD_LIBRARY_PATH: /usr/lib
       run: |
+        echo "PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
+        echo "Available .pc files:"
+        find /usr/lib /usr/share -name "*.pc" 2>/dev/null | grep -E "(gtk|glib|adwaita)" | head -20
         meson setup builddir
         meson compile -C builddir
 
