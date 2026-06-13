@@ -12,6 +12,9 @@
     <file preprocess="xml-stripblanks">file-grid-cell.ui</file>
     <file preprocess="xml-stripblanks">search-filter-popover.ui</file>
     <file preprocess="xml-stripblanks">date-range-dialog.ui</file>
+    <file preprocess="xml-stripblanks">history-controls.ui</file>
+    <file preprocess="xml-stripblanks">view-controls.ui</file>
+    <file preprocess="xml-stripblanks">column-chooser.ui</file>
     <!-- Application CSS -->
     <file>temporal-explorer.css</file>
   </gresource>

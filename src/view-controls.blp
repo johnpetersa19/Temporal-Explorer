@@ -1,0 +1,59 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $ViewControls : Gtk.Box {
+  orientation: horizontal;
+  spacing: 0;
+
+  ToggleButton list_button {
+    icon-name: "view-list-symbolic";
+    tooltip-text: _("List view");
+    active: true;
+    styles ["flat"]
+  }
+
+  ToggleButton grid_button {
+    icon-name: "view-grid-symbolic";
+    tooltip-text: _("Grid view");
+    group: list_button;
+    styles ["flat"]
+  }
+
+  Separator {
+    orientation: vertical;
+    margin-start: 4;
+    margin-end: 4;
+    styles ["spacer"]
+  }
+
+  MenuButton sort_menu_button {
+    icon-name: "view-sort-ascending-symbolic";
+    tooltip-text: _("Sort files");
+    styles ["flat"]
+    popover: Popover sort_popover {
+      Box {
+        orientation: vertical;
+        spacing: 2;
+        margin-top: 6;
+        margin-bottom: 6;
+        margin-start: 6;
+        margin-end: 6;
+
+        CheckButton sort_by_name {
+          label: _("By name");
+          active: true;
+        }
+
+        CheckButton sort_by_status {
+          label: _("By status");
+          group: sort_by_name;
+        }
+
+        CheckButton sort_by_ext {
+          label: _("By extension");
+          group: sort_by_name;
+        }
+      }
+    };
+  }
+}

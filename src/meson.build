@@ -17,6 +17,9 @@ blueprints = custom_target(
     'file-grid-cell.blp',
     'search-filter-popover.blp',
     'date-range-dialog.blp',
+    'history-controls.blp',
+    'view-controls.blp',
+    'column-chooser.blp',
   ),
   output: '.',
   command: [

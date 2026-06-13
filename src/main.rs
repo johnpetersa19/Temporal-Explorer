@@ -20,14 +20,17 @@
 
 mod address_bar;
 mod application;
+mod column_chooser;
 mod commit_controller;
 mod config;
 pub mod date_range_dialog;
 mod file_preview;
 pub mod git_engine;
+mod history_controls;
 mod icon_helpers;
 mod search_filter_popover;
 mod timeline_filter;
+mod view_controls;
 mod views;
 mod window;
 

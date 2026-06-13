@@ -1,0 +1,61 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $ColumnChooser : Adw.Dialog {
+  title: _("Choose Columns");
+  content-width: 340;
+  content-height: 360;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {}
+
+    content: ScrolledWindow {
+      hscrollbar-policy: never;
+      vexpand: true;
+
+      Adw.PreferencesGroup {
+        margin-top: 12;
+        margin-bottom: 12;
+        margin-start: 12;
+        margin-end: 12;
+        title: _("Visible Columns");
+        description: _("Choose which columns to show in list view.");
+
+        Adw.SwitchRow col_name_row {
+          title: _("Name");
+          active: true;
+        }
+
+        Adw.SwitchRow col_status_row {
+          title: _("Status");
+          subtitle: _("Added / Modified / Deleted");
+          active: true;
+        }
+
+        Adw.SwitchRow col_size_row {
+          title: _("Size");
+          active: false;
+        }
+
+        Adw.SwitchRow col_ext_row {
+          title: _("Extension");
+          active: false;
+        }
+      }
+    };
+
+    [bottom]
+    Adw.Bin {
+      margin-bottom: 12;
+      margin-start: 12;
+      margin-end: 12;
+
+      Button apply_button {
+        label: _("Apply");
+        halign: end;
+        styles ["suggested-action"]
+      }
+    }
+  };
+}

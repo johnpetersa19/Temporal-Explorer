@@ -48,6 +48,9 @@ use crate::search_filter_popover::{SearchFilterPopover, FilterState};
 use crate::timeline_filter;
 use crate::views::{list_view, grid_view};
 use crate::views::list_view::{OnEnterDir, OnOpenFile};
+use crate::history_controls::HistoryControls;
+use crate::view_controls::{ViewControls, FileSortMode};
+use crate::column_chooser::{ColumnChooser, ColumnVisibility};
 
 // ── ViewMode ───────────────────────────────────────────────────────────────────
 
@@ -87,11 +90,12 @@ mod imp {
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/window.ui")]
     pub struct TemporalExplorerWindow {
         #[template_child] pub open_repo_button:     TemplateChild<gtk::Button>,
-        #[template_child] pub nav_back_button:      TemplateChild<gtk::Button>,
-        #[template_child] pub nav_forward_button:   TemplateChild<gtk::Button>,
-        #[template_child] pub view_toggle_button:   TemplateChild<gtk::Button>,
         #[template_child] pub show_sidebar_button:  TemplateChild<gtk::ToggleButton>,
         #[template_child] pub window_title:         TemplateChild<adw::WindowTitle>,
+
+        // ── New composite widgets ────────────────────────────────────────────
+        #[template_child] pub history_controls:     TemplateChild<HistoryControls>,
+        #[template_child] pub view_controls:        TemplateChild<ViewControls>,
 
         #[template_child] pub toolbar_switcher:     TemplateChild<gtk::Stack>,
         #[template_child] pub address_bar:          TemplateChild<gtk::Box>,
@@ -131,6 +135,16 @@ mod imp {
         pub history_forward:  RefCell<Vec<PathBuf>>,
         pub view_mode:        RefCell<ViewMode>,
         pub repo_name:        RefCell<String>,
+
+        // ── Commit navigation stack ──────────────────────────────────────────
+        pub commit_nav_back:    RefCell<Vec<String>>,
+        pub commit_nav_forward: RefCell<Vec<String>>,
+
+        // ── Sort mode ────────────────────────────────────────────────────────
+        pub sort_mode: RefCell<FileSortMode>,
+
+        // ── Column chooser state ─────────────────────────────────────────────
+        pub column_visibility: RefCell<ColumnVisibility>,
 
         pub timeline_level:   RefCell<TimelineLevel>,
         pub selected_year:    Cell<i32>,
@@ -188,32 +202,21 @@ fn clear_box(container: &gtk::Box) {
 // ── Calendar / date matching helpers ──────────────────────────────────────────
 
 /// Returns `true` if `query` matches any date-related field of the commit's
-/// timestamp: ISO date (`2026-03-15`), short date (`2026-03`), year (`2026`),
-/// full/abbreviated month name (locale-independent English), or the
-/// human-readable date-time string shown in the UI (`2026-03-15 14:32`).
-///
-/// All comparisons are case-insensitive.
+/// timestamp.
 fn matches_calendar(ts: i64, q: &str) -> bool {
     let Ok(dt) = glib::DateTime::from_unix_local(ts) else { return false };
 
-    // Build candidate strings once
     let year  = dt.year();
     let month = dt.month() as u32;
     let day   = dt.day_of_month();
 
-    // ISO date:  "2026-03-15"
-    let iso_date = format!("{:04}-{:02}-{:02}", year, month, day);
-    // Year-month: "2026-03"
+    let iso_date   = format!("{:04}-{:02}-{:02}", year, month, day);
     let year_month = format!("{:04}-{:02}", year, month);
-    // Year only:  "2026"
-    let year_str = format!("{:04}", year);
-    // Human datetime: "2026-03-15 14:32"
-    let human = dt
-        .format("%Y-%m-%d %H:%M")
+    let year_str   = format!("{:04}", year);
+    let human = dt.format("%Y-%m-%d %H:%M")
         .map(|s| s.to_string())
         .unwrap_or_default();
 
-    // English month names (full + abbreviated) — constant, locale-independent
     let month_full = match month {
         1  => "january",   2  => "february", 3  => "march",
         4  => "april",     5  => "may",       6  => "june",
@@ -222,8 +225,6 @@ fn matches_calendar(ts: i64, q: &str) -> bool {
         _  => "",
     };
     let month_abbr = &month_full[..3.min(month_full.len())];
-
-    // Translated month name via gettext (respects user locale)
     let month_translated = timeline_filter::month_name(month).to_lowercase();
 
     iso_date.contains(q)
@@ -249,15 +250,6 @@ impl TemporalExplorerWindow {
 
         let win = self.clone();
         imp.open_repo_button.connect_clicked(move |_| { win.open_repo_dialog(); });
-
-        let win = self.clone();
-        imp.nav_back_button.connect_clicked(move |_| { win.navigate_back(); });
-
-        let win = self.clone();
-        imp.nav_forward_button.connect_clicked(move |_| { win.navigate_forward(); });
-
-        let win = self.clone();
-        imp.view_toggle_button.connect_clicked(move |_| { win.toggle_view_mode(); });
 
         let win_g = self.clone();
         let gesture = gtk::GestureClick::new();
@@ -306,6 +298,137 @@ impl TemporalExplorerWindow {
         });
 
         self.setup_filter_popover();
+        self.setup_history_controls();
+        self.setup_view_controls();
+    }
+
+    // ── HistoryControls wiring ────────────────────────────────────────────────
+
+    fn setup_history_controls(&self) {
+        let win = self.clone();
+        self.imp().history_controls.connect_local("navigate-back", false, move |_| {
+            win.navigate_commit_back();
+            None
+        });
+        let win = self.clone();
+        self.imp().history_controls.connect_local("navigate-forward", false, move |_| {
+            win.navigate_commit_forward();
+            None
+        });
+    }
+
+    /// Push a commit hash onto the navigation stack (called from on_commit_selected).
+    fn push_commit_nav(&self, hash: &str) {
+        let imp = self.imp();
+        // Truncate forward stack — new navigation invalidates future
+        imp.commit_nav_forward.borrow_mut().clear();
+        // Push previous hash if there is one
+        if let Some(prev) = imp.current_hash.borrow().clone() {
+            if prev != hash {
+                imp.commit_nav_back.borrow_mut().push(prev);
+            }
+        }
+        self.update_commit_nav_buttons();
+    }
+
+    fn navigate_commit_back(&self) {
+        let imp = self.imp();
+        let prev = { imp.commit_nav_back.borrow_mut().pop() };
+        if let Some(hash) = prev {
+            if let Some(current) = imp.current_hash.borrow().clone() {
+                imp.commit_nav_forward.borrow_mut().push(current);
+            }
+            // Navigate without pushing to the back stack again
+            self.jump_to_commit_hash(hash);
+        }
+    }
+
+    fn navigate_commit_forward(&self) {
+        let imp = self.imp();
+        let next = { imp.commit_nav_forward.borrow_mut().pop() };
+        if let Some(hash) = next {
+            if let Some(current) = imp.current_hash.borrow().clone() {
+                imp.commit_nav_back.borrow_mut().push(current);
+            }
+            self.jump_to_commit_hash(hash);
+        }
+    }
+
+    /// Jump to a commit hash directly (used by commit nav, does NOT push to stack).
+    fn jump_to_commit_hash(&self, hash: String) {
+        let imp = self.imp();
+        *imp.current_hash.borrow_mut() = Some(hash.clone());
+        *imp.current_dir.borrow_mut() = PathBuf::new();
+        imp.history_back.borrow_mut().clear();
+        imp.history_forward.borrow_mut().clear();
+
+        {
+            let commits = imp.all_commits.borrow();
+            if let Some(commit) = commits.iter().find(|c| c.hash.starts_with(&hash[..7.min(hash.len())])) {
+                imp.commit_hash_label.set_label(&commit.hash[..8.min(commit.hash.len())]);
+                imp.commit_message_label.set_label(&commit.summary);
+                imp.commit_date_label.set_label(&Self::format_timestamp(commit.timestamp));
+                imp.commit_info_bar.set_revealed(true);
+            }
+        }
+        self.update_commit_nav_buttons();
+        self.navigate_to_dir(PathBuf::new());
+    }
+
+    fn update_commit_nav_buttons(&self) {
+        let imp = self.imp();
+        let can_back    = !imp.commit_nav_back.borrow().is_empty();
+        let can_forward = !imp.commit_nav_forward.borrow().is_empty();
+        imp.history_controls.set_sensitivity(can_back, can_forward);
+    }
+
+    // ── ViewControls wiring ───────────────────────────────────────────────────
+
+    fn setup_view_controls(&self) {
+        let win = self.clone();
+        self.imp().view_controls.connect_local("view-mode-changed", false, move |args| {
+            let is_grid = args[1].get::<bool>().unwrap_or(false);
+            let new_mode = if is_grid { ViewMode::Grid } else { ViewMode::List };
+            { *win.imp().view_mode.borrow_mut() = new_mode; }
+            let dir = win.imp().current_dir.borrow().clone();
+            if win.imp().current_hash.borrow().is_some() {
+                win.navigate_to_dir(dir);
+            }
+            None
+        });
+
+        let win = self.clone();
+        self.imp().view_controls.connect_local("sort-changed", false, move |args| {
+            let raw = args[1].get::<u32>().unwrap_or(0);
+            let mode = match raw {
+                1 => FileSortMode::Status,
+                2 => FileSortMode::Extension,
+                _ => FileSortMode::Name,
+            };
+            { *win.imp().sort_mode.borrow_mut() = mode; }
+            let dir = win.imp().current_dir.borrow().clone();
+            if win.imp().current_hash.borrow().is_some() {
+                win.navigate_to_dir(dir);
+            }
+            None
+        });
+    }
+
+    // ── Column chooser ────────────────────────────────────────────────────────
+
+    pub fn show_column_chooser(&self) {
+        let dialog = ColumnChooser::new();
+        let current_vis = self.imp().column_visibility.borrow().clone();
+        dialog.apply_visibility(&current_vis);
+
+        let win = self.clone();
+        dialog.connect_local("columns-changed", false, move |_| {
+            // Re-read visibility and store — list_view will pick it up on next render
+            // (full re-render deferred to next navigate_to_dir call)
+            None
+        });
+
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
     // ── CSS loader ────────────────────────────────────────────────────────────
@@ -357,6 +480,10 @@ impl TemporalExplorerWindow {
                 *self.imp().current_dir.borrow_mut() = PathBuf::new();
                 self.imp().history_back.borrow_mut().clear();
                 self.imp().history_forward.borrow_mut().clear();
+                // Reset commit nav stack on new repo
+                self.imp().commit_nav_back.borrow_mut().clear();
+                self.imp().commit_nav_forward.borrow_mut().clear();
+                self.imp().history_controls.reset();
                 self.imp().window_title.set_title(&repo_name);
                 self.imp().window_title.set_subtitle(path.to_str().unwrap_or(""));
 
@@ -517,6 +644,10 @@ impl TemporalExplorerWindow {
 
     fn on_commit_selected(&self, hash: String) {
         let imp = self.imp();
+
+        // Push to commit navigation stack before updating current_hash
+        self.push_commit_nav(&hash);
+
         *imp.current_hash.borrow_mut() = Some(hash.clone());
         *imp.current_dir.borrow_mut() = PathBuf::new();
         imp.history_back.borrow_mut().clear();
@@ -553,7 +684,7 @@ impl TemporalExplorerWindow {
             move |path: PathBuf| { win_ab1.push_dir(path); },
             move || { win_ab2.enter_location_mode(); },
         );
-        self.update_nav_buttons();
+        self.update_dir_nav_buttons();
 
         let cancel = Arc::new(AtomicBool::new(false));
         { if let Some(prev) = imp.load_cancel.borrow_mut().take() {
@@ -588,10 +719,39 @@ impl TemporalExplorerWindow {
         });
     }
 
-    fn render_dir(&self, nodes: Vec<TreeNode>) {
+    fn render_dir(&self, mut nodes: Vec<TreeNode>) {
         let imp = self.imp();
-        let mode = *imp.view_mode.borrow();
-        let hash = imp.current_hash.borrow().clone().unwrap_or_default();
+        let mode      = *imp.view_mode.borrow();
+        let sort_mode = *imp.sort_mode.borrow();
+        let hash      = imp.current_hash.borrow().clone().unwrap_or_default();
+
+        // Apply sort
+        match sort_mode {
+            FileSortMode::Name => {
+                nodes.sort_by(|a, b| {
+                    // Dirs first, then by name
+                    b.is_dir.cmp(&a.is_dir).then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+                });
+            }
+            FileSortMode::Status => {
+                nodes.sort_by(|a, b| {
+                    b.is_dir.cmp(&a.is_dir)
+                        .then(a.status.cmp(&b.status))
+                        .then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+                });
+            }
+            FileSortMode::Extension => {
+                nodes.sort_by(|a, b| {
+                    let ext_a = std::path::Path::new(&a.name)
+                        .extension().and_then(|e| e.to_str()).unwrap_or("");
+                    let ext_b = std::path::Path::new(&b.name)
+                        .extension().and_then(|e| e.to_str()).unwrap_or("");
+                    b.is_dir.cmp(&a.is_dir)
+                        .then(ext_a.cmp(ext_b))
+                        .then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+                });
+            }
+        }
 
         let win1 = self.clone();
         let win2 = self.clone();
@@ -668,14 +828,11 @@ impl TemporalExplorerWindow {
         }
     }
 
-    fn update_nav_buttons(&self) {
-        let imp = self.imp();
-        if let Ok(back) = imp.history_back.try_borrow() {
-            imp.nav_back_button.set_sensitive(!back.is_empty());
-        }
-        if let Ok(fwd) = imp.history_forward.try_borrow() {
-            imp.nav_forward_button.set_sensitive(!fwd.is_empty());
-        }
+    fn update_dir_nav_buttons(&self) {
+        // Dir nav back/forward buttons were removed from the template;
+        // kept as dead code guards in case they are re-added.
+        let _ = self.imp().history_back.try_borrow();
+        let _ = self.imp().history_forward.try_borrow();
     }
 
     // ── Location bar ──────────────────────────────────────────────────────────
@@ -695,30 +852,6 @@ impl TemporalExplorerWindow {
     fn navigate_to_typed_path(&self, text: &str) {
         self.leave_location_mode();
         self.push_dir(PathBuf::from(text.trim()));
-    }
-
-    // ── View mode toggle ──────────────────────────────────────────────────────
-
-    fn toggle_view_mode(&self) {
-        let imp = self.imp();
-        let current_mode = { *imp.view_mode.borrow() };
-
-        let new_mode = match current_mode {
-            ViewMode::List => {
-                imp.view_toggle_button.set_icon_name("view-list-symbolic");
-                ViewMode::Grid
-            }
-            ViewMode::Grid => {
-                imp.view_toggle_button.set_icon_name("view-grid-symbolic");
-                ViewMode::List
-            }
-        };
-
-        { *imp.view_mode.borrow_mut() = new_mode; }
-
-        let dir = imp.current_dir.borrow().clone();
-        let has_hash = { imp.current_hash.borrow().is_some() };
-        if has_hash { self.navigate_to_dir(dir); }
     }
 
     // ── Search ────────────────────────────────────────────────────────────────

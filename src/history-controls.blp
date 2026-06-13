@@ -1,0 +1,21 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $HistoryControls : Gtk.Box {
+  orientation: horizontal;
+  spacing: 0;
+
+  Button back_button {
+    icon-name: "go-previous-symbolic";
+    tooltip-text: _("Previous commit");
+    sensitive: false;
+    styles ["flat"]
+  }
+
+  Button forward_button {
+    icon-name: "go-next-symbolic";
+    tooltip-text: _("Next commit");
+    sensitive: false;
+    styles ["flat"]
+  }
+}

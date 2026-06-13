@@ -87,20 +87,7 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
         [top]
         Adw.HeaderBar {
           [start]
-          Button nav_back_button {
-            icon-name: "go-previous-symbolic";
-            tooltip-text: _("Back");
-            sensitive: false;
-            styles ["flat"]
-          }
-
-          [start]
-          Button nav_forward_button {
-            icon-name: "go-next-symbolic";
-            tooltip-text: _("Forward");
-            sensitive: false;
-            styles ["flat"]
-          }
+          $HistoryControls history_controls {}
 
           [start]
           Button open_repo_button {
@@ -167,11 +154,7 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
           }
 
           [end]
-          Button view_toggle_button {
-            icon-name: "view-grid-symbolic";
-            tooltip-text: _("Toggle View");
-            styles ["flat"]
-          }
+          $ViewControls view_controls {}
 
           [end]
           MenuButton {
