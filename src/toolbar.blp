@@ -1,5 +1,6 @@
 using Gtk 4.0;
 using Adw 1;
+using Gio 2.0;
 
 template $TemporalToolbar : Adw.Bin {
   Adw.HeaderBar header_bar {
@@ -62,7 +63,7 @@ template $TemporalToolbar : Adw.Bin {
 
             Entry location_entry {
               hexpand: true;
-              placeholder-text: _("Type a path and press Enter\u2026");
+              placeholder-text: _("Type a path and press Enter…");
               input-purpose: url;
               primary-icon-name: "folder-symbolic";
             }
@@ -89,28 +90,24 @@ template $TemporalToolbar : Adw.Bin {
   }
 }
 
-Menu primary_menu {
-  section {
-    item {
-      label: _("New Branch");
-      action: "win.new-branch";
-    }
+Gio.Menu primary_menu {
+  Gio.MenuItem {
+    label: _("New Branch");
+    action: "win.new-branch";
   }
 
-  section {
-    item {
-      label: _("Preferences");
-      action: "app.preferences";
-    }
+  Gio.MenuItem {
+    label: _("Preferences");
+    action: "app.preferences";
+  }
 
-    item {
-      label: _("Keyboard Shortcuts");
-      action: "app.shortcuts";
-    }
+  Gio.MenuItem {
+    label: _("Keyboard Shortcuts");
+    action: "app.shortcuts";
+  }
 
-    item {
-      label: _("About Temporal Explorer");
-      action: "app.about";
-    }
+  Gio.MenuItem {
+    label: _("About Temporal Explorer");
+    action: "app.about";
   }
 }
