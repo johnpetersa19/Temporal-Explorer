@@ -1,7 +1,7 @@
 pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
 gnome = import('gnome')
 
-# ── Blueprint ────────────────────────────────────────────────────────────────────────
+# ── Blueprint ────────────────────────────────────────────────────────────────────
 blueprint_compiler = find_program('blueprint-compiler', version: '>= 0.12')
 
 blueprints = custom_target(
@@ -23,6 +23,7 @@ blueprints = custom_target(
     'merge-conflict-dialog.blp',
     'preferences-dialog.blp',
     'filter-types-dialog.blp',
+    'new-branch-dialog.blp',
     # Phase 3
     'commit-name-cell.blp',
     'branch-sidebar-row.blp',
@@ -39,7 +40,7 @@ blueprints = custom_target(
   ],
 )
 
-# ── GResources ─────────────────────────────────────────────────────────────────
+# ── GResources ───────────────────────────────────────────────────────────────────
 gnome.compile_resources(
   'temporal-explorer',
   'temporal-explorer.gresource.xml',
@@ -53,7 +54,7 @@ gnome.compile_resources(
   ],
 )
 
-# ── Config ────────────────────────────────────────────────────────────────────────
+# ── Config ───────────────────────────────────────────────────────────────────────
 conf = configuration_data()
 conf.set_quoted('VERSION', meson.project_version())
 conf.set_quoted('GETTEXT_PACKAGE', 'temporal-explorer')

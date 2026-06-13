@@ -1,0 +1,50 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $NewBranchDialog : Adw.Dialog {
+  title: _("New Branch");
+  content-width: 400;
+
+  Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {}
+
+    content: Adw.Clamp {
+      maximum-size: 400;
+      margin-top: 12;
+      margin-bottom: 24;
+      margin-start: 12;
+      margin-end: 12;
+
+      Box {
+        orientation: vertical;
+        spacing: 24;
+
+        Adw.PreferencesGroup {
+          title: _("Branch Details");
+
+          Adw.EntryRow branch_name_entry {
+            title: _("Branch Name");
+          }
+        }
+
+        Box button_box {
+          orientation: horizontal;
+          spacing: 8;
+          homogeneous: true;
+
+          Button cancel_button {
+            label: _("Cancel");
+            styles ["pill"]
+          }
+
+          Button create_button {
+            label: _("Create Branch");
+            sensitive: false;
+            styles ["pill", "suggested-action"]
+          }
+        }
+      }
+    };
+  }
+}

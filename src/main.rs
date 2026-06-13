@@ -34,6 +34,7 @@ pub mod git_engine;
 mod history_controls;
 mod icon_helpers;
 mod merge_conflict_dialog;
+mod new_branch_dialog;
 mod preferences_dialog;
 mod search_filter_popover;
 mod select_commits_by_pattern;

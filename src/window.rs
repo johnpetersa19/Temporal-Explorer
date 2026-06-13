@@ -29,6 +29,7 @@
 //! | File content preview dialog | [`crate::file_preview`]       |
 //! | Git history / tree reads    | [`crate::git_engine`]         |
 //! | Timeline grouping logic     | [`crate::timeline_filter`]    |
+//! | New-branch dialog           | [`crate::new_branch_dialog`]  |
 
 use adw::prelude::{AdwDialogExt, AlertDialogExt};
 use adw::subclass::prelude::*;
@@ -44,6 +45,7 @@ use crate::address_bar;
 use crate::git_engine::{CommitInfo, DirCache, HistoryReader, SnapshotResolver, TreeNode};
 use crate::commit_controller;
 use crate::file_preview;
+use crate::new_branch_dialog::NewBranchDialog;
 use crate::search_filter_popover::{SearchFilterPopover, FilterState};
 use crate::timeline_filter;
 use crate::views::{list_view, grid_view};
@@ -89,18 +91,18 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/window.ui")]
     pub struct TemporalExplorerWindow {
-        #[template_child] pub open_repo_button:     TemplateChild<gtk::Button>,
-        #[template_child] pub show_sidebar_button:  TemplateChild<gtk::ToggleButton>,
-        #[template_child] pub window_title:         TemplateChild<adw::WindowTitle>,
+        #[template_child] pub open_repo_button:      TemplateChild<gtk::Button>,
+        #[template_child] pub show_sidebar_button:   TemplateChild<gtk::ToggleButton>,
+        #[template_child] pub window_title:          TemplateChild<adw::WindowTitle>,
 
-        // ── New composite widgets ────────────────────────────────────────────
-        #[template_child] pub history_controls:     TemplateChild<HistoryControls>,
-        #[template_child] pub view_controls:        TemplateChild<ViewControls>,
+        // ── Composite widgets ────────────────────────────────────────────────
+        #[template_child] pub history_controls:      TemplateChild<HistoryControls>,
+        #[template_child] pub view_controls:         TemplateChild<ViewControls>,
 
-        #[template_child] pub toolbar_switcher:     TemplateChild<gtk::Stack>,
-        #[template_child] pub address_bar:          TemplateChild<gtk::Box>,
-        #[template_child] pub location_entry:       TemplateChild<gtk::Entry>,
-        #[template_child] pub location_cancel_btn:  TemplateChild<gtk::Button>,
+        #[template_child] pub toolbar_switcher:      TemplateChild<gtk::Stack>,
+        #[template_child] pub address_bar:           TemplateChild<gtk::Box>,
+        #[template_child] pub location_entry:        TemplateChild<gtk::Entry>,
+        #[template_child] pub location_cancel_btn:   TemplateChild<gtk::Button>,
 
         #[template_child] pub timeline_stack:        TemplateChild<gtk::Stack>,
         #[template_child] pub timeline_back_button:  TemplateChild<gtk::Button>,
@@ -110,20 +112,20 @@ mod imp {
         #[template_child] pub commit_search_entry:   TemplateChild<gtk::SearchEntry>,
         #[template_child] pub commit_list:           TemplateChild<gtk::ListBox>,
 
-        // ── Filter button (injected into the toolbar at runtime) ───────────────
+        // ── Filter button (injected into toolbar at runtime) ─────────────────
         pub filter_button:  RefCell<Option<gtk::ToggleButton>>,
         pub filter_popover: RefCell<Option<SearchFilterPopover>>,
 
-        #[template_child] pub content_toolbar_view: TemplateChild<adw::ToolbarView>,
-        #[template_child] pub right_panel_stack:    TemplateChild<gtk::Stack>,
-        #[template_child] pub right_panel_content:  TemplateChild<gtk::Box>,
-        #[template_child] pub empty_state:          TemplateChild<adw::StatusPage>,
-        #[template_child] pub split_view:           TemplateChild<adw::OverlaySplitView>,
+        #[template_child] pub content_toolbar_view:  TemplateChild<adw::ToolbarView>,
+        #[template_child] pub right_panel_stack:     TemplateChild<gtk::Stack>,
+        #[template_child] pub right_panel_content:   TemplateChild<gtk::Box>,
+        #[template_child] pub empty_state:           TemplateChild<adw::StatusPage>,
+        #[template_child] pub split_view:            TemplateChild<adw::OverlaySplitView>,
 
-        #[template_child] pub commit_info_bar:      TemplateChild<gtk::ActionBar>,
-        #[template_child] pub commit_hash_label:    TemplateChild<gtk::Label>,
-        #[template_child] pub commit_message_label: TemplateChild<gtk::Label>,
-        #[template_child] pub commit_date_label:    TemplateChild<gtk::Label>,
+        #[template_child] pub commit_info_bar:       TemplateChild<gtk::ActionBar>,
+        #[template_child] pub commit_hash_label:     TemplateChild<gtk::Label>,
+        #[template_child] pub commit_message_label:  TemplateChild<gtk::Label>,
+        #[template_child] pub commit_date_label:     TemplateChild<gtk::Label>,
 
         pub all_commits:      RefCell<Vec<CommitInfo>>,
         pub repo_path:        RefCell<Option<PathBuf>>,
@@ -251,6 +253,24 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         imp.open_repo_button.connect_clicked(move |_| { win.open_repo_dialog(); });
 
+        // ── New-branch button (injected at runtime into toolbar end-slot) ─────
+        {
+            let new_branch_btn = gtk::Button::builder()
+                .icon_name("branch-symbolic")
+                .tooltip_text(gettext("New Branch"))
+                .css_classes(vec!["flat".to_string()])
+                .build();
+
+            let win = self.clone();
+            new_branch_btn.connect_clicked(move |_| {
+                win.show_new_branch_dialog();
+            });
+
+            // Append to the content toolbar-view end-slot so it sits
+            // alongside the existing end widgets of TemporalToolbar.
+            imp.content_toolbar_view.add_top_bar(&new_branch_btn);
+        }
+
         let win_g = self.clone();
         let gesture = gtk::GestureClick::new();
         gesture.set_button(1);
@@ -302,6 +322,63 @@ impl TemporalExplorerWindow {
         self.setup_view_controls();
     }
 
+    // ── NewBranchDialog ───────────────────────────────────────────────────────
+
+    fn show_new_branch_dialog(&self) {
+        let dialog = NewBranchDialog::new();
+        let win = self.clone();
+        dialog.connect_branch_created(move |_, name| {
+            win.create_branch(name);
+        });
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
+    }
+
+    /// Create a local branch at the current HEAD of the loaded repository.
+    pub fn create_branch(&self, name: &str) {
+        let repo_guard = self.imp().repository.borrow();
+        let Some(ref repo) = *repo_guard else {
+            self.show_error(&gettext("No repository loaded."));
+            return;
+        };
+
+        let head = match repo.head() {
+            Ok(h) => h,
+            Err(e) => {
+                self.show_error(&format!("{}: {e}", gettext("Cannot read HEAD")));
+                return;
+            }
+        };
+
+        let commit = match head.peel_to_commit() {
+            Ok(c) => c,
+            Err(e) => {
+                self.show_error(&format!("{}: {e}", gettext("Cannot peel HEAD to commit")));
+                return;
+            }
+        };
+
+        match repo.branch(name, &commit, false) {
+            Ok(_) => {
+                let toast = adw::Toast::new(&format!(
+                    "{} \u2018{}\u2019",
+                    gettext("Created branch"),
+                    name,
+                ));
+                if let Some(overlay) = self
+                    .imp()
+                    .content_toolbar_view
+                    .parent()
+                    .and_then(|w| w.downcast::<adw::ToastOverlay>().ok())
+                {
+                    overlay.add_toast(toast);
+                }
+            }
+            Err(e) => {
+                self.show_error(&format!("{} \u2018{}\u2019: {e}", gettext("Failed to create branch"), name));
+            }
+        }
+    }
+
     // ── HistoryControls wiring ────────────────────────────────────────────────
 
     fn setup_history_controls(&self) {
@@ -338,7 +415,6 @@ impl TemporalExplorerWindow {
             if let Some(current) = imp.current_hash.borrow().clone() {
                 imp.commit_nav_forward.borrow_mut().push(current);
             }
-            // Navigate without pushing to the back stack again
             self.jump_to_commit_hash(hash);
         }
     }
@@ -423,8 +499,7 @@ impl TemporalExplorerWindow {
 
         let win = self.clone();
         dialog.connect_local("columns-changed", false, move |_| {
-            // Re-read visibility and store — list_view will pick it up on next render
-            // (full re-render deferred to next navigate_to_dir call)
+            // Re-read visibility and store — list_view picks it up on next render.
             None
         });
 
@@ -480,7 +555,6 @@ impl TemporalExplorerWindow {
                 *self.imp().current_dir.borrow_mut() = PathBuf::new();
                 self.imp().history_back.borrow_mut().clear();
                 self.imp().history_forward.borrow_mut().clear();
-                // Reset commit nav stack on new repo
                 self.imp().commit_nav_back.borrow_mut().clear();
                 self.imp().commit_nav_forward.borrow_mut().clear();
                 self.imp().history_controls.reset();
@@ -645,7 +719,6 @@ impl TemporalExplorerWindow {
     fn on_commit_selected(&self, hash: String) {
         let imp = self.imp();
 
-        // Push to commit navigation stack before updating current_hash
         self.push_commit_nav(&hash);
 
         *imp.current_hash.borrow_mut() = Some(hash.clone());
@@ -725,11 +798,9 @@ impl TemporalExplorerWindow {
         let sort_mode = *imp.sort_mode.borrow();
         let hash      = imp.current_hash.borrow().clone().unwrap_or_default();
 
-        // Apply sort
         match sort_mode {
             FileSortMode::Name => {
                 nodes.sort_by(|a, b| {
-                    // Dirs first, then by name
                     b.is_dir.cmp(&a.is_dir).then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
                 });
             }
@@ -829,8 +900,6 @@ impl TemporalExplorerWindow {
     }
 
     fn update_dir_nav_buttons(&self) {
-        // Dir nav back/forward buttons were removed from the template;
-        // kept as dead code guards in case they are re-added.
         let _ = self.imp().history_back.try_borrow();
         let _ = self.imp().history_forward.try_borrow();
     }
