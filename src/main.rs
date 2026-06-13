@@ -1,23 +1,3 @@
-/* main.rs
- *
- * Copyright 2026 John Peter Sá
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 mod address_bar;
 mod application;
 mod batch_operations_dialog;
@@ -26,11 +6,11 @@ mod column_chooser;
 mod commit_controller;
 mod commit_name_cell;
 mod config;
-pub mod date_range_dialog;
+mod date_range_dialog;
 mod file_grid_captions_dialog;
 mod file_preview;
 mod filter_types_dialog;
-pub mod git_engine;
+mod git_engine;
 mod history_controls;
 mod icon_helpers;
 mod merge_conflict_dialog;
@@ -38,40 +18,26 @@ mod new_branch_dialog;
 mod preferences_dialog;
 mod search_filter_popover;
 mod select_commits_by_pattern;
+mod ssh_passphrase_dialog;
 mod timeline_filter;
 mod toolbar;
 mod view_controls;
-mod views;
 mod window;
 
-// Unit tests (compiled only with `cargo test`, never in release builds).
-#[cfg(test)]
-mod tests;
-
-use self::application::TemporalExplorerApplication;
-use self::window::TemporalExplorerWindow;
-
-use config::{GETTEXT_PACKAGE, LOCALEDIR, PKGDATADIR};
-use gettextrs::{bind_textdomain_codeset, bindtextdomain, textdomain};
-use gtk::{gio, glib};
-use gtk::prelude::*;
+use application::Application;
+use config::{GETTEXT_PACKAGE, LOCALEDIR, RESOURCES_FILE};
 
 fn main() -> glib::ExitCode {
-    // Set up gettext translations
-    bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR).expect("Unable to bind the text domain");
-    bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8")
-        .expect("Unable to set the text domain encoding");
-    textdomain(GETTEXT_PACKAGE).expect("Unable to switch to the text domain");
+    // Initialise translations
+    gettextrs::setlocale(gettextrs::LocaleCategory::LcAll, "");
+    gettextrs::bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR)
+        .expect("Unable to bind the text domain");
+    gettextrs::textdomain(GETTEXT_PACKAGE).expect("Unable to switch to the text domain");
 
     // Load resources
-    let resources = gio::Resource::load(PKGDATADIR.to_owned() + "/temporal-explorer.gresource")
-        .expect("Could not load resources");
-    gio::resources_register(&resources);
+    let res = gio::Resource::load(RESOURCES_FILE).expect("Could not load gresource file");
+    gio::resources_register(&res);
 
-    let app = TemporalExplorerApplication::new(
-        "io.github.johnpetersa19.TemporalExplorer",
-        &gio::ApplicationFlags::empty(),
-    );
-
+    let app = Application::new();
     app.run()
 }

@@ -1,63 +1,51 @@
 pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
 gnome = import('gnome')
 
-# ── Blueprint ────────────────────────────────────────────────────────────────────
-blueprint_compiler = find_program('blueprint-compiler', version: '>= 0.12')
-
-blueprints = custom_target(
-  'blueprints',
-  input: files(
-    'window.blp',
-    'toolbar.blp',
-    'file-preview-dialog.blp',
-    'commit-row.blp',
-    'year-row.blp',
-    'month-row.blp',
-    'file-list-row.blp',
-    'file-grid-cell.blp',
-    'search-filter-popover.blp',
-    'date-range-dialog.blp',
-    'history-controls.blp',
-    'view-controls.blp',
-    'column-chooser.blp',
-    'merge-conflict-dialog.blp',
-    'preferences-dialog.blp',
-    'filter-types-dialog.blp',
-    'new-branch-dialog.blp',
-    # Phase 3
-    'commit-name-cell.blp',
-    'branch-sidebar-row.blp',
-    'file-grid-captions-dialog.blp',
-    # Phase 4
-    'batch-operations-dialog.blp',
-    'select-commits-by-pattern.blp',
-    # Phase 5 — views sub-module
-    'views/file-list-view.blp',
-  ),
-  output: '.',
-  command: [
-    blueprint_compiler, 'batch-compile', '@OUTPUT@', '@CURRENT_SOURCE_DIR@', '@INPUT@'
-  ],
+blueprint_files = files(
+  'address_bar.rs',
 )
 
-# ── GResources ───────────────────────────────────────────────────────────────────
-gnome.compile_resources(
-  'temporal-explorer',
+blueprints = custom_target('blueprints',
+  input: files(
+    'batch-operations-dialog.blp',
+    'branch-sidebar-row.blp',
+    'column-chooser.blp',
+    'commit-name-cell.blp',
+    'commit-row.blp',
+    'date-range-dialog.blp',
+    'file-grid-captions-dialog.blp',
+    'file-grid-cell.blp',
+    'file-list-row.blp',
+    'file-preview-dialog.blp',
+    'filter-types-dialog.blp',
+    'history-controls.blp',
+    'merge-conflict-dialog.blp',
+    'month-row.blp',
+    'new-branch-dialog.blp',
+    'preferences-dialog.blp',
+    'search-filter-popover.blp',
+    'select-commits-by-pattern.blp',
+    'ssh-passphrase-dialog.blp',
+    'toolbar.blp',
+    'view-controls.blp',
+    'window.blp',
+    'year-row.blp',
+  ),
+  output: '.',
+  command: [find_program('blueprint-compiler'), 'batch-compile', '@OUTPUT@', '@CURRENT_SOURCE_DIR@', '@INPUT@'],
+)
+
+gnome.compile_resources('temporal-explorer',
   'temporal-explorer.gresource.xml',
   gresource_bundle: true,
   install: true,
   install_dir: pkgdatadir,
   dependencies: blueprints,
-  source_dir: [
-    meson.current_source_dir(),
-    meson.current_build_dir(),
-  ],
 )
 
-# ── Config ───────────────────────────────────────────────────────────────────────
 conf = configuration_data()
 conf.set_quoted('VERSION', meson.project_version())
-conf.set_quoted('GETTEXT_PACKAGE', 'temporal-explorer')
+conf.set_quoted('GETTEXT_PACKAGE', meson.project_name())
 conf.set_quoted('LOCALEDIR', get_option('prefix') / get_option('localedir'))
 conf.set_quoted('PKGDATADIR', pkgdatadir)
 
@@ -67,39 +55,17 @@ configure_file(
   configuration: conf,
 )
 
-run_command(
-  'cp',
-  meson.project_build_root() / 'src' / 'config.rs',
-  meson.project_source_root() / 'src' / 'config.rs',
-  check: true,
+config_rs = declare_dependency(
+  sources: [meson.project_build_root() / 'src' / 'config.rs']
 )
 
-# ── Cargo / Rust ─────────────────────────────────────────────────────────────────
-cargo_bin  = find_program('cargo')
-cargo_opt  = ['--manifest-path', meson.project_source_root() / 'Cargo.toml']
-cargo_opt += ['--target-dir', meson.project_build_root() / 'src']
-cargo_env  = ['CARGO_HOME=' + meson.project_build_root() / 'cargo-home']
-
-if get_option('buildtype') == 'release'
-  cargo_opt += ['--release']
-  rust_target = 'release'
-else
-  rust_target = 'debug'
-endif
-
-cargo_build = custom_target(
-  'cargo-build',
-  build_by_default: true,
-  build_always_stale: true,
-  output: meson.project_name(),
-  console: true,
+exe = executable('temporal-explorer', 'main.rs',
   install: true,
-  install_dir: get_option('bindir'),
-  depends: blueprints,
-  command: [
-    'env', cargo_env,
-    cargo_bin, 'build',
-    cargo_opt, '&&', 'cp',
-    'src' / rust_target / meson.project_name(), '@OUTPUT@',
+  rust_args: ['--edition=2021'],
+  dependencies: [
+    dependency('gtk4'),
+    dependency('libadwaita-1'),
+    dependency('gio-2.0'),
+    config_rs,
   ],
 )
