@@ -14,6 +14,13 @@ template $TemporalToolbar : Adw.Bin {
     }
 
     [start]
+    Button new_branch_button {
+      icon-name: "list-add-symbolic";
+      tooltip-text: _("New Branch");
+      styles ["flat"]
+    }
+
+    [start]
     ToggleButton show_sidebar_button {
       icon-name: "sidebar-show-symbolic";
       tooltip-text: _("Show Sidebar");
@@ -55,7 +62,7 @@ template $TemporalToolbar : Adw.Bin {
 
             Entry location_entry {
               hexpand: true;
-              placeholder-text: _("Type a path and press Enter…");
+              placeholder-text: _("Type a path and press Enter\u2026");
               input-purpose: url;
               primary-icon-name: "folder-symbolic";
             }
@@ -78,6 +85,32 @@ template $TemporalToolbar : Adw.Bin {
       icon-name: "open-menu-symbolic";
       tooltip-text: _("Main Menu");
       menu-model: primary_menu;
+    }
+  }
+}
+
+Menu primary_menu {
+  section {
+    item {
+      label: _("New Branch");
+      action: "win.new-branch";
+    }
+  }
+
+  section {
+    item {
+      label: _("Preferences");
+      action: "app.preferences";
+    }
+
+    item {
+      label: _("Keyboard Shortcuts");
+      action: "app.shortcuts";
+    }
+
+    item {
+      label: _("About Temporal Explorer");
+      action: "app.about";
     }
   }
 }
