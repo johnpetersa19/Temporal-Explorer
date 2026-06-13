@@ -45,7 +45,6 @@ use crate::git_engine::{CommitInfo, DirCache, HistoryReader, SnapshotResolver, T
 use crate::commit_controller;
 use crate::file_preview;
 use crate::search_filter_popover::{SearchFilterPopover, FilterState};
-use crate::date_range_dialog::DateRangeDialog;
 use crate::timeline_filter;
 use crate::views::{list_view, grid_view};
 use crate::views::list_view::{OnEnterDir, OnOpenFile};
@@ -361,11 +360,6 @@ impl TemporalExplorerWindow {
                 self.imp().window_title.set_title(&repo_name);
                 self.imp().window_title.set_subtitle(path.to_str().unwrap_or(""));
 
-                // Populate filter chips with actual repo data.
-                // Authors are derived from the commit list (populated after
-                // load_timeline returns), so we defer chip population to
-                // after all_commits is filled — see the idle callback in
-                // load_timeline() below.
                 if let Some(ref pop) = *self.imp().filter_popover.borrow() {
                     if let Some(ref repo_wrapper) = *self.imp().repository.borrow() {
                         let branches: Vec<String> = repo_wrapper
@@ -412,7 +406,6 @@ impl TemporalExplorerWindow {
                 win.imp().loading_commits.set(false);
                 match commits {
                     Ok(list) => {
-                        // Populate author chips now that commits are loaded.
                         if let Some(ref pop) = *win.imp().filter_popover.borrow() {
                             let mut seen = std::collections::HashSet::new();
                             let authors: Vec<String> = list.iter()
@@ -754,7 +747,6 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         *imp.last_query.borrow_mut() = query.clone();
 
-        // Snapshot active filter state for this search run.
         let active_filter = imp.filter_state.borrow().clone();
 
         let cancel = Arc::new(AtomicBool::new(false));
@@ -769,8 +761,6 @@ impl TemporalExplorerWindow {
         let all = imp.all_commits.borrow().clone();
         let selected_year = imp.selected_year.get();
 
-        // Navigate to the commits view automatically when a search is active,
-        // so results are visible regardless of the current timeline level.
         if !query.is_empty() {
             *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
             imp.timeline_stack.set_visible_child_name("commits");
@@ -779,8 +769,6 @@ impl TemporalExplorerWindow {
         }
 
         let filtered: Vec<CommitInfo> = if query.is_empty() && active_filter.is_empty() {
-            // Empty query and no active filters: show only commits in the
-            // selected year (if any) or all commits.
             if selected_year != 0 {
                 all.into_iter()
                     .filter(|c| {
@@ -796,7 +784,6 @@ impl TemporalExplorerWindow {
             let q = query.to_lowercase();
             all.into_iter()
                 .filter(|c| {
-                    // ── Year scope guard ──────────────────────────────────────
                     let year_ok = selected_year == 0 || {
                         glib::DateTime::from_unix_local(c.timestamp)
                             .map(|d| d.year() == selected_year)
@@ -804,16 +791,10 @@ impl TemporalExplorerWindow {
                     };
                     if !year_ok { return false; }
 
-                    // ── FilterState gate ──────────────────────────────────────
-                    // When filters are active, commits must pass them even if
-                    // the text query is empty.
                     if !active_filter.matches(c) { return false; }
 
-                    // If there is no text query, a commit that passed the
-                    // FilterState gate is included.
                     if q.is_empty() { return true; }
 
-                    // ── Text fields ───────────────────────────────────────────
                     let short_hash = &c.hash[..7.min(c.hash.len())];
                     let text_match =
                         c.summary.to_lowercase().contains(&q)
@@ -821,7 +802,6 @@ impl TemporalExplorerWindow {
                         || short_hash.to_lowercase().starts_with(&q)
                         || c.author.to_lowercase().contains(&q);
 
-                    // ── Calendar fields ───────────────────────────────────────
                     let date_match = matches_calendar(c.timestamp, &q);
 
                     text_match || date_match
@@ -837,7 +817,6 @@ impl TemporalExplorerWindow {
     fn setup_filter_popover(&self) {
         let popover = SearchFilterPopover::new();
 
-        // Build a ToggleButton anchored next to the search entry.
         let btn = gtk::ToggleButton::builder()
             .icon_name("funnel-symbolic")
             .tooltip_text(gettext("Filters"))
@@ -846,7 +825,6 @@ impl TemporalExplorerWindow {
 
         popover.set_parent(&btn);
 
-        // Toggle popover visibility with the button.
         {
             let pop = popover.clone();
             btn.connect_toggled(move |b| {
@@ -854,13 +832,11 @@ impl TemporalExplorerWindow {
             });
         }
 
-        // Sync button state when the popover closes via keyboard / click-outside.
         {
             let b = btn.clone();
             popover.connect_closed(move |_| { b.set_active(false); });
         }
 
-        // React to filter changes: store new state, then re-run search.
         {
             let win = self.clone();
             popover.connect_local("filters-changed", false, move |_| {
@@ -875,8 +851,6 @@ impl TemporalExplorerWindow {
             });
         }
 
-        // Insert the ToggleButton as the last child of the search entry's
-        // parent GtkBox (the header search bar row).
         if let Some(parent) = self.imp().commit_search_entry
             .parent()
             .and_then(|w| w.downcast::<gtk::Box>().ok())

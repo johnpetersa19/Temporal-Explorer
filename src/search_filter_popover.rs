@@ -38,7 +38,6 @@ use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use adw::prelude::*;
-use gettextrs::gettext;
 use std::cell::RefCell;
 use std::sync::OnceLock;
 
@@ -161,12 +160,15 @@ impl FilterState {
             || self.files.is_active()
     }
 
+    /// Alias used by `window.rs`.
+    pub fn is_empty(&self) -> bool { !self.is_active() }
+
     /// Apply this filter to a slice of commits, returning only matching ones.
     pub fn apply<'a>(&self, commits: &'a [CommitInfo]) -> Vec<&'a CommitInfo> {
         commits.iter().filter(|c| self.matches(c)).collect()
     }
 
-    fn matches(&self, c: &CommitInfo) -> bool {
+    pub fn matches(&self, c: &CommitInfo) -> bool {
         // Date filter
         if self.date.is_active() && !self.date.contains(c.timestamp) {
             return false;
@@ -315,10 +317,15 @@ impl SearchFilterPopover {
         self.imp().filter_state.borrow().clone()
     }
 
+    /// Alias used by `window.rs` via `connect_local("filters-changed", ...)`.
+    pub fn current_filter(&self) -> FilterState {
+        self.filter_state()
+    }
+
     /// Populate author chip buttons from a commit list.
     /// Existing chips are removed first, then rebuilt from unique authors.
     /// Called by `window.rs` after a repo is loaded.
-    pub fn populate_author_chips(&self, commits: &[CommitInfo]) {
+    pub fn populate_author_chips(&self, authors: &[String]) {
         let imp = self.imp();
         let chips_box = imp.author_chips_box.get();
 
@@ -327,18 +334,9 @@ impl SearchFilterPopover {
             chips_box.remove(&child);
         }
 
-        // Collect unique author names, sorted
-        let mut authors: Vec<String> = commits
-            .iter()
-            .map(|c| c.author.clone())
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
-            .collect();
-        authors.sort();
-
         for author in authors {
             let chip = gtk::Button::builder()
-                .label(&author)
+                .label(author)
                 .css_classes(["chip"])
                 .build();
 

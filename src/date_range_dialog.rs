@@ -50,6 +50,7 @@ use gtk::glib::subclass::Signal;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use adw::prelude::*;
+use adw::subclass::prelude::*;
 use std::cell::Cell;
 use std::sync::OnceLock;
 
@@ -145,7 +146,7 @@ mod imp {
         }
     }
 
-    impl WidgetImpl  for DateRangeDialog {}
+    impl WidgetImpl for DateRangeDialog {}
     impl AdwDialogImpl for DateRangeDialog {}
 
     // ── Template callbacks ─────────────────────────────────────────────────
