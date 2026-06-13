@@ -1,7 +1,7 @@
 pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
 gnome = import('gnome')
 
-# ── Blueprint ────────────────────────────────────────────────────────────────
+# ── Blueprint ────────────────────────────────────────────────────────────────────────
 blueprint_compiler = find_program('blueprint-compiler', version: '>= 0.12')
 
 blueprints = custom_target(
@@ -29,6 +29,8 @@ blueprints = custom_target(
     # Phase 4
     'batch-operations-dialog.blp',
     'select-commits-by-pattern.blp',
+    # Phase 5 — views sub-module
+    'views/file-list-view.blp',
   ),
   output: '.',
   command: [
@@ -36,7 +38,7 @@ blueprints = custom_target(
   ],
 )
 
-# ── GResources ───────────────────────────────────────────────────────────────
+# ── GResources ─────────────────────────────────────────────────────────────────
 gnome.compile_resources(
   'temporal-explorer',
   'temporal-explorer.gresource.xml',
@@ -50,7 +52,7 @@ gnome.compile_resources(
   ],
 )
 
-# ── Config ───────────────────────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────────────────────
 conf = configuration_data()
 conf.set_quoted('VERSION', meson.project_version())
 conf.set_quoted('GETTEXT_PACKAGE', 'temporal-explorer')
@@ -70,7 +72,7 @@ run_command(
   check: true,
 )
 
-# ── Cargo / Rust ─────────────────────────────────────────────────────────────
+# ── Cargo / Rust ─────────────────────────────────────────────────────────────────
 cargo_bin  = find_program('cargo')
 cargo_opt  = ['--manifest-path', meson.project_source_root() / 'Cargo.toml']
 cargo_opt += ['--target-dir', meson.project_build_root() / 'src']
