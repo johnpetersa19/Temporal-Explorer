@@ -39,10 +39,10 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/column-chooser.ui")]
     pub struct ColumnChooser {
-        #[template_child] pub col_name_row:   adw::TemplateChild<adw::SwitchRow>,
-        #[template_child] pub col_status_row: adw::TemplateChild<adw::SwitchRow>,
-        #[template_child] pub col_size_row:   adw::TemplateChild<adw::SwitchRow>,
-        #[template_child] pub col_ext_row:    adw::TemplateChild<adw::SwitchRow>,
+        #[template_child] pub col_name_row:   gtk::TemplateChild<adw::SwitchRow>,
+        #[template_child] pub col_status_row: gtk::TemplateChild<adw::SwitchRow>,
+        #[template_child] pub col_size_row:   gtk::TemplateChild<adw::SwitchRow>,
+        #[template_child] pub col_ext_row:    gtk::TemplateChild<adw::SwitchRow>,
         #[template_child] pub apply_button:   gtk::TemplateChild<gtk::Button>,
     }
 
