@@ -56,7 +56,6 @@ template $FilterTypesDialog: Adw.Dialog {
     }
 
     content: Stack search_stack {
-      // Start state — prompt the user
       StackPage {
         name: "start";
 
@@ -76,7 +75,7 @@ template $FilterTypesDialog: Adw.Dialog {
               margin-start: 12;
 
               styles ["heading"]
-            }
+            };
 
             FlowBox common_types_box {
               selection-mode: none;
@@ -87,12 +86,11 @@ template $FilterTypesDialog: Adw.Dialog {
               margin-start: 12;
               margin-end: 12;
               child-activated => $on_common_type_activated() swapped;
-            }
+            };
           };
         };
       }
 
-      // Empty state — no results found
       StackPage {
         name: "empty";
 
@@ -103,14 +101,13 @@ template $FilterTypesDialog: Adw.Dialog {
         };
       }
 
-      // Results state — matching extensions
       StackPage {
         name: "results";
 
         child: ScrolledWindow {
           vexpand: true;
 
-          ListView results_list {
+          child: ListView results_list {
             show-separators: true;
             activate => $on_list_activate() swapped;
 
@@ -129,7 +126,7 @@ template $FilterTypesDialog: Adw.Dialog {
                     accessibility {
                       labelled-by: [row_description]
                     }
-                  }
+                  };
 
                   Box {
                     orientation: vertical;
@@ -142,7 +139,7 @@ template $FilterTypesDialog: Adw.Dialog {
                       ellipsize: end;
 
                       styles ["body"]
-                    }
+                    };
 
                     Label row_subtitle {
                       halign: start;
@@ -150,8 +147,8 @@ template $FilterTypesDialog: Adw.Dialog {
                       ellipsize: end;
 
                       styles ["caption", "dim-label"]
-                    }
-                  }
+                    };
+                  };
 
                   Image row_checkmark {
                     icon-name: "object-select-symbolic";
@@ -159,11 +156,11 @@ template $FilterTypesDialog: Adw.Dialog {
                     visible: false;
 
                     styles ["success"]
-                  }
+                  };
                 };
               }
             };
-          }
+          };
         };
       }
     };
