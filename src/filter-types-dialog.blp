@@ -123,7 +123,6 @@ template $FilterTypesDialog: Adw.Dialog {
                   margin-bottom: 14;
                   spacing: 12;
 
-                  // Extension icon (mime-type)
                   Image row_icon {
                     pixel-size: 32;
 
@@ -137,7 +136,6 @@ template $FilterTypesDialog: Adw.Dialog {
                     spacing: 4;
                     hexpand: true;
 
-                    // Extension label, e.g. ".rs"
                     Label row_description {
                       halign: start;
                       hexpand: true;
@@ -146,7 +144,6 @@ template $FilterTypesDialog: Adw.Dialog {
                       styles ["body"]
                     }
 
-                    // Human description, e.g. "Rust source file"
                     Label row_subtitle {
                       halign: start;
                       hexpand: true;
@@ -156,7 +153,6 @@ template $FilterTypesDialog: Adw.Dialog {
                     }
                   }
 
-                  // Checkmark when selected
                   Image row_checkmark {
                     icon-name: "object-select-symbolic";
                     pixel-size: 16;
@@ -171,16 +167,5 @@ template $FilterTypesDialog: Adw.Dialog {
         };
       }
     };
-  };
-
-  SizeGroup {
-    widgets [cancel_button, add_button]
-  };
-
-  ShortcutController {
-    Shortcut {
-      trigger: "Escape";
-      action: "action(window.close)";
-    }
   };
 }
