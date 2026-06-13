@@ -1,0 +1,44 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $FileListView : Adw.Bin {
+  Stack view_stack {
+    vexpand: true;
+    hexpand: true;
+    transition-type: crossfade;
+    transition-duration: 150;
+
+    StackPage {
+      name: "list";
+      child: ScrolledWindow {
+        vexpand: true;
+        hscrollbar-policy: never;
+        ListView file_list_view {
+          vexpand: true;
+        }
+      };
+    }
+
+    StackPage {
+      name: "grid";
+      child: ScrolledWindow {
+        vexpand: true;
+        GridView file_grid_view {
+          vexpand: true;
+          min-columns: 2;
+          max-columns: 8;
+        }
+      };
+    }
+
+    StackPage {
+      name: "empty";
+      child: Adw.StatusPage {
+        icon-name: "document-open-symbolic";
+        title: _("No Files");
+        description: _("Select a commit to see its files.");
+        vexpand: true;
+      };
+    }
+  }
+}
