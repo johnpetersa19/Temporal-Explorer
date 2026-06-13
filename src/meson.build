@@ -1,6 +1,7 @@
 pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
 gnome = import('gnome')
 
+# ── 1. Compile Blueprint files ─────────────────────────────────────────────
 blueprints = custom_target('blueprints',
   input: files(
     'batch-operations-dialog.blp',
@@ -33,6 +34,7 @@ blueprints = custom_target('blueprints',
   command: [find_program('blueprint-compiler'), 'batch-compile', '@OUTPUT@', '@CURRENT_SOURCE_DIR@', '@INPUT@'],
 )
 
+# ── 2. Compile GResources (depends on blueprints) ─────────────────────────
 gnome.compile_resources('temporal-explorer',
   'temporal-explorer.gresource.xml',
   gresource_bundle: true,
@@ -41,6 +43,7 @@ gnome.compile_resources('temporal-explorer',
   dependencies: blueprints,
 )
 
+# ── 3. Generate config.rs ──────────────────────────────────────────────────
 conf = configuration_data()
 conf.set_quoted('VERSION', meson.project_version())
 conf.set_quoted('GETTEXT_PACKAGE', meson.project_name())
@@ -53,17 +56,39 @@ configure_file(
   configuration: conf,
 )
 
-config_rs = declare_dependency(
-  sources: [meson.project_build_root() / 'src' / 'config.rs']
-)
+# ── 4. Build with Cargo ────────────────────────────────────────────────────
+cargo = find_program('cargo', required: true)
 
-exe = executable('temporal-explorer', 'main.rs',
+if get_option('buildtype') == 'release'
+  rust_target = 'release'
+  cargo_flags = ['--release']
+else
+  rust_target = 'debug'
+  cargo_flags = []
+endif
+
+cargo_env = [
+  'CARGO_HOME=' + meson.project_build_root() / 'cargo-home',
+]
+
+cargo_build = custom_target('cargo-build',
+  build_by_default: true,
+  build_always_stale: true,
+  output: 'temporal-explorer-bin',
+  console: true,
   install: true,
-  rust_args: ['--edition=2021'],
-  dependencies: [
-    dependency('gtk4'),
-    dependency('libadwaita-1'),
-    dependency('gio-2.0'),
-    config_rs,
+  install_dir: get_option('bindir'),
+  install_mode: 'rwxr-xr-x',
+  command: [
+    'env',
+    cargo_env,
+    cargo, 'build',
+    cargo_flags,
+    '--manifest-path', meson.project_source_root() / 'Cargo.toml',
+    '--target-dir', meson.project_build_root() / 'target',
+    '&&',
+    'cp',
+    meson.project_build_root() / 'target' / rust_target / 'temporal-explorer',
+    '@OUTPUT@',
   ],
 )
