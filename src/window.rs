@@ -131,10 +131,6 @@ mod imp {
         pub selected_year:    Cell<i32>,
         pub loading_commits:  Cell<bool>,
         pub dir_cache:        RefCell<DirCache>,
-        // Debounce cancel flag — shared with the pending timeout closure.
-        // When a new keystroke arrives we flip this to `true`; the closure
-        // checks it on entry and returns Break without running the search.
-        // No SourceId is stored, so there is nothing to remove and no panic.
         pub search_debounce:  RefCell<Option<Arc<AtomicBool>>>,
         pub search_cancel:    RefCell<Option<Arc<AtomicBool>>>,
         pub load_cancel:      RefCell<Option<Arc<AtomicBool>>>,
@@ -180,6 +176,56 @@ fn clear_box(container: &gtk::Box) {
     while let Some(child) = container.first_child() {
         container.remove(&child);
     }
+}
+
+// ── Calendar / date matching helpers ──────────────────────────────────────────
+
+/// Returns `true` if `query` matches any date-related field of the commit's
+/// timestamp: ISO date (`2026-03-15`), short date (`2026-03`), year (`2026`),
+/// full/abbreviated month name (locale-independent English), or the
+/// human-readable date-time string shown in the UI (`2026-03-15 14:32`).
+///
+/// All comparisons are case-insensitive.
+fn matches_calendar(ts: i64, q: &str) -> bool {
+    let Ok(dt) = glib::DateTime::from_unix_local(ts) else { return false };
+
+    // Build candidate strings once
+    let year  = dt.year();
+    let month = dt.month() as u32;
+    let day   = dt.day_of_month();
+
+    // ISO date:  "2026-03-15"
+    let iso_date = format!("{:04}-{:02}-{:02}", year, month, day);
+    // Year-month: "2026-03"
+    let year_month = format!("{:04}-{:02}", year, month);
+    // Year only:  "2026"
+    let year_str = format!("{:04}", year);
+    // Human datetime: "2026-03-15 14:32"
+    let human = dt
+        .format("%Y-%m-%d %H:%M")
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+
+    // English month names (full + abbreviated) — constant, locale-independent
+    let month_full = match month {
+        1  => "january",   2  => "february", 3  => "march",
+        4  => "april",     5  => "may",       6  => "june",
+        7  => "july",      8  => "august",    9  => "september",
+        10 => "october",   11 => "november",  12 => "december",
+        _  => "",
+    };
+    let month_abbr = &month_full[..3.min(month_full.len())];
+
+    // Translated month name via gettext (respects user locale)
+    let month_translated = timeline_filter::month_name(month).to_lowercase();
+
+    iso_date.contains(q)
+        || year_month.contains(q)
+        || year_str == q
+        || human.contains(q)
+        || month_full.contains(q)
+        || month_abbr == q
+        || month_translated.contains(q)
 }
 
 impl TemporalExplorerWindow {
@@ -645,11 +691,6 @@ impl TemporalExplorerWindow {
     fn on_search_changed(&self, query: String) {
         let imp = self.imp();
 
-        // Cancel the previous pending debounce by flipping its flag to true.
-        // The timeout closure checks this flag on entry and returns Break
-        // immediately without running the search. This avoids ever calling
-        // SourceId::remove(), which panics in glib 0.22 when the source was
-        // already consumed by GLib (timeout fired, returned ControlFlow::Break).
         if let Some(prev) = imp.search_debounce.borrow().as_ref() {
             prev.store(true, Ordering::Relaxed);
         }
@@ -683,7 +724,18 @@ impl TemporalExplorerWindow {
         let all = imp.all_commits.borrow().clone();
         let selected_year = imp.selected_year.get();
 
+        // Navigate to the commits view automatically when a search is active,
+        // so results are visible regardless of the current timeline level.
+        if !query.is_empty() {
+            *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
+            imp.timeline_stack.set_visible_child_name("commits");
+            imp.timeline_back_button.set_visible(true);
+            imp.timeline_header_title.set_subtitle("");
+        }
+
         let filtered: Vec<CommitInfo> = if query.is_empty() {
+            // Empty query: show only commits in the selected year (if any)
+            // or all commits.
             if selected_year != 0 {
                 all.into_iter()
                     .filter(|c| {
@@ -699,16 +751,34 @@ impl TemporalExplorerWindow {
             let q = query.to_lowercase();
             all.into_iter()
                 .filter(|c| {
+                    // ── Year scope guard ──────────────────────────────────────
+                    // When the user navigated into a specific year first, keep
+                    // results scoped to that year unless the query itself is a
+                    // date/hash that spans multiple years.
                     let year_ok = selected_year == 0 || {
                         glib::DateTime::from_unix_local(c.timestamp)
                             .map(|d| d.year() == selected_year)
                             .unwrap_or(false)
                     };
-                    year_ok && (
+
+                    if !year_ok { return false; }
+
+                    // ── Text fields ───────────────────────────────────────────
+                    // summary / description, full hash, short hash (7 chars),
+                    // author name.
+                    let short_hash = &c.hash[..7.min(c.hash.len())];
+                    let text_match =
                         c.summary.to_lowercase().contains(&q)
-                            || c.hash.to_lowercase().contains(&q)
-                            || c.author.to_lowercase().contains(&q)
-                    )
+                        || c.hash.to_lowercase().contains(&q)
+                        || short_hash.to_lowercase().starts_with(&q)
+                        || c.author.to_lowercase().contains(&q);
+
+                    // ── Calendar fields ───────────────────────────────────────
+                    // ISO date, year-month, year, full/abbreviated month name
+                    // (English + translated), human datetime string.
+                    let date_match = matches_calendar(c.timestamp, &q);
+
+                    text_match || date_match
                 })
                 .collect()
         };
