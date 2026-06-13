@@ -44,7 +44,7 @@ use adw::prelude::*;
 use std::cell::RefCell;
 use std::sync::OnceLock;
 
-// ── Known file types ───────────────────────────────────────────────────────────
+// ── Known file types ───────────────────────────────────────────────────────────────
 
 /// (extension, human label, mime-type icon-name)
 const KNOWN_TYPES: &[(&str, &str, &str)] = &[
@@ -75,10 +75,10 @@ const KNOWN_TYPES: &[(&str, &str, &str)] = &[
     ("svg",   "SVG vector image",        "image-svg+xml"),
 ];
 
-/// Extensions shown on the "start" (pre-search) state as quick chips.
+/// Extensions shown on the \"start\" (pre-search) state as quick chips.
 const COMMON_EXTENSIONS: &[&str] = &["rs", "toml", "blp", "py", "js", "md", "json", "sh"];
 
-// ── GObject subclass ───────────────────────────────────────────────────────────
+// ── GObject subclass ───────────────────────────────────────────────────────────────
 
 mod imp {
     use super::*;
@@ -160,7 +160,6 @@ mod imp {
 
         #[template_callback]
         fn on_search_activate(&self) {
-            // If there is exactly one result or the user typed a raw ext, emit it.
             let filtered = self.filtered.borrow();
             if filtered.len() == 1 {
                 drop(filtered);
@@ -204,7 +203,7 @@ mod imp {
     }
 }
 
-// ── Public wrapper ─────────────────────────────────────────────────────────────
+// ── Public wrapper ───────────────────────────────────────────────────────────────
 
 glib::wrapper! {
     pub struct FilterTypesDialog(ObjectSubclass<imp::FilterTypesDialog>)
@@ -221,7 +220,7 @@ impl FilterTypesDialog {
         glib::Object::new()
     }
 
-    // ── Public API ─────────────────────────────────────────────────────────
+    // ── Public API ──────────────────────────────────────────────────────────────────
 
     pub fn connect_file_type_selected<F>(&self, f: F) -> glib::SignalHandlerId
     where
@@ -235,9 +234,22 @@ impl FilterTypesDialog {
         })
     }
 
-    // ── Internal setup ─────────────────────────────────────────────────────
+    // ── Internal setup ──────────────────────────────────────────────────────────────
 
     fn setup(&self) {
+        let imp = self.imp();
+
+        // ── SizeGroup: keep cancel and add buttons equal-width ─────────────────
+        // (replaces the SizeGroup removed from filter-types-dialog.blp because
+        // Blueprint 0.12 does not allow bare object blocks in a template body)
+        let size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+        size_group.add_widget(&imp.cancel_button.get());
+        size_group.add_widget(&imp.add_button.get());
+
+        // ── Wire StringList model to the ListView ───────────────────────────
+        let selection_model = gtk::NoSelection::new(Some(imp.model.clone()));
+        imp.results_list.set_model(Some(&selection_model));
+
         self.setup_common_chips();
         self.update_results("");
     }
@@ -260,7 +272,6 @@ impl FilterTypesDialog {
         let imp = self.imp();
 
         let matches: Vec<_> = if query.is_empty() {
-            // On empty query show all
             KNOWN_TYPES.iter().copied().collect()
         } else {
             KNOWN_TYPES.iter().copied().filter(|(ext, label, _)| {
@@ -291,8 +302,7 @@ impl FilterTypesDialog {
         }
 
         // Auto-select first result
-        *imp.selected_ext.borrow_mut() =
-            Some(matches[0].0.to_string());
+        *imp.selected_ext.borrow_mut() = Some(matches[0].0.to_string());
         imp.add_button.set_sensitive(true);
 
         imp.search_stack.set_visible_child_name("results");
