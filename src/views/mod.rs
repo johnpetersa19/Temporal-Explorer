@@ -20,11 +20,15 @@
 
 //! File-browser view builders.
 //!
-//! This module groups the two interchangeable view modes for the right-hand
+//! This module groups the interchangeable view modes for the right-hand
 //! file-browser panel:
 //!
-//! - [`list_view`] — compact list with file-type badges and chevrons.
-//! - [`grid_view`] — icon grid with 64-px thumbnails and wrapping labels.
+//! - [`list_view`]      — compact list with file-type badges and chevrons.
+//! - [`grid_view`]      — icon grid with 64-px thumbnails and wrapping labels.
+//! - [`file_list_view`] — unified GObject widget wrapping both modes with an
+//!                        empty-state fallback; used directly in window.rs.
 
 pub mod grid_view;
 pub mod list_view;
+pub mod file_list_view;
+pub use file_list_view::FileListView;
