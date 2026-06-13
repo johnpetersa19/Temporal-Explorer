@@ -20,10 +20,14 @@
 
 mod address_bar;
 mod application;
+mod batch_operations_dialog;
+mod branch_sidebar_row;
 mod column_chooser;
 mod commit_controller;
+mod commit_name_cell;
 mod config;
 pub mod date_range_dialog;
+mod file_grid_captions_dialog;
 mod file_preview;
 mod filter_types_dialog;
 pub mod git_engine;
@@ -32,7 +36,9 @@ mod icon_helpers;
 mod merge_conflict_dialog;
 mod preferences_dialog;
 mod search_filter_popover;
+mod select_commits_by_pattern;
 mod timeline_filter;
+mod toolbar;
 mod view_controls;
 mod views;
 mod window;

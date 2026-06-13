@@ -8,6 +8,7 @@ blueprints = custom_target(
   'blueprints',
   input: files(
     'window.blp',
+    'toolbar.blp',
     'file-preview-dialog.blp',
     'commit-row.blp',
     'year-row.blp',

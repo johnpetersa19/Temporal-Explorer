@@ -1,0 +1,83 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $TemporalToolbar : Adw.Bin {
+  Adw.HeaderBar header_bar {
+    [start]
+    $HistoryControls history_controls {}
+
+    [start]
+    Button open_repo_button {
+      icon-name: "folder-open-symbolic";
+      tooltip-text: _("Open Repository");
+      styles ["flat"]
+    }
+
+    [start]
+    ToggleButton show_sidebar_button {
+      icon-name: "sidebar-show-symbolic";
+      tooltip-text: _("Show Sidebar");
+      styles ["flat"]
+    }
+
+    [title]
+    Box {
+      orientation: horizontal;
+      spacing: 6;
+      styles ["header-toolbar-box"]
+
+      Stack toolbar_switcher {
+        valign: center;
+        hexpand: true;
+        transition-type: crossfade;
+        transition-duration: 150;
+
+        StackPage {
+          name: "pathbar";
+          child: ScrolledWindow {
+            hscrollbar-policy: external;
+            vscrollbar-policy: never;
+            propagate-natural-width: true;
+
+            Box address_bar {
+              orientation: horizontal;
+              valign: center;
+              styles ["nautilus-pathbar"]
+            }
+          };
+        }
+
+        StackPage {
+          name: "location";
+          child: Box {
+            orientation: horizontal;
+            styles ["linked", "location-bar"]
+
+            Entry location_entry {
+              hexpand: true;
+              placeholder-text: _("Type a path and press Enter…");
+              input-purpose: url;
+              primary-icon-name: "folder-symbolic";
+            }
+
+            Button location_cancel_btn {
+              icon-name: "window-close-symbolic";
+              tooltip-text: _("Cancel");
+            }
+          };
+        }
+      }
+    }
+
+    [end]
+    $ViewControls view_controls {}
+
+    [end]
+    MenuButton main_menu_button {
+      primary: true;
+      icon-name: "open-menu-symbolic";
+      tooltip-text: _("Main Menu");
+      menu-model: primary_menu;
+    }
+  }
+}
