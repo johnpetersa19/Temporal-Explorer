@@ -1,5 +1,7 @@
+// history-controls.blp — prev/next commit navigation controls
+// Copyright 2026 John Peter Sá  SPDX-License-Identifier: GPL-3.0-or-later
+
 using Gtk 4.0;
-using Adw 1;
 
 template $HistoryControls : Gtk.Box {
   orientation: horizontal;
@@ -9,6 +11,8 @@ template $HistoryControls : Gtk.Box {
     icon-name: "go-previous-symbolic";
     tooltip-text: _("Previous commit");
     sensitive: false;
+    clicked => $on_back_clicked() swapped;
+
     styles ["flat"]
   }
 
@@ -16,6 +20,8 @@ template $HistoryControls : Gtk.Box {
     icon-name: "go-next-symbolic";
     tooltip-text: _("Next commit");
     sensitive: false;
+    clicked => $on_forward_clicked() swapped;
+
     styles ["flat"]
   }
 }

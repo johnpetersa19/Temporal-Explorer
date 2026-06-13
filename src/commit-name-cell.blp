@@ -7,7 +7,6 @@
 // diff-stat emblems (+N −N) and author avatar initial.
 
 using Gtk 4.0;
-using Adw 1;
 
 template $CommitNameCell : Gtk.ListBoxRow {
   child: Box {
@@ -18,7 +17,7 @@ template $CommitNameCell : Gtk.ListBoxRow {
     margin-end: 12;
     spacing: 4;
 
-    // ── Top row: avatar · summary · SHA copy ──────────────────────
+    // ── Top row: avatar · summary · SHA copy ──────────────────────────────
     Box {
       orientation: horizontal;
       spacing: 8;
@@ -70,7 +69,7 @@ template $CommitNameCell : Gtk.ListBoxRow {
       }
     }
 
-    // ── Second row: SHA label · author · date ──────────────────────
+    // ── Second row: SHA label · author · date ─────────────────────────────
     Box {
       orientation: horizontal;
       spacing: 8;
@@ -97,7 +96,7 @@ template $CommitNameCell : Gtk.ListBoxRow {
       }
     }
 
-    // ── Third row: branch / tag badge chips ───────────────────────
+    // ── Third row: branch / tag badge chips ───────────────────────────────
     // Populated dynamically in Rust; hidden when empty.
     FlowBox badges_box {
       selection-mode: none;

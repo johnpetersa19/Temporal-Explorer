@@ -1,59 +1,46 @@
+// view-controls.blp — grid/list toggle + sort selector for file panel
+// Copyright 2026 John Peter Sá  SPDX-License-Identifier: GPL-3.0-or-later
+
 using Gtk 4.0;
-using Adw 1;
 
 template $ViewControls : Gtk.Box {
   orientation: horizontal;
-  spacing: 0;
+  spacing: 4;
 
-  ToggleButton list_button {
+  ToggleButton list_view_button {
     icon-name: "view-list-symbolic";
     tooltip-text: _("List view");
     active: true;
+    toggled => $on_list_toggled() swapped;
+
     styles ["flat"]
   }
 
-  ToggleButton grid_button {
+  ToggleButton grid_view_button {
     icon-name: "view-grid-symbolic";
     tooltip-text: _("Grid view");
-    group: list_button;
+    group: list_view_button;
+    toggled => $on_grid_toggled() swapped;
+
     styles ["flat"]
   }
 
   Separator {
     orientation: vertical;
-    margin-start: 4;
-    margin-end: 4;
-    styles ["spacer"]
+    margin-start: 2;
+    margin-end: 2;
   }
 
-  MenuButton sort_menu_button {
-    icon-name: "view-sort-ascending-symbolic";
-    tooltip-text: _("Sort files");
-    styles ["flat"]
-    popover: Popover sort_popover {
-      Box {
-        orientation: vertical;
-        spacing: 2;
-        margin-top: 6;
-        margin-bottom: 6;
-        margin-start: 6;
-        margin-end: 6;
-
-        CheckButton sort_by_name {
-          label: _("By name");
-          active: true;
-        }
-
-        CheckButton sort_by_status {
-          label: _("By status");
-          group: sort_by_name;
-        }
-
-        CheckButton sort_by_ext {
-          label: _("By extension");
-          group: sort_by_name;
-        }
-      }
+  DropDown sort_dropdown {
+    tooltip-text: _("Sort files by");
+    model: StringList {
+      strings [
+        _("Name"),
+        _("Status"),
+        _("Size"),
+        _("Extension"),
+      ]
     };
+    notify::selected => $on_sort_changed() swapped;
   }
 }
