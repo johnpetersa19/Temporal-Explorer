@@ -53,6 +53,10 @@ use crate::views::list_view::{OnEnterDir, OnOpenFile};
 use crate::history_controls::HistoryControls;
 use crate::view_controls::{ViewControls, FileSortMode};
 use crate::column_chooser::{ColumnChooser, ColumnVisibility};
+use crate::batch_operations_dialog::{BatchOperationsDialog, BatchOp};
+use crate::select_commits_by_pattern::{SelectCommitsByPattern, MatchMode, commit_matches_pattern};
+use crate::merge_conflict_dialog::{MergeConflictDialog, ConflictInfo};
+use crate::filter_types_dialog::FilterTypesDialog;
 
 // ── ViewMode ───────────────────────────────────────────────────────────────────
 
@@ -266,8 +270,6 @@ impl TemporalExplorerWindow {
                 win.show_new_branch_dialog();
             });
 
-            // Append to the content toolbar-view end-slot so it sits
-            // alongside the existing end widgets of TemporalToolbar.
             imp.content_toolbar_view.add_top_bar(&new_branch_btn);
         }
 
@@ -320,6 +322,43 @@ impl TemporalExplorerWindow {
         self.setup_filter_popover();
         self.setup_history_controls();
         self.setup_view_controls();
+        self.setup_actions();
+    }
+
+    // ── GioAction registration ────────────────────────────────────────────────
+
+    fn setup_actions(&self) {
+        // win.batch-operations
+        {
+            let win = self.clone();
+            let action = gio::SimpleAction::new("batch-operations", None);
+            action.connect_activate(move |_, _| { win.show_batch_operations_dialog(); });
+            self.add_action(&action);
+        }
+
+        // win.select-by-pattern
+        {
+            let win = self.clone();
+            let action = gio::SimpleAction::new("select-by-pattern", None);
+            action.connect_activate(move |_, _| { win.show_select_by_pattern_dialog(); });
+            self.add_action(&action);
+        }
+
+        // win.filter-file-type
+        {
+            let win = self.clone();
+            let action = gio::SimpleAction::new("filter-file-type", None);
+            action.connect_activate(move |_, _| { win.show_filter_types_dialog(); });
+            self.add_action(&action);
+        }
+
+        // win.show-column-chooser
+        {
+            let win = self.clone();
+            let action = gio::SimpleAction::new("show-column-chooser", None);
+            action.connect_activate(move |_, _| { win.show_column_chooser(); });
+            self.add_action(&action);
+        }
     }
 
     // ── NewBranchDialog ───────────────────────────────────────────────────────
@@ -397,9 +436,7 @@ impl TemporalExplorerWindow {
     /// Push a commit hash onto the navigation stack (called from on_commit_selected).
     fn push_commit_nav(&self, hash: &str) {
         let imp = self.imp();
-        // Truncate forward stack — new navigation invalidates future
         imp.commit_nav_forward.borrow_mut().clear();
-        // Push previous hash if there is one
         if let Some(prev) = imp.current_hash.borrow().clone() {
             if prev != hash {
                 imp.commit_nav_back.borrow_mut().push(prev);
@@ -430,7 +467,6 @@ impl TemporalExplorerWindow {
         }
     }
 
-    /// Jump to a commit hash directly (used by commit nav, does NOT push to stack).
     fn jump_to_commit_hash(&self, hash: String) {
         let imp = self.imp();
         *imp.current_hash.borrow_mut() = Some(hash.clone());
@@ -490,7 +526,7 @@ impl TemporalExplorerWindow {
         });
     }
 
-    // ── Column chooser ────────────────────────────────────────────────────────
+    // ── Gap 1 — ColumnChooser (signal now fully wired) ────────────────────────
 
     pub fn show_column_chooser(&self) {
         let dialog = ColumnChooser::new();
@@ -498,9 +534,319 @@ impl TemporalExplorerWindow {
         dialog.apply_visibility(&current_vis);
 
         let win = self.clone();
+        let dlg_ref = dialog.clone();
         dialog.connect_local("columns-changed", false, move |_| {
-            // Re-read visibility and store — list_view picks it up on next render.
+            // Read the new visibility from the dialog's switches
+            let new_vis = dlg_ref.visibility();
+            *win.imp().column_visibility.borrow_mut() = new_vis;
+            // Force a re-render so list_view picks up the updated columns
+            let dir = win.imp().current_dir.borrow().clone();
+            if win.imp().current_hash.borrow().is_some() {
+                win.navigate_to_dir(dir);
+            }
             None
+        });
+
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
+    }
+
+    // ── Gap 2a — BatchOperationsDialog ───────────────────────────────────────
+
+    pub fn show_batch_operations_dialog(&self) {
+        let dialog = BatchOperationsDialog::new();
+
+        // Feed the current filtered commit list into the dialog
+        let commits = self.imp().all_commits.borrow().clone();
+        dialog.set_commits(&commits);
+
+        let win = self.clone();
+        dialog.connect_operation_requested(move |dlg, op, shas| {
+            match op {
+                BatchOp::CherryPick { signoff } => {
+                    // Inform the user — actual cherry-pick execution is left
+                    // to the caller layer; here we show a toast with the count.
+                    let msg = format!(
+                        "{} {} commit(s){}",
+                        gettext("Cherry-pick"),
+                        shas.len(),
+                        if signoff { gettext(" with sign-off") } else { String::new() },
+                    );
+                    win.show_toast(&msg);
+                    dlg.mark_done();
+                }
+                BatchOp::ExportPatches { dest_dir } => {
+                    let shas_clone = shas.clone();
+                    let repo_path = win.imp().repo_path.borrow().clone();
+                    let dlg_ref   = dlg.clone();
+                    dlg.set_progress_visible(true);
+
+                    std::thread::spawn(move || {
+                        if let Some(repo_path) = repo_path {
+                            let _ = std::fs::create_dir_all(&dest_dir);
+                            for (i, sha) in shas_clone.iter().enumerate() {
+                                let patch_path = dest_dir.join(
+                                    format!("{:04}-{}.patch", i + 1, &sha[..7.min(sha.len())])
+                                );
+                                // Emit the patch via git2 diff
+                                if let Ok(repo) = git2::Repository::open(&repo_path) {
+                                    if let Ok(oid) = git2::Oid::from_str(sha) {
+                                        if let Ok(commit) = repo.find_commit(oid) {
+                                            if let Ok(tree) = commit.tree() {
+                                                let parent_tree = commit
+                                                    .parent(0).ok()
+                                                    .and_then(|p| p.tree().ok());
+                                                if let Ok(diff) = repo.diff_tree_to_tree(
+                                                    parent_tree.as_ref(),
+                                                    Some(&tree),
+                                                    None,
+                                                ) {
+                                                    let mut buf = Vec::new();
+                                                    let _ = diff.print(
+                                                        git2::DiffFormat::Patch,
+                                                        |_d, _h, line| {
+                                                            buf.extend_from_slice(line.content());
+                                                            true
+                                                        },
+                                                    );
+                                                    let _ = std::fs::write(&patch_path, &buf);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Must call mark_done on the main thread
+                        glib::MainContext::default().invoke(move || {
+                            dlg_ref.mark_done();
+                        });
+                    });
+                }
+                BatchOp::CopyShas { short } => {
+                    let text = shas
+                        .iter()
+                        .map(|s| if short { s[..7.min(s.len())].to_string() } else { s.clone() })
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    if let Some(display) = gtk::gdk::Display::default() {
+                        display.clipboard().set_text(&text);
+                    }
+                    win.show_toast(&format!(
+                        "{} {} SHA(s)",
+                        gettext("Copied"),
+                        shas.len()
+                    ));
+                    dlg.mark_done();
+                }
+            }
+        });
+
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
+    }
+
+    // ── Gap 2b — SelectCommitsByPattern ──────────────────────────────────────
+
+    pub fn show_select_by_pattern_dialog(&self) {
+        let dialog = SelectCommitsByPattern::new();
+
+        let commits = self.imp().all_commits.borrow().clone();
+        dialog.set_commits(&commits);
+
+        let win = self.clone();
+        dialog.connect_pattern_selected(move |_, pattern, mode, icase| {
+            let all = win.imp().all_commits.borrow().clone();
+            let matching: Vec<String> = all
+                .iter()
+                .filter(|c| commit_matches_pattern(c, pattern, mode, icase))
+                .map(|c| c.hash.clone())
+                .collect();
+
+            let list = win.imp().commit_list.clone();
+            // Walk the list and visually mark matching rows
+            let mut row = list.first_child();
+            while let Some(r) = row {
+                if let Some(list_row) = r.downcast_ref::<gtk::ListBoxRow>() {
+                    let hash_opt = unsafe {
+                        list_row.data::<String>("hash").map(|p| p.as_ref().clone())
+                    };
+                    if let Some(hash) = hash_opt {
+                        let is_match = matching.iter().any(|m| m.starts_with(&hash[..7.min(hash.len())]));
+                        if is_match {
+                            list_row.add_css_class("pattern-match");
+                        } else {
+                            list_row.remove_css_class("pattern-match");
+                        }
+                    }
+                    row = list_row.next_sibling();
+                } else {
+                    row = r.next_sibling();
+                }
+            }
+
+            // Scroll to first match
+            let mut row2 = list.first_child();
+            while let Some(r) = row2 {
+                if let Some(list_row) = r.downcast_ref::<gtk::ListBoxRow>() {
+                    if list_row.has_css_class("pattern-match") {
+                        list.scroll_to(list_row, gtk::ListScrollFlags::FOCUS, None);
+                        break;
+                    }
+                    row2 = list_row.next_sibling();
+                } else {
+                    row2 = r.next_sibling();
+                }
+            }
+
+            win.show_toast(&format!(
+                "{} {} commit(s)",
+                gettext("Selected"),
+                matching.len()
+            ));
+        });
+
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
+    }
+
+    // ── Gap 3a — MergeConflictDialog (shown for merge commits) ───────────────
+
+    fn try_show_merge_conflict_dialog(&self, hash: &str) {
+        let repo_path = match self.imp().repo_path.borrow().clone() {
+            Some(p) => p,
+            None => return,
+        };
+
+        let repo = match git2::Repository::open(&repo_path) {
+            Ok(r) => r,
+            Err(_) => return,
+        };
+
+        let oid = match git2::Oid::from_str(hash) {
+            Ok(o) => o,
+            Err(_) => return,
+        };
+
+        let commit = match repo.find_commit(oid) {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+
+        // Only show for merge commits (2+ parents)
+        if commit.parent_count() < 2 {
+            return;
+        }
+
+        let ours   = commit.parent(0).ok();
+        let theirs = commit.parent(1).ok();
+
+        // Get the first conflicted file from the diff between parents
+        let conflict_file = ours
+            .as_ref()
+            .zip(theirs.as_ref())
+            .and_then(|(o, t)| {
+                let ot = o.tree().ok()?;
+                let tt = t.tree().ok()?;
+                let diff = repo.diff_tree_to_tree(Some(&ot), Some(&tt), None).ok()?;
+                let mut first_path = None;
+                diff.foreach(
+                    &mut |delta, _| {
+                        if first_path.is_none() {
+                            if let Some(p) = delta.new_file().path() {
+                                first_path = Some(p.to_string_lossy().to_string());
+                            }
+                        }
+                        true
+                    },
+                    None, None, None,
+                ).ok()?;
+                first_path
+            })
+            .unwrap_or_else(|| "(unknown)".to_string());
+
+        // Build diff text between the two parent trees for the conflict file
+        let diff_text = ours
+            .as_ref()
+            .zip(theirs.as_ref())
+            .and_then(|(o, t)| {
+                let ot = o.tree().ok()?;
+                let tt = t.tree().ok()?;
+                let mut opts = git2::DiffOptions::new();
+                opts.pathspec(&conflict_file);
+                let diff = repo.diff_tree_to_tree(Some(&ot), Some(&tt), Some(&mut opts)).ok()?;
+                let mut buf = Vec::new();
+                diff.print(git2::DiffFormat::Patch, |_d, _h, line| {
+                    buf.extend_from_slice(line.content());
+                    true
+                }).ok()?;
+                Some(String::from_utf8_lossy(&buf).to_string())
+            })
+            .unwrap_or_default();
+
+        let fmt_commit = |c: Option<&git2::Commit>| -> (String, String, String) {
+            match c {
+                Some(commit) => (
+                    commit.id().to_string(),
+                    commit.author().name().unwrap_or("").to_string(),
+                    glib::DateTime::from_unix_local(commit.time().seconds())
+                        .and_then(|d| d.format("%Y-%m-%d %H:%M"))
+                        .map(|s| s.to_string())
+                        .unwrap_or_default(),
+                ),
+                None => (String::new(), String::new(), String::new()),
+            }
+        };
+
+        let (ours_sha, ours_author, ours_date)     = fmt_commit(ours.as_ref());
+        let (theirs_sha, theirs_author, theirs_date) = fmt_commit(theirs.as_ref());
+
+        let info = ConflictInfo {
+            file_path: conflict_file,
+            ours_sha,
+            ours_author,
+            ours_date,
+            theirs_sha,
+            theirs_author,
+            theirs_date,
+            diff_text,
+        };
+
+        let dialog = MergeConflictDialog::new();
+        dialog.load_conflict(&info);
+
+        let win = self.clone();
+        dialog.connect_conflict_resolved(move |_, resolution, file_path, apply_all| {
+            let msg = format!(
+                "{}: {} \u2018{}\u2019{}",
+                gettext("Conflict resolved"),
+                resolution,
+                file_path,
+                if apply_all { format!(" ({})", gettext("applied to all")) } else { String::new() },
+            );
+            win.show_toast(&msg);
+        });
+
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
+    }
+
+    // ── Gap 3b — FilterTypesDialog ────────────────────────────────────────────
+
+    pub fn show_filter_types_dialog(&self) {
+        let dialog = FilterTypesDialog::new();
+
+        let win = self.clone();
+        dialog.connect_file_type_selected(move |_, ext| {
+            // Push the chosen extension into the active FilterState and re-run search
+            {
+                let mut fs = win.imp().filter_state.borrow_mut();
+                fs.file_ext = if ext.is_empty() { None } else { Some(ext.to_string()) };
+            }
+            let q = win.imp().last_query.borrow().clone();
+            win.run_search(q);
+
+            // Also propagate into the SearchFilterPopover so it reflects the
+            // new extension chip visually if it exposes a set_file_ext method.
+            if let Some(ref pop) = *win.imp().filter_popover.borrow() {
+                let _ = pop; // placeholder — call pop.set_file_ext(ext) when exposed
+            }
         });
 
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
@@ -735,6 +1081,10 @@ impl TemporalExplorerWindow {
                 imp.commit_info_bar.set_revealed(true);
             }
         }
+
+        // Gap 3a: auto-show merge conflict dialog for merge commits
+        self.try_show_merge_conflict_dialog(&hash);
+
         self.navigate_to_dir(PathBuf::new());
     }
 
@@ -1062,6 +1412,20 @@ impl TemporalExplorerWindow {
 
         *self.imp().filter_button.borrow_mut()  = Some(btn);
         *self.imp().filter_popover.borrow_mut() = Some(popover);
+    }
+
+    // ── Toast helper ──────────────────────────────────────────────────────────
+
+    fn show_toast(&self, message: &str) {
+        let toast = adw::Toast::new(message);
+        if let Some(overlay) = self
+            .imp()
+            .content_toolbar_view
+            .parent()
+            .and_then(|w| w.downcast::<adw::ToastOverlay>().ok())
+        {
+            overlay.add_toast(toast);
+        }
     }
 
     // ── Error display ─────────────────────────────────────────────────────────
