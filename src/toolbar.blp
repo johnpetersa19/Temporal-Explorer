@@ -1,6 +1,5 @@
 using Gtk 4.0;
 using Adw 1;
-using Gio 2.0;
 
 template $TemporalToolbar : Adw.Bin {
   Adw.HeaderBar header_bar {
@@ -90,24 +89,28 @@ template $TemporalToolbar : Adw.Bin {
   }
 }
 
-Gio.Menu primary_menu {
-  Gio.MenuItem {
-    label: _("New Branch");
-    action: "win.new-branch";
+menu primary_menu {
+  section {
+    item {
+      label: _("New Branch");
+      action: "win.new-branch";
+    }
   }
 
-  Gio.MenuItem {
-    label: _("Preferences");
-    action: "app.preferences";
-  }
+  section {
+    item {
+      label: _("Preferences");
+      action: "app.preferences";
+    }
 
-  Gio.MenuItem {
-    label: _("Keyboard Shortcuts");
-    action: "app.shortcuts";
-  }
+    item {
+      label: _("Keyboard Shortcuts");
+      action: "app.shortcuts";
+    }
 
-  Gio.MenuItem {
-    label: _("About Temporal Explorer");
-    action: "app.about";
+    item {
+      label: _("About Temporal Explorer");
+      action: "app.about";
+    }
   }
 }

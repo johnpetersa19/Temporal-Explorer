@@ -7,10 +7,10 @@
 using Gtk 4.0;
 using Adw 1;
 
-Adw.PreferencesDialog preferences_dialog {
+template $PreferencesDialog : Adw.PreferencesDialog {
   search-enabled: true;
 
-  // ── Page: General ──────────────────────────────────────────────────────
+  // ── Page: General ───────────────────────────────────────────────────────
   Adw.PreferencesPage {
     title: _("General");
     icon-name: "preferences-system-symbolic";
@@ -110,77 +110,84 @@ Adw.PreferencesDialog preferences_dialog {
     }
   }
 
-  // ── Page: Appearance ───────────────────────────────────────────────────
+  // ── Page: Appearance ──────────────────────────────────────────────────
   Adw.PreferencesPage {
     title: _("Appearance");
     icon-name: "applications-graphics-symbolic";
 
     Adw.PreferencesGroup {
-      title: _("Commit List");
+      title: _("Color Scheme");
 
-      Adw.ComboRow default_view_row {
-        title: _("_Default View");
-        subtitle: _("Layout used when a repository is first opened.");
+      Adw.ActionRow color_scheme_light_row {
+        title: _("_Light");
         use-underline: true;
 
-        model: StringList {
-          strings [
-            _("List"),
-            _("Grid"),
-          ]
-        };
+        [prefix]
+        CheckButton color_scheme_light_button {
+          valign: center;
+          action-name: "preferences.color-scheme";
+          action-target: "'light'";
+        }
+
+        activatable-widget: color_scheme_light_button;
       }
 
-      Adw.SwitchRow show_avatars_row {
-        title: _("Show _Author Avatars");
-        subtitle: _("Display Gravatar / Git author avatar in the commit list.");
+      Adw.ActionRow color_scheme_dark_row {
+        title: _("_Dark");
         use-underline: true;
+
+        [prefix]
+        CheckButton color_scheme_dark_button {
+          group: color_scheme_light_button;
+          valign: center;
+          action-name: "preferences.color-scheme";
+          action-target: "'dark'";
+        }
+
+        activatable-widget: color_scheme_dark_button;
       }
 
-      Adw.SwitchRow dense_mode_row {
-        title: _("_Dense Mode");
-        subtitle: _("Reduce row height for more commits on screen at once.");
+      Adw.ActionRow color_scheme_auto_row {
+        title: _("_System");
+        subtitle: _("Follow the system color scheme.");
         use-underline: true;
-      }
 
-      Adw.SwitchRow show_graph_row {
-        title: _("Show Branch _Graph");
-        subtitle: _("Render the commit graph lines in the timeline.");
-        use-underline: true;
+        [prefix]
+        CheckButton color_scheme_auto_button {
+          group: color_scheme_light_button;
+          valign: center;
+          action-name: "preferences.color-scheme";
+          action-target: "'auto'";
+        }
+
+        activatable-widget: color_scheme_auto_button;
       }
     }
 
     Adw.PreferencesGroup {
-      title: _("Diff View");
+      title: _("Timeline");
 
-      Adw.SwitchRow syntax_highlight_row {
-        title: _("_Syntax Highlighting");
-        subtitle: _("Highlight diff output using language-specific colours.");
+      Adw.SwitchRow show_avatars_row {
+        title: _("Show Author _Avatars");
+        subtitle: _("Display author initials in commit rows.");
         use-underline: true;
       }
 
-      Adw.SwitchRow word_diff_row {
-        title: _("_Word-level Diff");
-        subtitle: _("Highlight individual changed words within lines.");
+      Adw.SwitchRow show_diff_stat_row {
+        title: _("Show _Diff Statistics");
+        subtitle: _("Display +N −N emblems in commit rows.");
         use-underline: true;
       }
 
-      Adw.SpinRow context_lines_row {
-        title: _("_Context Lines");
-        subtitle: _("Unchanged lines shown above and below each diff hunk.");
+      Adw.SwitchRow compact_rows_row {
+        title: _("_Compact Rows");
+        subtitle: _("Reduce vertical padding in the commit list.");
         use-underline: true;
-
-        adjustment: Adjustment {
-          lower: 0;
-          upper: 20;
-          step-increment: 1;
-          page-increment: 3;
-        };
       }
     }
   }
 
-  // ── Page: Advanced ─────────────────────────────────────────────────────
+  // ── Page: Advanced ───────────────────────────────────────────────────
   Adw.PreferencesPage {
     title: _("Advanced");
     icon-name: "applications-engineering-symbolic";
@@ -188,21 +195,21 @@ Adw.PreferencesDialog preferences_dialog {
     Adw.PreferencesGroup {
       title: _("Git");
 
-      Adw.SwitchRow verify_signatures_row {
-        title: _("_Verify Commit Signatures");
-        subtitle: _("Show GPG/SSH signature status in the commit detail.");
+      Adw.EntryRow git_binary_row {
+        title: _("_Git Binary Path");
+        subtitle: _("Leave empty to use the system default.");
         use-underline: true;
       }
 
       Adw.SwitchRow follow_renames_row {
         title: _("_Follow Renames");
-        subtitle: _("Track file history across renames when loading diffs.");
+        subtitle: _("Track file history across renames (git log --follow).");
         use-underline: true;
       }
 
-      Adw.SwitchRow include_submodules_row {
-        title: _("Include _Submodules");
-        subtitle: _("List commits from submodule repositories as well.");
+      Adw.SwitchRow show_signature_row {
+        title: _("Show _GPG Signature Status");
+        subtitle: _("Verify and display commit signature badges.");
         use-underline: true;
       }
     }
@@ -210,22 +217,23 @@ Adw.PreferencesDialog preferences_dialog {
     Adw.PreferencesGroup {
       title: _("Performance");
 
-      Adw.SwitchRow background_fetch_row {
-        title: _("_Background Fetch");
-        subtitle: _("Periodically refresh remote tracking branches in the background.");
-        use-underline: true;
-      }
-
-      Adw.SpinRow background_fetch_interval_row {
-        title: _("Fetch _Interval (minutes)");
+      Adw.SpinRow cache_size_row {
+        title: _("_Cache Size (MB)");
+        subtitle: _("Maximum memory used for the directory cache.");
         use-underline: true;
 
         adjustment: Adjustment {
-          lower: 5;
-          upper: 1440;
-          step-increment: 5;
-          page-increment: 30;
+          lower: 16;
+          upper: 1024;
+          step-increment: 16;
+          page-increment: 128;
         };
+      }
+
+      Adw.SwitchRow background_index_row {
+        title: _("_Background Indexing");
+        subtitle: _("Pre-index large repositories in the background.");
+        use-underline: true;
       }
     }
   }
