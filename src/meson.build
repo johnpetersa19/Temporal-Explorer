@@ -15,6 +15,8 @@ blueprints = custom_target(
     'month-row.blp',
     'file-list-row.blp',
     'file-grid-cell.blp',
+    'search-filter-popover.blp',
+    'date-range-dialog.blp',
   ),
   output: '.',
   command: [

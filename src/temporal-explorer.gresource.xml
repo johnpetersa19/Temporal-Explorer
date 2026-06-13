@@ -10,6 +10,8 @@
     <file preprocess="xml-stripblanks">month-row.ui</file>
     <file preprocess="xml-stripblanks">file-list-row.ui</file>
     <file preprocess="xml-stripblanks">file-grid-cell.ui</file>
+    <file preprocess="xml-stripblanks">search-filter-popover.ui</file>
+    <file preprocess="xml-stripblanks">date-range-dialog.ui</file>
     <!-- Application CSS -->
     <file>temporal-explorer.css</file>
   </gresource>

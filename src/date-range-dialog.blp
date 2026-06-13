@@ -1,0 +1,95 @@
+/* date-range-dialog.blp
+ *
+ * Copyright 2026 John Peter Sá
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+//! Port / inspiration: nautilus-date-range-dialog.blp (GNOME Nautilus 47+).
+//! Adapted from a file-date filter into a Git commit-date range filter.
+
+using Gtk 4.0;
+using Adw 1;
+
+template $DateRangeDialog : Adw.Dialog {
+  title: _("Custom Date Range");
+  content-height: 380;
+  content-width: 420;
+  default-widget: apply_button;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      title-widget: Adw.WindowTitle {
+        title: _("Filter by Date Range");
+      };
+
+      [start]
+      Button cancel_button {
+        label: _("_Cancel");
+        use-underline: true;
+        action-name: "window.close";
+      }
+    }
+
+    content: Adw.PreferencesPage {
+
+      Adw.PreferencesGroup {
+        title: _("Date Range");
+        description: _("Show only commits authored within this period (YYYY-MM-DD)");
+
+        Adw.EntryRow from_entry {
+          title: _("From");
+          input-purpose: free-form;
+          input-hints: no_spellcheck;
+        }
+
+        Adw.EntryRow to_entry {
+          title: _("To");
+          input-purpose: free-form;
+          input-hints: no_spellcheck;
+        }
+      }
+
+      Adw.PreferencesGroup error_group {
+        visible: false;
+
+        Adw.ActionRow error_row {
+          title: _("Invalid date");
+          subtitle: _("Use the format YYYY-MM-DD, e.g. 2026-01-15");
+          icon-name: "dialog-warning-symbolic";
+
+          styles ["error"]
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Button apply_button {
+          label: _("_Apply Filter");
+          use-underline: true;
+          margin-top: 8;
+          halign: center;
+          sensitive: false;
+
+          styles ["suggested-action", "pill"]
+        }
+      }
+    };
+  };
+}
