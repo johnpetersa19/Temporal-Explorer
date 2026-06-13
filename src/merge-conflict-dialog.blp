@@ -1,0 +1,216 @@
+// merge-conflict-dialog.blp
+//
+// Copyright 2026 John Peter Sá
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+using Gtk 4.0;
+using Adw 1;
+
+template $MergeConflictDialog: Adw.Dialog {
+  title: _("Merge Conflict");
+  content-width: 640;
+  content-height: 560;
+  default-widget: use_ours_button;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      [start]
+      Button cancel_button {
+        label: _("_Cancel");
+        use-underline: true;
+        clicked => $on_cancel_clicked() swapped;
+      }
+
+      title-widget: Adw.WindowTitle {
+        title: _("Merge Conflict");
+        subtitle: _("Choose how to resolve this conflict");
+      };
+    }
+
+    content: Box {
+      orientation: vertical;
+      spacing: 0;
+
+      // ── File info banner ──────────────────────────────────────────────
+      Adw.Banner conflict_banner {
+        title: _("This file has conflicting changes from both sides of the merge.");
+        button-label: _("Show Diff");
+        action-name: "dialog.show-diff";
+      }
+
+      Box {
+        orientation: vertical;
+        margin-top: 18;
+        margin-bottom: 18;
+        margin-start: 18;
+        margin-end: 18;
+        spacing: 18;
+
+        // ── Conflicted file path ──────────────────────────────────────
+        Adw.PreferencesGroup {
+          title: _("Conflicted File");
+
+          Adw.ActionRow file_path_row {
+            title: _("Path");
+            subtitle-selectable: true;
+
+            [prefix]
+            Image {
+              icon-name: "dialog-warning-symbolic";
+              pixel-size: 32;
+
+              styles ["warning"]
+            }
+          }
+        }
+
+        // ── Ours / Theirs info ────────────────────────────────────────
+        Box {
+          homogeneous: true;
+          spacing: 12;
+
+          // Ours
+          Box {
+            orientation: vertical;
+            spacing: 6;
+            hexpand: true;
+
+            Label {
+              label: _("Ours (HEAD)");
+              halign: start;
+
+              styles ["heading"]
+            }
+
+            Frame {
+              Adw.PreferencesGroup {
+                Adw.ActionRow ours_commit_row {
+                  title: _("Commit");
+                  subtitle-selectable: true;
+                }
+
+                Adw.ActionRow ours_author_row {
+                  title: _("Author");
+                }
+
+                Adw.ActionRow ours_date_row {
+                  title: _("Date");
+                }
+              }
+            }
+          }
+
+          // Theirs
+          Box {
+            orientation: vertical;
+            spacing: 6;
+            hexpand: true;
+
+            Label {
+              label: _("Theirs (Incoming)");
+              halign: start;
+
+              styles ["heading"]
+            }
+
+            Frame {
+              Adw.PreferencesGroup {
+                Adw.ActionRow theirs_commit_row {
+                  title: _("Commit");
+                  subtitle-selectable: true;
+                }
+
+                Adw.ActionRow theirs_author_row {
+                  title: _("Author");
+                }
+
+                Adw.ActionRow theirs_date_row {
+                  title: _("Date");
+                }
+              }
+            }
+          }
+        }
+
+        // ── Diff preview (collapsible) ────────────────────────────────
+        Expander diff_expander {
+          label: _("Show conflict diff");
+          margin-top: 6;
+
+          ScrolledWindow {
+            height-request: 160;
+
+            TextView diff_view {
+              editable: false;
+              monospace: true;
+              top-margin: 8;
+              bottom-margin: 8;
+              left-margin: 8;
+              right-margin: 8;
+              wrap-mode: none;
+
+              styles ["card"]
+            }
+          }
+        }
+
+        // ── Apply to all checkbox ─────────────────────────────────────
+        CheckButton apply_to_all_check {
+          label: _("_Apply this resolution to all conflicting files");
+          use-underline: true;
+          toggled => $on_apply_to_all_toggled() swapped;
+        }
+      }
+
+      // ── Action bar ───────────────────────────────────────────────────
+      Adw.Bin {
+        styles ["toolbar"]
+
+        Box {
+          homogeneous: true;
+          spacing: 8;
+          margin-start: 18;
+          margin-end: 18;
+          margin-top: 8;
+          margin-bottom: 8;
+
+          Button use_ours_button {
+            label: _("Use _Ours");
+            use-underline: true;
+            action-name: "dialog.use-ours";
+
+            styles ["pill"]
+          }
+
+          Button use_theirs_button {
+            label: _("Use _Theirs");
+            use-underline: true;
+            action-name: "dialog.use-theirs";
+
+            styles ["pill"]
+          }
+
+          Button use_both_button {
+            label: _("Keep _Both");
+            use-underline: true;
+            action-name: "dialog.use-both";
+
+            styles ["pill", "suggested-action"]
+          }
+        }
+      }
+    };
+  };
+
+  ShortcutController {
+    Shortcut {
+      trigger: "Escape";
+      action: "action(window.close)";
+    }
+  }
+}

@@ -1,0 +1,232 @@
+// preferences-dialog.blp
+//
+// Copyright 2026 John Peter Sá
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+using Gtk 4.0;
+using Adw 1;
+
+Adw.PreferencesDialog preferences_dialog {
+  search-enabled: true;
+
+  // ── Page: General ──────────────────────────────────────────────────────
+  Adw.PreferencesPage {
+    title: _("General");
+    icon-name: "preferences-system-symbolic";
+
+    Adw.PreferencesGroup {
+      title: _("Repository");
+      description: _("Behaviour when opening and loading repositories.");
+
+      Adw.SwitchRow fetch_on_open_row {
+        title: _("_Fetch on Open");
+        subtitle: _("Run git fetch automatically when a repository is opened.");
+        use-underline: true;
+      }
+
+      Adw.SpinRow commits_per_page_row {
+        title: _("_Commits per Page");
+        subtitle: _("Number of commits loaded in each batch.");
+        use-underline: true;
+
+        adjustment: Adjustment {
+          lower: 10;
+          upper: 500;
+          step-increment: 10;
+          page-increment: 50;
+        };
+      }
+
+      Adw.EntryRow default_branch_row {
+        title: _("_Default Branch");
+        use-underline: true;
+      }
+
+      Adw.SpinRow clone_depth_row {
+        title: _("Shallow Clone _Depth");
+        subtitle: _("Set to 0 to clone the full history.");
+        use-underline: true;
+
+        adjustment: Adjustment {
+          lower: 0;
+          upper: 10000;
+          step-increment: 1;
+          page-increment: 100;
+        };
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Date and Time");
+      description: _("Choose how commit timestamps are displayed.");
+
+      Adw.ActionRow date_format_relative_row {
+        title: _("_Relative");
+        subtitle: _("e.g. \"3 days ago\"");
+        use-underline: true;
+
+        [prefix]
+        CheckButton date_format_relative_button {
+          valign: center;
+          action-name: "preferences.date-format";
+          action-target: "'relative'";
+        }
+
+        activatable-widget: date_format_relative_button;
+      }
+
+      Adw.ActionRow date_format_short_row {
+        title: _("_Short");
+        subtitle: _("e.g. \"13 Jun 2026\"");
+        use-underline: true;
+
+        [prefix]
+        CheckButton date_format_short_button {
+          group: date_format_relative_button;
+          valign: center;
+          action-name: "preferences.date-format";
+          action-target: "'short'";
+        }
+
+        activatable-widget: date_format_short_button;
+      }
+
+      Adw.ActionRow date_format_iso_row {
+        title: _("_ISO 8601");
+        subtitle: _("e.g. \"2026-06-13 14:30:00\"");
+        use-underline: true;
+
+        [prefix]
+        CheckButton date_format_iso_button {
+          group: date_format_relative_button;
+          valign: center;
+          action-name: "preferences.date-format";
+          action-target: "'iso'";
+        }
+
+        activatable-widget: date_format_iso_button;
+      }
+    }
+  }
+
+  // ── Page: Appearance ───────────────────────────────────────────────────
+  Adw.PreferencesPage {
+    title: _("Appearance");
+    icon-name: "applications-graphics-symbolic";
+
+    Adw.PreferencesGroup {
+      title: _("Commit List");
+
+      Adw.ComboRow default_view_row {
+        title: _("_Default View");
+        subtitle: _("Layout used when a repository is first opened.");
+        use-underline: true;
+
+        model: StringList {
+          strings [
+            _("List"),
+            _("Grid"),
+          ]
+        };
+      }
+
+      Adw.SwitchRow show_avatars_row {
+        title: _("Show _Author Avatars");
+        subtitle: _("Display Gravatar / Git author avatar in the commit list.");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow dense_mode_row {
+        title: _("_Dense Mode");
+        subtitle: _("Reduce row height for more commits on screen at once.");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow show_graph_row {
+        title: _("Show Branch _Graph");
+        subtitle: _("Render the commit graph lines in the timeline.");
+        use-underline: true;
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Diff View");
+
+      Adw.SwitchRow syntax_highlight_row {
+        title: _("_Syntax Highlighting");
+        subtitle: _("Highlight diff output using language-specific colours.");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow word_diff_row {
+        title: _("_Word-level Diff");
+        subtitle: _("Highlight individual changed words within lines.");
+        use-underline: true;
+      }
+
+      Adw.SpinRow context_lines_row {
+        title: _("_Context Lines");
+        subtitle: _("Unchanged lines shown above and below each diff hunk.");
+        use-underline: true;
+
+        adjustment: Adjustment {
+          lower: 0;
+          upper: 20;
+          step-increment: 1;
+          page-increment: 3;
+        };
+      }
+    }
+  }
+
+  // ── Page: Advanced ─────────────────────────────────────────────────────
+  Adw.PreferencesPage {
+    title: _("Advanced");
+    icon-name: "applications-engineering-symbolic";
+
+    Adw.PreferencesGroup {
+      title: _("Git");
+
+      Adw.SwitchRow verify_signatures_row {
+        title: _("_Verify Commit Signatures");
+        subtitle: _("Show GPG/SSH signature status in the commit detail.");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow follow_renames_row {
+        title: _("_Follow Renames");
+        subtitle: _("Track file history across renames when loading diffs.");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow include_submodules_row {
+        title: _("Include _Submodules");
+        subtitle: _("List commits from submodule repositories as well.");
+        use-underline: true;
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Performance");
+
+      Adw.SwitchRow background_fetch_row {
+        title: _("_Background Fetch");
+        subtitle: _("Periodically refresh remote tracking branches in the background.");
+        use-underline: true;
+      }
+
+      Adw.SpinRow background_fetch_interval_row {
+        title: _("Fetch _Interval (minutes)");
+        use-underline: true;
+
+        adjustment: Adjustment {
+          lower: 5;
+          upper: 1440;
+          step-increment: 5;
+          page-increment: 30;
+        };
+      }
+    }
+  }
+}

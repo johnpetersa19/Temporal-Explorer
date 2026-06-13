@@ -1,0 +1,186 @@
+// filter-types-dialog.blp
+//
+// Copyright 2026 John Peter Sá
+//
+// Port of nautilus-search-types-dialog adapted for commit file-extension
+// filtering in Temporal-Explorer.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+using Gtk 4.0;
+using Adw 1;
+
+template $FilterTypesDialog: Adw.Dialog {
+  title: _("Add File Type Filter");
+  content-width: 420;
+  content-height: 580;
+  default-widget: add_button;
+  focus-widget: search_entry;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      [start]
+      Button cancel_button {
+        label: _("_Cancel");
+        use-underline: true;
+        can-shrink: true;
+        clicked => $on_cancel_clicked() swapped;
+      }
+
+      [end]
+      Button add_button {
+        label: _("_Add");
+        use-underline: true;
+        can-shrink: true;
+        sensitive: false;
+        clicked => $on_add_clicked() swapped;
+
+        styles ["suggested-action"]
+      }
+    }
+
+    [top]
+    Adw.Bin {
+      styles ["toolbar"]
+
+      child: SearchEntry search_entry {
+        placeholder-text: _("Search extensions, e.g. rs, py, ts…");
+        activates-default: true;
+        search-changed => $on_search_changed() swapped;
+        activate => $on_search_activate() swapped;
+      };
+    }
+
+    content: Stack search_stack {
+      // Start state — prompt the user
+      StackPage {
+        name: "start";
+
+        child: Adw.StatusPage {
+          icon-name: "edit-find-symbolic";
+          title: _("Filter by File Type");
+          description: _("Type an extension to add a filter, or choose from common types below.");
+
+          child: Box {
+            orientation: vertical;
+            spacing: 8;
+            margin-top: 12;
+
+            Label {
+              label: _("Common types");
+              halign: start;
+              margin-start: 12;
+
+              styles ["heading"]
+            }
+
+            FlowBox common_types_box {
+              selection-mode: none;
+              min-children-per-line: 2;
+              max-children-per-line: 4;
+              row-spacing: 6;
+              column-spacing: 6;
+              margin-start: 12;
+              margin-end: 12;
+              child-activated => $on_common_type_activated() swapped;
+            }
+          };
+        };
+      }
+
+      // Empty state — no results found
+      StackPage {
+        name: "empty";
+
+        child: Adw.StatusPage {
+          icon-name: "edit-find-symbolic";
+          title: _("No Types Found");
+          description: _("Try a different search, or press Enter to add a custom extension.");
+        };
+      }
+
+      // Results state — matching extensions
+      StackPage {
+        name: "results";
+
+        child: ScrolledWindow {
+          vexpand: true;
+
+          ListView results_list {
+            show-separators: true;
+            activate => $on_list_activate() swapped;
+
+            factory: BuilderListItemFactory {
+              template ListItem {
+                child: Box {
+                  margin-start: 16;
+                  margin-end: 16;
+                  margin-top: 14;
+                  margin-bottom: 14;
+                  spacing: 12;
+
+                  // Extension icon (mime-type)
+                  Image row_icon {
+                    pixel-size: 32;
+
+                    accessibility {
+                      labelled-by: [row_description]
+                    }
+                  }
+
+                  Box {
+                    orientation: vertical;
+                    spacing: 4;
+                    hexpand: true;
+
+                    // Extension label, e.g. ".rs"
+                    Label row_description {
+                      halign: start;
+                      hexpand: true;
+                      ellipsize: end;
+
+                      styles ["body"]
+                    }
+
+                    // Human description, e.g. "Rust source file"
+                    Label row_subtitle {
+                      halign: start;
+                      hexpand: true;
+                      ellipsize: end;
+
+                      styles ["caption", "dim-label"]
+                    }
+                  }
+
+                  // Checkmark when selected
+                  Image row_checkmark {
+                    icon-name: "object-select-symbolic";
+                    pixel-size: 16;
+                    visible: false;
+
+                    styles ["success"]
+                  }
+                };
+              }
+            };
+          }
+        };
+      }
+    };
+  };
+
+  SizeGroup {
+    widgets [cancel_button, add_button]
+  }
+
+  ShortcutController {
+    Shortcut {
+      trigger: "Escape";
+      action: "action(window.close)";
+    }
+  }
+}
