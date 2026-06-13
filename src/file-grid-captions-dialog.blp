@@ -1,0 +1,66 @@
+// file-grid-captions-dialog.blp
+//
+// Copyright 2026 John Peter Sá
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Dialog to toggle which captions appear below grid-view file thumbnails.
+// Port of nautilus-grid-view-captions-dialog.
+
+using Gtk 4.0;
+using Adw 1;
+
+template $FileGridCaptionsDialog : Adw.Dialog {
+  title: _("Grid Captions");
+  content-width: 340;
+  content-height: 320;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {}
+
+    content: ScrolledWindow {
+      hscrollbar-policy: never;
+      vexpand: true;
+
+      child: Adw.PreferencesGroup {
+        margin-top: 12;
+        margin-bottom: 12;
+        margin-start: 12;
+        margin-end: 12;
+        title: _("Visible Captions");
+        description: _("Choose which information appears below each file in grid view.");
+
+        Adw.SwitchRow caption_status_row {
+          title: _("Status");
+          subtitle: _("Added, Modified or Deleted");
+        }
+
+        Adw.SwitchRow caption_extension_row {
+          title: _("Extension");
+        }
+
+        Adw.SwitchRow caption_size_row {
+          title: _("File Size");
+        }
+
+        Adw.SwitchRow caption_date_row {
+          title: _("Date Modified");
+        }
+      };
+    };
+
+    [bottom]
+    Adw.Bin {
+      margin-bottom: 12;
+      margin-start: 12;
+      margin-end: 12;
+
+      Button apply_button {
+        label: _("Apply");
+        halign: end;
+
+        styles ["suggested-action"]
+      }
+    }
+  };
+}

@@ -1,0 +1,107 @@
+// branch-sidebar-row.blp
+//
+// Copyright 2026 John Peter Sá
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Sidebar row for a single branch. Shows branch name and, on hover,
+// reveals inline action buttons: checkout, push, rename, delete.
+
+using Gtk 4.0;
+using Adw 1;
+
+template $BranchSidebarRow : Gtk.ListBoxRow {
+  child: Overlay {
+    child: Box {
+      orientation: horizontal;
+      spacing: 8;
+      margin-top: 6;
+      margin-bottom: 6;
+      margin-start: 12;
+      margin-end: 8;
+
+      // Branch type icon (branch or remote)
+      Image branch_icon {
+        pixel-size: 16;
+        valign: center;
+
+        styles ["dim-label"]
+      }
+
+      // Branch name
+      Label branch_name_label {
+        hexpand: true;
+        halign: start;
+        ellipsize: end;
+        xalign: 0;
+
+        styles ["body"]
+      }
+
+      // HEAD indicator chip
+      Label head_badge {
+        label: _("HEAD");
+        visible: false;
+        valign: center;
+
+        styles ["caption", "branch-head-badge"]
+      }
+    };
+
+    // Inline action buttons — revealed on hover / keyboard focus
+    [overlay]
+    Revealer actions_revealer {
+      halign: end;
+      valign: center;
+      reveal-child: false;
+      transition-type: crossfade;
+
+      child: Box {
+        orientation: horizontal;
+        spacing: 0;
+        margin-end: 4;
+
+        styles ["toolbar", "branch-actions"]
+
+        // Checkout
+        Button checkout_button {
+          icon-name: "branch-checkout-symbolic";
+          tooltip-text: _("Checkout branch");
+          valign: center;
+          clicked => $on_checkout_clicked() swapped;
+
+          styles ["flat", "circular"]
+        }
+
+        // Push
+        Button push_button {
+          icon-name: "send-to-symbolic";
+          tooltip-text: _("Push branch");
+          valign: center;
+          clicked => $on_push_clicked() swapped;
+
+          styles ["flat", "circular"]
+        }
+
+        // Rename
+        Button rename_button {
+          icon-name: "document-edit-symbolic";
+          tooltip-text: _("Rename branch");
+          valign: center;
+          clicked => $on_rename_clicked() swapped;
+
+          styles ["flat", "circular"]
+        }
+
+        // Delete
+        Button delete_button {
+          icon-name: "user-trash-symbolic";
+          tooltip-text: _("Delete branch");
+          valign: center;
+          clicked => $on_delete_clicked() swapped;
+
+          styles ["flat", "circular", "destructive-action"]
+        }
+      };
+    }
+  };
+}

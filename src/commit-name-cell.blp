@@ -1,0 +1,111 @@
+// commit-name-cell.blp
+//
+// Copyright 2026 John Peter Sá
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Rich timeline cell: commit summary, SHA copy button, branch/tag badges,
+// diff-stat emblems (+N −N) and author avatar initial.
+
+using Gtk 4.0;
+using Adw 1;
+
+template $CommitNameCell : Gtk.ListBoxRow {
+  child: Box {
+    orientation: vertical;
+    margin-top: 6;
+    margin-bottom: 6;
+    margin-start: 12;
+    margin-end: 12;
+    spacing: 4;
+
+    // ── Top row: avatar · summary · SHA copy ──────────────────────
+    Box {
+      orientation: horizontal;
+      spacing: 8;
+
+      // Author avatar (initial letter, coloured)
+      Label author_avatar {
+        width-request: 28;
+        height-request: 28;
+        halign: center;
+        valign: center;
+
+        styles ["commit-avatar"]
+      }
+
+      // Commit summary (takes remaining space)
+      Label summary_label {
+        hexpand: true;
+        halign: start;
+        ellipsize: end;
+        xalign: 0;
+
+        styles ["body"]
+      }
+
+      // Diff stat: +N
+      Label additions_label {
+        halign: end;
+        valign: center;
+
+        styles ["caption", "commit-additions"]
+      }
+
+      // Diff stat: −N
+      Label deletions_label {
+        halign: end;
+        valign: center;
+
+        styles ["caption", "commit-deletions"]
+      }
+
+      // Inline SHA copy button
+      Button sha_copy_button {
+        valign: center;
+        tooltip-text: _("Copy commit SHA");
+        icon-name: "edit-copy-symbolic";
+        clicked => $on_sha_copy_clicked() swapped;
+
+        styles ["flat", "circular", "commit-sha-copy"]
+      }
+    }
+
+    // ── Second row: SHA label · author · date ──────────────────────
+    Box {
+      orientation: horizontal;
+      spacing: 8;
+
+      Label sha_label {
+        halign: start;
+        selectable: true;
+
+        styles ["caption", "dim-label", "monospace"]
+      }
+
+      Label author_label {
+        hexpand: true;
+        halign: start;
+        ellipsize: end;
+
+        styles ["caption", "dim-label"]
+      }
+
+      Label date_label {
+        halign: end;
+
+        styles ["caption", "dim-label"]
+      }
+    }
+
+    // ── Third row: branch / tag badge chips ───────────────────────
+    // Populated dynamically in Rust; hidden when empty.
+    FlowBox badges_box {
+      selection-mode: none;
+      min-children-per-line: 1;
+      max-children-per-line: 8;
+      row-spacing: 2;
+      column-spacing: 4;
+      visible: false;
+    }
+  };
+}
