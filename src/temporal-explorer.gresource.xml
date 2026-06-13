@@ -15,6 +15,10 @@
     <file preprocess="xml-stripblanks">history-controls.ui</file>
     <file preprocess="xml-stripblanks">view-controls.ui</file>
     <file preprocess="xml-stripblanks">column-chooser.ui</file>
+    <!-- Phase 2: new dialogs -->
+    <file preprocess="xml-stripblanks">merge-conflict-dialog.ui</file>
+    <file preprocess="xml-stripblanks">preferences-dialog.ui</file>
+    <file preprocess="xml-stripblanks">filter-types-dialog.ui</file>
     <!-- Application CSS -->
     <file>temporal-explorer.css</file>
   </gresource>
