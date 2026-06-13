@@ -26,6 +26,8 @@
     <!-- Phase 4: power user features -->
     <file preprocess="xml-stripblanks">batch-operations-dialog.ui</file>
     <file preprocess="xml-stripblanks">select-commits-by-pattern.ui</file>
+    <!-- Phase 5: views sub-module -->
+    <file preprocess="xml-stripblanks" alias="file-list-view.ui">views/file-list-view.ui</file>
     <!-- Application CSS -->
     <file>temporal-explorer.css</file>
   </gresource>
