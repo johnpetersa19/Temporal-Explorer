@@ -1,22 +1,232 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <object class="AdwShortcutsDialog" id="shortcuts_dialog">
+
+    <!-- ===== NAVIGATION ===== -->
     <child>
       <object class="AdwShortcutsSection">
-        <property name="title" translatable="yes">Shortcuts</property>
+        <property name="title" translatable="yes" context="shortcuts dialog">Navigation</property>
+
         <child>
           <object class="AdwShortcutsItem">
-            <property name="title" translatable="yes" context="shortcut window">Show Shortcuts</property>
+            <property name="title" translatable="yes" context="shortcuts dialog">Go to Previous Commit</property>
+            <property name="accelerator">&lt;alt&gt;Left</property>
+            <property name="direction">ltr</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Go to Previous Commit</property>
+            <property name="accelerator">&lt;alt&gt;Right</property>
+            <property name="direction">rtl</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Go to Next Commit</property>
+            <property name="accelerator">&lt;alt&gt;Right</property>
+            <property name="direction">ltr</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Go to Next Commit</property>
+            <property name="accelerator">&lt;alt&gt;Left</property>
+            <property name="direction">rtl</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Go to First Commit</property>
+            <property name="accelerator">&lt;Primary&gt;Home</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Go to Latest Commit (HEAD)</property>
+            <property name="accelerator">&lt;Primary&gt;End</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Open Repository</property>
+            <property name="accelerator">&lt;Primary&gt;O</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Refresh / Reload</property>
+            <property name="accelerator">F5 &lt;Primary&gt;R</property>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <!-- ===== SEARCH &amp; FILTER ===== -->
+    <child>
+      <object class="AdwShortcutsSection">
+        <property name="title" translatable="yes" context="shortcuts dialog">Search &amp; Filter</property>
+
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Search Commits</property>
+            <property name="accelerator">&lt;Primary&gt;F</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Open Filter Popover</property>
+            <property name="accelerator">&lt;Primary&gt;&lt;Shift&gt;F</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Open Date Range Dialog</property>
+            <property name="accelerator">&lt;Primary&gt;&lt;Shift&gt;D</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Clear All Filters</property>
+            <property name="accelerator">&lt;Primary&gt;Escape</property>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <!-- ===== VIEW ===== -->
+    <child>
+      <object class="AdwShortcutsSection">
+        <property name="title" translatable="yes" context="shortcuts dialog">View</property>
+
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">List View</property>
+            <property name="accelerator">&lt;Primary&gt;1</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Grid View</property>
+            <property name="accelerator">&lt;Primary&gt;2</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Zoom In</property>
+            <property name="accelerator">&lt;Primary&gt;plus</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Zoom Out</property>
+            <property name="accelerator">&lt;Primary&gt;minus</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Reset Zoom</property>
+            <property name="accelerator">&lt;Primary&gt;0</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Show/Hide Sidebar</property>
+            <property name="action-name">win.toggle-sidebar</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Choose Visible Columns</property>
+            <property name="accelerator">&lt;Primary&gt;&lt;Shift&gt;C</property>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <!-- ===== COMMIT ACTIONS ===== -->
+    <child>
+      <object class="AdwShortcutsSection">
+        <property name="title" translatable="yes" context="shortcuts dialog">Commit Actions</property>
+
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Copy Commit SHA</property>
+            <property name="accelerator">&lt;Primary&gt;C</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Show Commit Details</property>
+            <property name="accelerator">&lt;Primary&gt;I Return</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Preview Selected File</property>
+            <property name="accelerator">space</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Open Context Menu</property>
+            <property name="accelerator">&lt;Shift&gt;F10</property>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <!-- ===== SELECTION ===== -->
+    <child>
+      <object class="AdwShortcutsSection">
+        <property name="title" translatable="yes" context="shortcuts dialog">Selection</property>
+
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Select All Commits</property>
+            <property name="accelerator">&lt;Primary&gt;A</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Select Commits Matching Pattern</property>
+            <property name="accelerator">&lt;Primary&gt;S</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Invert Selection</property>
+            <property name="accelerator">&lt;Primary&gt;&lt;Shift&gt;I</property>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <!-- ===== APP ===== -->
+    <child>
+      <object class="AdwShortcutsSection">
+        <property name="title" translatable="yes" context="shortcuts dialog">App</property>
+
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Preferences</property>
+            <property name="action-name">app.preferences</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcuts dialog">Show Shortcuts</property>
             <property name="action-name">app.shortcuts</property>
           </object>
         </child>
         <child>
           <object class="AdwShortcutsItem">
-            <property name="title" translatable="yes" context="shortcut window">Quit</property>
+            <property name="title" translatable="yes" context="shortcuts dialog">Quit</property>
             <property name="action-name">app.quit</property>
           </object>
         </child>
       </object>
     </child>
+
   </object>
 </interface>
