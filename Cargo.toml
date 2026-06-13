@@ -14,7 +14,7 @@ bitflags = "2"
 [dependencies.adw]
 package = "libadwaita"
 version = "0.7"
-features = ["v1_6"]
+features = ["v1_7"]
 
 # Dev-only: used by unit tests in src/tests/ to create temporary git repos.
 [dev-dependencies]
