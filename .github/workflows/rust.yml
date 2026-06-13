@@ -124,7 +124,7 @@ jobs:
         echo ""
         echo "All .blp files passed blueprint-compiler lint."
 
-    - name: Build with Meson
+    - name: Build with Cargo
       env:
         PKG_CONFIG_PATH: /usr/lib/pkgconfig:/usr/share/pkgconfig
         LD_LIBRARY_PATH: /usr/lib
@@ -132,8 +132,7 @@ jobs:
         echo "PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
         echo "Available .pc files:"
         find /usr/lib /usr/share -name "*.pc" 2>/dev/null | grep -E "(gtk|glib|adwaita)" | head -20
-        meson setup builddir
-        meson compile -C builddir
+        cargo build --release
 
     - name: Run tests
-      run: meson test -C builddir
+      run: cargo test
