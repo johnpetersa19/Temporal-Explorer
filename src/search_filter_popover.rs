@@ -24,22 +24,25 @@
 //! Git-commit exploration:
 //!
 //! * **Date** — quick chips (Today / Yesterday / Past Week / Month / Year)
-//!              plus a "…" button that opens `DateRangeDialog`.
+//!              plus a "…" button that opens [`DateRangeDialog`].
 //! * **Author** — free-text entry *plus* auto-generated chips from
 //!                the unique authors in the current commit list.
 //! * **Branch** — chips populated from `git branch -a` on repo open.
 //! * **Changed files** — chip toggles for Rust / TOML / Blueprint / other.
 //!
-//! The popover emits a `filters-changed` signal carrying a `FilterState`
+//! The popover emits a `filters-changed` signal carrying a [`FilterState`]
 //! struct.  `window.rs` listens to it and re-runs `run_search()` with the
 //! active filter applied on top of the text query.
 
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+use adw::prelude::*;
 use gettextrs::gettext;
 use std::cell::RefCell;
+use std::sync::OnceLock;
 
+use crate::date_range_dialog::DateRangeDialog;
 use crate::git_engine::CommitInfo;
 
 // ── FilterDateRange ────────────────────────────────────────────────────────────
@@ -94,6 +97,31 @@ impl FilterDateRange {
         let start = now.add_days(-n).unwrap();
         Self { from: Some(start.to_unix()), to: None }
     }
+
+    /// Build from raw Unix bounds as returned by `DateRangeDialog`.
+    /// `i64::MIN` / `i64::MAX` sentinels are normalised back to `None`.
+    pub fn from_unix_bounds(from: i64, to: i64) -> Self {
+        Self {
+            from: if from == i64::MIN { None } else { Some(from) },
+            to:   if to   == i64::MAX { None } else { Some(to)   },
+        }
+    }
+
+    /// Human-readable label for the chip, e.g. "2026-01-01 → 2026-03-15".
+    pub fn chip_label(&self) -> String {
+        let fmt = |ts: i64| -> String {
+            glib::DateTime::from_unix_local(ts)
+                .map(|dt| format!("{:04}-{:02}-{:02}", dt.year(), dt.month(), dt.day_of_month()))
+                .unwrap_or_else(|_| "?".into())
+        };
+
+        match (&self.from, &self.to) {
+            (Some(f), Some(t)) => format!("{} → {}", fmt(*f), fmt(*t)),
+            (Some(f), None)    => format!("From {}", fmt(*f)),
+            (None,    Some(t)) => format!("Until {}", fmt(*t)),
+            (None,    None)    => String::new(),
+        }
+    }
 }
 
 // ── FileTypeFilter ─────────────────────────────────────────────────────────────
@@ -131,3 +159,547 @@ impl FilterState {
             || self.author.is_some()
             || self.branch.is_some()
             || self.files.is_active()
+    }
+
+    /// Apply this filter to a slice of commits, returning only matching ones.
+    pub fn apply<'a>(&self, commits: &'a [CommitInfo]) -> Vec<&'a CommitInfo> {
+        commits.iter().filter(|c| self.matches(c)).collect()
+    }
+
+    fn matches(&self, c: &CommitInfo) -> bool {
+        // Date filter
+        if self.date.is_active() && !self.date.contains(c.timestamp) {
+            return false;
+        }
+
+        // Author filter (case-insensitive substring)
+        if let Some(ref author) = self.author {
+            let a = author.to_lowercase();
+            if !c.author.to_lowercase().contains(&a) {
+                return false;
+            }
+        }
+
+        // File-type filter: commit must have touched at least one matching file
+        if self.files.is_active() {
+            let has_match = c.changed_files.iter().any(|f| {
+                let ext = std::path::Path::new(f)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+                (self.files.rust      && ext == "rs")
+                    || (self.files.toml      && ext == "toml")
+                    || (self.files.blueprint && ext == "blp")
+                    || self.files.other_ext.as_deref()
+                        .map_or(false, |oe| ext == oe.to_lowercase())
+            });
+            if !has_match {
+                return false;
+            }
+        }
+
+        // Branch filter is applied at the repo/query level, not per-commit,
+        // so we skip it here (handled in window.rs during repo load).
+
+        true
+    }
+}
+
+// ── GObject subclass ───────────────────────────────────────────────────────────
+
+mod imp {
+    use super::*;
+
+    #[derive(Debug, Default, gtk::CompositeTemplate)]
+    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/search-filter-popover.ui")]
+    pub struct SearchFilterPopover {
+        // ── Date section ──
+        #[template_child] pub clear_date_button:   TemplateChild<gtk::Button>,
+        #[template_child] pub date_chips_box:       TemplateChild<adw::WrapBox>,
+        #[template_child] pub today_button:         TemplateChild<gtk::Button>,
+        #[template_child] pub yesterday_button:     TemplateChild<gtk::Button>,
+        #[template_child] pub last_week_button:     TemplateChild<gtk::Button>,
+        #[template_child] pub last_month_button:    TemplateChild<gtk::Button>,
+        #[template_child] pub last_year_button:     TemplateChild<gtk::Button>,
+        #[template_child] pub custom_range_chip:    TemplateChild<gtk::Button>,
+        #[template_child] pub custom_range_button:  TemplateChild<gtk::Button>,
+
+        // ── Author section ──
+        #[template_child] pub clear_author_button:  TemplateChild<gtk::Button>,
+        #[template_child] pub author_entry:         TemplateChild<gtk::SearchEntry>,
+        #[template_child] pub author_chips_box:     TemplateChild<adw::WrapBox>,
+
+        // ── Branch section ──
+        #[template_child] pub clear_branch_button:  TemplateChild<gtk::Button>,
+        #[template_child] pub branch_chips_box:     TemplateChild<adw::WrapBox>,
+
+        // ── File types section ──
+        #[template_child] pub file_type_rust_button:      TemplateChild<gtk::Button>,
+        #[template_child] pub file_type_toml_button:      TemplateChild<gtk::Button>,
+        #[template_child] pub file_type_blueprint_button: TemplateChild<gtk::Button>,
+        #[template_child] pub file_type_other_button:     TemplateChild<gtk::Button>,
+        #[template_child] pub file_type_chips_box:        TemplateChild<adw::WrapBox>,
+
+        // ── Footer ──
+        #[template_child] pub reset_all_button:  TemplateChild<gtk::Button>,
+
+        // ── Internal state ──
+        pub filter_state: RefCell<FilterState>,
+        /// The `DateRangeDialog` instance; kept alive so signals don't disconnect.
+        pub date_range_dialog: RefCell<Option<DateRangeDialog>>,
+    }
+
+    #[glib::object_subclass]
+    impl ObjectSubclass for SearchFilterPopover {
+        const NAME: &'static str = "SearchFilterPopover";
+        type Type = super::SearchFilterPopover;
+        type ParentType = gtk::Popover;
+
+        fn class_init(klass: &mut Self::Class) {
+            klass.bind_template();
+            klass.bind_template_callbacks();
+        }
+
+        fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
+            obj.init_template();
+        }
+    }
+
+    impl ObjectImpl for SearchFilterPopover {
+        fn constructed(&self) {
+            self.parent_constructed();
+            self.obj().setup_callbacks();
+        }
+
+        fn signals() -> &'static [glib::subclass::Signal] {
+            static SIGNALS: OnceLock<Vec<glib::subclass::Signal>> = OnceLock::new();
+            SIGNALS.get_or_init(|| {
+                vec![
+                    glib::subclass::Signal::builder("filters-changed")
+                        .build(),
+                ]
+            })
+        }
+    }
+
+    impl WidgetImpl  for SearchFilterPopover {}
+    impl PopoverImpl for SearchFilterPopover {}
+
+    #[gtk::template_callbacks]
+    impl SearchFilterPopover {}
+}
+
+// ── Public wrapper ─────────────────────────────────────────────────────────────
+
+glib::wrapper! {
+    pub struct SearchFilterPopover(ObjectSubclass<imp::SearchFilterPopover>)
+        @extends gtk::Popover, gtk::Widget,
+        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget,
+                    gtk::Native, gtk::ShortcutManager;
+}
+
+impl Default for SearchFilterPopover {
+    fn default() -> Self { Self::new() }
+}
+
+impl SearchFilterPopover {
+    pub fn new() -> Self {
+        glib::Object::new()
+    }
+
+    // ── Public API ─────────────────────────────────────────────────────────
+
+    /// Returns a clone of the current [`FilterState`].
+    pub fn filter_state(&self) -> FilterState {
+        self.imp().filter_state.borrow().clone()
+    }
+
+    /// Populate author chip buttons from a commit list.
+    /// Existing chips are removed first, then rebuilt from unique authors.
+    /// Called by `window.rs` after a repo is loaded.
+    pub fn populate_author_chips(&self, commits: &[CommitInfo]) {
+        let imp = self.imp();
+        let chips_box = imp.author_chips_box.get();
+
+        // Clear existing dynamic chips
+        while let Some(child) = chips_box.first_child() {
+            chips_box.remove(&child);
+        }
+
+        // Collect unique author names, sorted
+        let mut authors: Vec<String> = commits
+            .iter()
+            .map(|c| c.author.clone())
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+        authors.sort();
+
+        for author in authors {
+            let chip = gtk::Button::builder()
+                .label(&author)
+                .css_classes(["chip"])
+                .build();
+
+            let popover = self.clone();
+            let author_clone = author.clone();
+            chip.connect_clicked(move |btn| {
+                let imp = popover.imp();
+                let mut state = imp.filter_state.borrow_mut();
+
+                if state.author.as_deref() == Some(&author_clone) {
+                    // Deselect
+                    state.author = None;
+                    btn.remove_css_class("suggested-action");
+                    imp.clear_author_button.set_visible(false);
+                } else {
+                    // Deselect previous chip if any
+                    if let Some(ref prev) = state.author {
+                        let prev_label = prev.clone();
+                        let mut sibling = chips_box.first_child();
+                        while let Some(w) = sibling {
+                            if let Some(b) = w.downcast_ref::<gtk::Button>() {
+                                if b.label().as_deref() == Some(&prev_label) {
+                                    b.remove_css_class("suggested-action");
+                                }
+                            }
+                            sibling = w.next_sibling();
+                        }
+                    }
+                    state.author = Some(author_clone.clone());
+                    btn.add_css_class("suggested-action");
+                    imp.clear_author_button.set_visible(true);
+                }
+                drop(state);
+                popover.emit_filters_changed();
+            });
+
+            chips_box.append(&chip);
+        }
+    }
+
+    /// Populate branch chip buttons.
+    /// `branches` should be the list of local + remote branch names.
+    pub fn populate_branch_chips(&self, branches: &[String]) {
+        let imp = self.imp();
+        let chips_box = imp.branch_chips_box.get();
+
+        while let Some(child) = chips_box.first_child() {
+            chips_box.remove(&child);
+        }
+
+        for branch in branches {
+            let chip = gtk::Button::builder()
+                .label(branch)
+                .css_classes(["chip"])
+                .build();
+
+            let popover = self.clone();
+            let branch_clone = branch.clone();
+            chip.connect_clicked(move |btn| {
+                let imp = popover.imp();
+                let mut state = imp.filter_state.borrow_mut();
+
+                if state.branch.as_deref() == Some(&branch_clone) {
+                    state.branch = None;
+                    btn.remove_css_class("suggested-action");
+                    imp.clear_branch_button.set_visible(false);
+                } else {
+                    state.branch = Some(branch_clone.clone());
+                    btn.add_css_class("suggested-action");
+                    imp.clear_branch_button.set_visible(true);
+                }
+                drop(state);
+                popover.emit_filters_changed();
+            });
+
+            chips_box.append(&chip);
+        }
+    }
+
+    // ── Internal setup ─────────────────────────────────────────────────────
+
+    fn setup_callbacks(&self) {
+        let imp = self.imp();
+
+        // ── Date preset chips ──────────────────────────────────────────────
+        self.connect_date_chip(&imp.today_button,      || FilterDateRange::today());
+        self.connect_date_chip(&imp.yesterday_button,  || FilterDateRange::yesterday());
+        self.connect_date_chip(&imp.last_week_button,  || FilterDateRange::last_n_days(7));
+        self.connect_date_chip(&imp.last_month_button, || FilterDateRange::last_n_days(30));
+        self.connect_date_chip(&imp.last_year_button,  || FilterDateRange::last_n_days(365));
+
+        // ── Custom range button ────────────────────────────────────────────
+        {
+            let popover = self.clone();
+            imp.custom_range_button.connect_clicked(move |_| {
+                popover.open_date_range_dialog();
+            });
+        }
+
+        // ── Clear date ────────────────────────────────────────────────────
+        {
+            let popover = self.clone();
+            imp.clear_date_button.connect_clicked(move |_| {
+                popover.clear_date_filter();
+            });
+        }
+
+        // ── Author entry ──────────────────────────────────────────────────
+        {
+            let popover = self.clone();
+            imp.author_entry.connect_search_changed(move |entry| {
+                let text = entry.text();
+                let imp = popover.imp();
+                let mut state = imp.filter_state.borrow_mut();
+                if text.is_empty() {
+                    state.author = None;
+                    imp.clear_author_button.set_visible(false);
+                } else {
+                    state.author = Some(text.to_string());
+                    imp.clear_author_button.set_visible(true);
+                }
+                drop(state);
+                popover.emit_filters_changed();
+            });
+        }
+
+        // ── Clear author ──────────────────────────────────────────────────
+        {
+            let popover = self.clone();
+            imp.clear_author_button.connect_clicked(move |_| {
+                let imp = popover.imp();
+                imp.author_entry.set_text("");
+                imp.filter_state.borrow_mut().author = None;
+                imp.clear_author_button.set_visible(false);
+                popover.emit_filters_changed();
+            });
+        }
+
+        // ── Clear branch ──────────────────────────────────────────────────
+        {
+            let popover = self.clone();
+            imp.clear_branch_button.connect_clicked(move |_| {
+                let imp = popover.imp();
+                imp.filter_state.borrow_mut().branch = None;
+                imp.clear_branch_button.set_visible(false);
+                // Deselect all branch chips
+                let mut child = imp.branch_chips_box.first_child();
+                while let Some(c) = child {
+                    let next = c.next_sibling();
+                    c.remove_css_class("suggested-action");
+                    child = next;
+                }
+                popover.emit_filters_changed();
+            });
+        }
+
+        // ── File type chips ───────────────────────────────────────────────
+        self.connect_file_type_chip(&imp.file_type_rust_button,      |f| &mut f.rust);
+        self.connect_file_type_chip(&imp.file_type_toml_button,      |f| &mut f.toml);
+        self.connect_file_type_chip(&imp.file_type_blueprint_button, |f| &mut f.blueprint);
+
+        // ── Reset all ─────────────────────────────────────────────────────
+        {
+            let popover = self.clone();
+            imp.reset_all_button.connect_clicked(move |_| {
+                popover.reset_all();
+            });
+        }
+    }
+
+    fn connect_date_chip<F>(&self, btn: &gtk::Button, make_range: F)
+    where
+        F: Fn() -> FilterDateRange + 'static,
+    {
+        let popover = self.clone();
+        let btn_clone = btn.clone();
+        btn.connect_clicked(move |_| {
+            let imp = popover.imp();
+            let new_range = make_range();
+            let already_active = imp.filter_state.borrow().date == new_range;
+
+            if already_active {
+                popover.clear_date_filter();
+            } else {
+                // Deselect all date preset chips
+                for b in [
+                    imp.today_button.get(),
+                    imp.yesterday_button.get(),
+                    imp.last_week_button.get(),
+                    imp.last_month_button.get(),
+                    imp.last_year_button.get(),
+                ] {
+                    b.remove_css_class("suggested-action");
+                }
+                imp.custom_range_chip.set_visible(false);
+
+                imp.filter_state.borrow_mut().date = new_range;
+                btn_clone.add_css_class("suggested-action");
+                imp.clear_date_button.set_visible(true);
+                popover.emit_filters_changed();
+            }
+        });
+    }
+
+    fn connect_file_type_chip<F>(&self, btn: &gtk::Button, field: F)
+    where
+        F: Fn(&mut FileTypeFilter) -> &mut bool + 'static,
+    {
+        let popover = self.clone();
+        btn.connect_clicked(move |b| {
+            let imp = popover.imp();
+            let mut state = imp.filter_state.borrow_mut();
+            let flag = field(&mut state.files);
+            *flag = !*flag;
+            if *flag {
+                b.add_css_class("suggested-action");
+            } else {
+                b.remove_css_class("suggested-action");
+            }
+            drop(state);
+            popover.emit_filters_changed();
+        });
+    }
+
+    fn open_date_range_dialog(&self) {
+        let imp = self.imp();
+
+        // Reuse existing dialog or create a new one
+        let dialog = {
+            let existing = imp.date_range_dialog.borrow();
+            if let Some(ref d) = *existing {
+                d.clone()
+            } else {
+                drop(existing);
+                let d = DateRangeDialog::new();
+
+                // Connect signal once
+                let popover = self.clone();
+                d.connect_date_range_selected(move |from, to| {
+                    let imp = popover.imp();
+                    let range = FilterDateRange::from_unix_bounds(from, to);
+
+                    // Update the custom chip label
+                    let label = range.chip_label();
+                    imp.custom_range_chip.set_label(&label);
+                    imp.custom_range_chip.set_visible(true);
+
+                    // Deselect all preset date chips
+                    for b in [
+                        imp.today_button.get(),
+                        imp.yesterday_button.get(),
+                        imp.last_week_button.get(),
+                        imp.last_month_button.get(),
+                        imp.last_year_button.get(),
+                    ] {
+                        b.remove_css_class("suggested-action");
+                    }
+
+                    imp.filter_state.borrow_mut().date = range;
+                    imp.clear_date_button.set_visible(true);
+                    popover.emit_filters_changed();
+                });
+
+                *imp.date_range_dialog.borrow_mut() = Some(d.clone());
+                d
+            }
+        };
+
+        // Pre-fill with existing range if set
+        let state = imp.filter_state.borrow();
+        if state.date.is_active() {
+            dialog.prefill(state.date.from, state.date.to);
+        }
+        drop(state);
+
+        // Present anchored to the popover's root window
+        if let Some(root) = self.root() {
+            dialog.present(Some(&root));
+        } else {
+            dialog.present(gtk::Window::NONE);
+        }
+    }
+
+    fn clear_date_filter(&self) {
+        let imp = self.imp();
+        imp.filter_state.borrow_mut().date = FilterDateRange::default();
+        imp.clear_date_button.set_visible(false);
+        imp.custom_range_chip.set_visible(false);
+        for btn in [
+            imp.today_button.get(),
+            imp.yesterday_button.get(),
+            imp.last_week_button.get(),
+            imp.last_month_button.get(),
+            imp.last_year_button.get(),
+        ] {
+            btn.remove_css_class("suggested-action");
+        }
+        self.emit_filters_changed();
+    }
+
+    fn reset_all(&self) {
+        *self.imp().filter_state.borrow_mut() = FilterState::default();
+        let imp = self.imp();
+
+        // Clear date UI
+        imp.clear_date_button.set_visible(false);
+        imp.custom_range_chip.set_visible(false);
+        for btn in [
+            imp.today_button.get(),
+            imp.yesterday_button.get(),
+            imp.last_week_button.get(),
+            imp.last_month_button.get(),
+            imp.last_year_button.get(),
+        ] {
+            btn.remove_css_class("suggested-action");
+        }
+
+        // Clear author UI
+        imp.author_entry.set_text("");
+        imp.clear_author_button.set_visible(false);
+        let mut child = imp.author_chips_box.first_child();
+        while let Some(c) = child {
+            let next = c.next_sibling();
+            c.remove_css_class("suggested-action");
+            child = next;
+        }
+
+        // Clear branch UI
+        imp.clear_branch_button.set_visible(false);
+        let mut child = imp.branch_chips_box.first_child();
+        while let Some(c) = child {
+            let next = c.next_sibling();
+            c.remove_css_class("suggested-action");
+            child = next;
+        }
+
+        // Clear file type UI
+        for btn in [
+            imp.file_type_rust_button.get(),
+            imp.file_type_toml_button.get(),
+            imp.file_type_blueprint_button.get(),
+        ] {
+            btn.remove_css_class("suggested-action");
+        }
+
+        self.emit_filters_changed();
+    }
+
+    /// Connect to the `filters-changed` signal.
+    pub fn connect_filters_changed<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self) + 'static,
+    {
+        self.connect_local("filters-changed", false, move |values| {
+            let popover = values[0].get::<SearchFilterPopover>().unwrap();
+            f(&popover);
+            None
+        })
+    }
+
+    fn emit_filters_changed(&self) {
+        self.emit_by_name::<()>("filters-changed", &[]);
+    }
+}
