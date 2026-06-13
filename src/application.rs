@@ -24,7 +24,7 @@ use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 
 use crate::config::VERSION;
-use crate::TemporalExplorerWindow;
+use crate::window::TemporalExplorerWindow;
 
 mod imp {
     use super::*;
@@ -105,3 +105,5 @@ impl TemporalExplorerApplication {
         about.present(Some(&window));
     }
 }
+
+pub type Application = TemporalExplorerApplication;
