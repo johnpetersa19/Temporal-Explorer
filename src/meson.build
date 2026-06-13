@@ -20,6 +20,9 @@ blueprints = custom_target(
     'history-controls.blp',
     'view-controls.blp',
     'column-chooser.blp',
+    'merge-conflict-dialog.blp',
+    'preferences-dialog.blp',
+    'filter-types-dialog.blp',
   ),
   output: '.',
   command: [
