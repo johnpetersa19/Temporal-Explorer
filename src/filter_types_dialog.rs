@@ -2,40 +2,10 @@
  *
  * Copyright 2026 John Peter Sá
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 //! `FilterTypesDialog` — file-extension picker for the search filter popover.
-//!
-//! Port of `nautilus-search-types-dialog`, adapted for Temporal-Explorer's
-//! commit-file context:
-//!
-//! * A `SearchEntry` filters a curated list of extensions + descriptions.
-//! * Common types are pre-shown as chips on the start state.
-//! * Pressing **Add** (or activating the list) emits `file-type-selected`
-//!   with the chosen extension string (e.g. `"rs"`).
-//! * `SearchFilterPopover` calls `connect_file_type_selected` and appends
-//!   the result to its own `FileTypeFilter`.
-//!
-//! # Usage
-//! ```rust
-//! let dialog = FilterTypesDialog::new();
-//! dialog.connect_file_type_selected(|ext| { /* forward to popover */ });
-//! dialog.present(Some(&window));
-//! ```
 
 use gtk::glib;
 use gtk::prelude::*;
@@ -44,7 +14,7 @@ use adw::prelude::*;
 use std::cell::RefCell;
 use std::sync::OnceLock;
 
-// ── Known file types ───────────────────────────────────────────────────────────────
+// ── Known file types ─────────────────────────────────────────────────────────────────────────
 
 /// (extension, human label, mime-type icon-name)
 const KNOWN_TYPES: &[(&str, &str, &str)] = &[
@@ -75,10 +45,10 @@ const KNOWN_TYPES: &[(&str, &str, &str)] = &[
     ("svg",   "SVG vector image",        "image-svg+xml"),
 ];
 
-/// Extensions shown on the \"start\" (pre-search) state as quick chips.
+/// Extensions shown on the start state as quick chips.
 const COMMON_EXTENSIONS: &[&str] = &["rs", "toml", "blp", "py", "js", "md", "json", "sh"];
 
-// ── GObject subclass ───────────────────────────────────────────────────────────────
+// ── GObject subclass ─────────────────────────────────────────────────────────────────────────
 
 mod imp {
     use super::*;
@@ -137,8 +107,8 @@ mod imp {
         }
     }
 
-    impl WidgetImpl     for FilterTypesDialog {}
-    impl AdwDialogImpl  for FilterTypesDialog {}
+    impl WidgetImpl    for FilterTypesDialog {}
+    impl AdwDialogImpl for FilterTypesDialog {}
 
     #[gtk::template_callbacks]
     impl FilterTypesDialog {
@@ -203,7 +173,7 @@ mod imp {
     }
 }
 
-// ── Public wrapper ───────────────────────────────────────────────────────────────
+// ── Public wrapper ─────────────────────────────────────────────────────────────────────────
 
 glib::wrapper! {
     pub struct FilterTypesDialog(ObjectSubclass<imp::FilterTypesDialog>)
@@ -220,8 +190,6 @@ impl FilterTypesDialog {
         glib::Object::new()
     }
 
-    // ── Public API ──────────────────────────────────────────────────────────────────
-
     pub fn connect_file_type_selected<F>(&self, f: F) -> glib::SignalHandlerId
     where
         F: Fn(&Self, &str) + 'static,
@@ -234,24 +202,139 @@ impl FilterTypesDialog {
         })
     }
 
-    // ── Internal setup ──────────────────────────────────────────────────────────────
+    // ── Internal setup ───────────────────────────────────────────────────────────────────
 
     fn setup(&self) {
         let imp = self.imp();
 
-        // ── SizeGroup: keep cancel and add buttons equal-width ─────────────────
-        // (replaces the SizeGroup removed from filter-types-dialog.blp because
-        // Blueprint 0.12 does not allow bare object blocks in a template body)
+        // Equal-width cancel/add buttons
         let size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         size_group.add_widget(&imp.cancel_button.get());
         size_group.add_widget(&imp.add_button.get());
 
-        // ── Wire StringList model to the ListView ───────────────────────────
+        // Wire model to ListView
         let selection_model = gtk::NoSelection::new(Some(imp.model.clone()));
         imp.results_list.set_model(Some(&selection_model));
 
+        // Build row factory via SignalListItemFactory
+        self.setup_factory();
+
         self.setup_common_chips();
         self.update_results("");
+    }
+
+    fn setup_factory(&self) {
+        let imp = self.imp();
+        let factory = gtk::SignalListItemFactory::new();
+
+        // setup: create the row widget skeleton once per recycled slot
+        factory.connect_setup(|_, list_item| {
+            let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
+
+            let row_icon = gtk::Image::builder()
+                .pixel_size(32)
+                .build();
+
+            let row_description = gtk::Label::builder()
+                .halign(gtk::Align::Start)
+                .hexpand(true)
+                .ellipsize(gtk::pango::EllipsizeMode::End)
+                .build();
+            row_description.add_css_class("body");
+
+            let row_subtitle = gtk::Label::builder()
+                .halign(gtk::Align::Start)
+                .hexpand(true)
+                .ellipsize(gtk::pango::EllipsizeMode::End)
+                .build();
+            row_subtitle.add_css_class("caption");
+            row_subtitle.add_css_class("dim-label");
+
+            let text_box = gtk::Box::builder()
+                .orientation(gtk::Orientation::Vertical)
+                .spacing(4)
+                .hexpand(true)
+                .build();
+            text_box.append(&row_description);
+            text_box.append(&row_subtitle);
+
+            let row_checkmark = gtk::Image::builder()
+                .icon_name("object-select-symbolic")
+                .pixel_size(16)
+                .visible(false)
+                .build();
+            row_checkmark.add_css_class("success");
+
+            let hbox = gtk::Box::builder()
+                .orientation(gtk::Orientation::Horizontal)
+                .spacing(12)
+                .margin_start(16)
+                .margin_end(16)
+                .margin_top(14)
+                .margin_bottom(14)
+                .build();
+            hbox.append(&row_icon);
+            hbox.append(&text_box);
+            hbox.append(&row_checkmark);
+
+            list_item.set_child(Some(&hbox));
+        });
+
+        // bind: fill data from the model item into the row widgets
+        let filtered_ref = imp.filtered.clone();
+        let selected_ref = imp.selected_ext.clone();
+        factory.connect_bind(move |_, list_item| {
+            let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
+            let pos = list_item.position() as usize;
+
+            let filtered = filtered_ref.borrow();
+            let Some(&(ext, label, icon)) = filtered.get(pos) else { return };
+
+            let hbox = list_item.child().and_downcast::<gtk::Box>().unwrap();
+            let mut children = hbox.observe_children();
+
+            // row_icon (index 0)
+            if let Some(img) = hbox.first_child().and_downcast::<gtk::Image>() {
+                img.set_icon_name(Some(icon));
+            }
+
+            // text_box (index 1) → description + subtitle
+            if let Some(text_box) = hbox
+                .first_child()
+                .and_then(|w| w.next_sibling())
+                .and_downcast::<gtk::Box>()
+            {
+                if let Some(desc) = text_box.first_child().and_downcast::<gtk::Label>() {
+                    desc.set_label(&format!("{label} (.{ext})"));
+                }
+                if let Some(sub) = text_box
+                    .first_child()
+                    .and_then(|w| w.next_sibling())
+                    .and_downcast::<gtk::Label>()
+                {
+                    sub.set_label(&format!(".{ext}"));
+                }
+            }
+
+            // row_checkmark (index 2): show when this ext is the selected one
+            if let Some(checkmark) = hbox
+                .first_child()
+                .and_then(|w| w.next_sibling())
+                .and_then(|w| w.next_sibling())
+                .and_downcast::<gtk::Image>()
+            {
+                let is_selected = selected_ref
+                    .borrow()
+                    .as_deref()
+                    .map_or(false, |s| s == ext);
+                checkmark.set_visible(is_selected);
+            }
+
+            drop(filtered);
+            drop(children);
+        });
+
+        imp.results_list.set_factory(Some(&factory));
     }
 
     fn setup_common_chips(&self) {
@@ -293,7 +376,7 @@ impl FilterTypesDialog {
             return;
         }
 
-        // Rebuild the StringList model
+        // Rebuild StringList
         while imp.model.n_items() > 0 {
             imp.model.remove(0);
         }
@@ -304,7 +387,6 @@ impl FilterTypesDialog {
         // Auto-select first result
         *imp.selected_ext.borrow_mut() = Some(matches[0].0.to_string());
         imp.add_button.set_sensitive(true);
-
         imp.search_stack.set_visible_child_name("results");
     }
 
