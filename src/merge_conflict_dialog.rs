@@ -224,16 +224,18 @@ impl MergeConflictDialog {
         // Diff
         if info.diff_text.is_empty() {
             imp.diff_expander.set_visible(false);
-            imp.conflict_banner.set_button_label("");
+            imp.conflict_banner.set_button_label(Some(""));
         } else {
             imp.diff_expander.set_visible(true);
             let buf = imp.diff_view.buffer();
             buf.set_text(&info.diff_text);
             // Basic syntax colouring via tags (red for removals, green for additions)
-            let tag_add = buf.create_tag(Some("add"), &[]);
-            tag_add.set_foreground(Some("#26a269"));
-            let tag_del = buf.create_tag(Some("del"), &[]);
-            tag_del.set_foreground(Some("#c01c28"));
+            if let Some(tag_add) = buf.create_tag(Some("add"), &[]) {
+                tag_add.set_foreground(Some("#26a269"));
+            }
+            if let Some(tag_del) = buf.create_tag(Some("del"), &[]) {
+                tag_del.set_foreground(Some("#c01c28"));
+            }
 
             let text = buf.text(&buf.start_iter(), &buf.end_iter(), false);
             for line in text.lines() {

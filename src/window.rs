@@ -50,13 +50,13 @@ use crate::search_filter_popover::{SearchFilterPopover, FilterState};
 use crate::timeline_filter;
 use crate::views::{list_view, grid_view};
 use crate::views::list_view::{OnEnterDir, OnOpenFile};
-use crate::history_controls::HistoryControls;
-use crate::view_controls::{ViewControls, FileSortMode};
+use crate::view_controls::FileSortMode;
 use crate::column_chooser::{ColumnChooser, ColumnVisibility};
 use crate::batch_operations_dialog::{BatchOperationsDialog, BatchOp};
 use crate::select_commits_by_pattern::{SelectCommitsByPattern, commit_matches_pattern};
 use crate::merge_conflict_dialog::{MergeConflictDialog, ConflictInfo};
 use crate::filter_types_dialog::FilterTypesDialog;
+use crate::toolbar::TemporalToolbar;
 
 // ── ViewMode ───────────────────────────────────────────────────────────────────
 
@@ -95,19 +95,10 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/window.ui")]
     pub struct TemporalExplorerWindow {
-        #[template_child] pub open_repo_button:      TemplateChild<gtk::Button>,
-        #[template_child] pub show_sidebar_button:   TemplateChild<gtk::ToggleButton>,
+        #[template_child] pub toolbar:               TemplateChild<TemporalToolbar>,
         #[template_child] pub window_title:          TemplateChild<adw::WindowTitle>,
 
         // ── Composite widgets ────────────────────────────────────────────────
-        #[template_child] pub history_controls:      TemplateChild<HistoryControls>,
-        #[template_child] pub view_controls:         TemplateChild<ViewControls>,
-
-        #[template_child] pub toolbar_switcher:      TemplateChild<gtk::Stack>,
-        #[template_child] pub address_bar:           TemplateChild<gtk::Box>,
-        #[template_child] pub location_entry:        TemplateChild<gtk::Entry>,
-        #[template_child] pub location_cancel_btn:   TemplateChild<gtk::Button>,
-
         #[template_child] pub timeline_stack:        TemplateChild<gtk::Stack>,
         #[template_child] pub timeline_back_button:  TemplateChild<gtk::Button>,
         #[template_child] pub timeline_header_title: TemplateChild<adw::WindowTitle>,
@@ -168,7 +159,10 @@ mod imp {
         const NAME: &'static str = "TemporalExplorerWindow";
         type Type = super::TemporalExplorerWindow;
         type ParentType = adw::ApplicationWindow;
-        fn class_init(klass: &mut Self::Class) { klass.bind_template(); }
+        fn class_init(klass: &mut Self::Class) {
+            TemporalToolbar::ensure_type();
+            klass.bind_template();
+        }
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) { obj.init_template(); }
     }
 
@@ -255,37 +249,27 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
 
         let win = self.clone();
-        imp.open_repo_button.connect_clicked(move |_| { win.open_repo_dialog(); });
+        imp.toolbar.open_repo_button().connect_clicked(move |_| { win.open_repo_dialog(); });
 
-        // ── New-branch button (injected at runtime into toolbar end-slot) ─────
-        {
-            let new_branch_btn = gtk::Button::builder()
-                .icon_name("branch-symbolic")
-                .tooltip_text(gettext("New Branch"))
-                .css_classes(vec!["flat".to_string()])
-                .build();
-
-            let win = self.clone();
-            new_branch_btn.connect_clicked(move |_| {
-                win.show_new_branch_dialog();
-            });
-
-            imp.content_toolbar_view.add_top_bar(&new_branch_btn);
-        }
+        // Bind show_sidebar_button to split_view show-sidebar property
+        imp.toolbar.show_sidebar_button().bind_property("active", &imp.split_view.get(), "show-sidebar")
+            .bidirectional()
+            .sync_create()
+            .build();
 
         let win_g = self.clone();
         let gesture = gtk::GestureClick::new();
         gesture.set_button(1);
         gesture.connect_pressed(move |_, _n, _, _| { win_g.enter_location_mode(); });
-        imp.address_bar.add_controller(gesture);
+        imp.toolbar.address_bar().add_controller(gesture);
 
         let win = self.clone();
-        imp.location_entry.connect_activate(move |entry| {
+        imp.toolbar.location_entry().connect_activate(move |entry| {
             win.navigate_to_typed_path(entry.text().as_str());
         });
 
         let win = self.clone();
-        imp.location_cancel_btn.connect_clicked(move |_| { win.leave_location_mode(); });
+        imp.toolbar.location_cancel_btn().connect_clicked(move |_| { win.leave_location_mode(); });
 
         let win = self.clone();
         imp.timeline_back_button.connect_clicked(move |_| { win.timeline_pop(); });
@@ -359,6 +343,14 @@ impl TemporalExplorerWindow {
             action.connect_activate(move |_, _| { win.show_column_chooser(); });
             self.add_action(&action);
         }
+
+        // win.new-branch
+        {
+            let win = self.clone();
+            let action = gio::SimpleAction::new("new-branch", None);
+            action.connect_activate(move |_, _| { win.show_new_branch_dialog(); });
+            self.add_action(&action);
+        }
     }
 
     // ── NewBranchDialog ───────────────────────────────────────────────────────
@@ -415,19 +407,19 @@ impl TemporalExplorerWindow {
             Err(e) => {
                 self.show_error(&format!("{} \u{2018}{}\u{2019}: {e}", gettext("Failed to create branch"), name));
             }
-        }
+        };
     }
 
     // ── HistoryControls wiring ────────────────────────────────────────────────
 
     fn setup_history_controls(&self) {
         let win = self.clone();
-        self.imp().history_controls.connect_local("navigate-back", false, move |_| {
+        self.imp().toolbar.history_controls().connect_local("navigate-back", false, move |_| {
             win.navigate_commit_back();
             None
         });
         let win = self.clone();
-        self.imp().history_controls.connect_local("navigate-forward", false, move |_| {
+        self.imp().toolbar.history_controls().connect_local("navigate-forward", false, move |_| {
             win.navigate_commit_forward();
             None
         });
@@ -491,14 +483,14 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         let can_back    = !imp.commit_nav_back.borrow().is_empty();
         let can_forward = !imp.commit_nav_forward.borrow().is_empty();
-        imp.history_controls.set_sensitivity(can_back, can_forward);
+        imp.toolbar.history_controls().set_sensitivity(can_back, can_forward);
     }
 
     // ── ViewControls wiring ───────────────────────────────────────────────────
 
     fn setup_view_controls(&self) {
         let win = self.clone();
-        self.imp().view_controls.connect_local("view-mode-changed", false, move |args| {
+        self.imp().toolbar.view_controls().connect_local("view-mode-changed", false, move |args| {
             let is_grid = args[1].get::<bool>().unwrap_or(false);
             let new_mode = if is_grid { ViewMode::Grid } else { ViewMode::List };
             { *win.imp().view_mode.borrow_mut() = new_mode; }
@@ -510,7 +502,7 @@ impl TemporalExplorerWindow {
         });
 
         let win = self.clone();
-        self.imp().view_controls.connect_local("sort-changed", false, move |args| {
+        self.imp().toolbar.view_controls().connect_local("sort-changed", false, move |args| {
             let raw = args[1].get::<u32>().unwrap_or(0);
             let mode = match raw {
                 1 => FileSortMode::Status,
@@ -580,6 +572,8 @@ impl TemporalExplorerWindow {
                     let dlg_ref   = dlg.clone();
                     dlg.set_progress_visible(true);
 
+                    let (tx, rx) = std::sync::mpsc::sync_channel::<()>(1);
+
                     std::thread::spawn(move || {
                         if let Some(repo_path) = repo_path {
                             let _ = std::fs::create_dir_all(&dest_dir);
@@ -616,10 +610,16 @@ impl TemporalExplorerWindow {
                                 }
                             }
                         }
-                        // Must call mark_done on the main thread
-                        glib::MainContext::default().invoke(move || {
+                        let _ = tx.send(());
+                    });
+
+                    glib::idle_add_local(move || match rx.try_recv() {
+                        Ok(()) => {
                             dlg_ref.mark_done();
-                        });
+                            glib::ControlFlow::Break
+                        }
+                        Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                        Err(_) => glib::ControlFlow::Break,
                     });
                 }
                 BatchOp::CopyShas { short } => {
@@ -688,7 +688,7 @@ impl TemporalExplorerWindow {
             while let Some(r) = row2 {
                 if let Some(list_row) = r.downcast_ref::<gtk::ListBoxRow>() {
                     if list_row.has_css_class("pattern-match") {
-                        list.scroll_to(list_row, gtk::ListScrollFlags::FOCUS, None);
+                        list_row.grab_focus();
                         break;
                     }
                     row2 = list_row.next_sibling();
@@ -837,7 +837,7 @@ impl TemporalExplorerWindow {
             // Push the chosen extension into the active FilterState and re-run search
             {
                 let mut fs = win.imp().filter_state.borrow_mut();
-                fs.file_ext = if ext.is_empty() { None } else { Some(ext.to_string()) };
+                fs.files.other_ext = if ext.is_empty() { None } else { Some(ext.to_string()) };
             }
             let q = win.imp().last_query.borrow().clone();
             win.run_search(q);
@@ -903,7 +903,7 @@ impl TemporalExplorerWindow {
                 self.imp().history_forward.borrow_mut().clear();
                 self.imp().commit_nav_back.borrow_mut().clear();
                 self.imp().commit_nav_forward.borrow_mut().clear();
-                self.imp().history_controls.reset();
+                self.imp().toolbar.history_controls().reset();
                 self.imp().window_title.set_title(&repo_name);
                 self.imp().window_title.set_subtitle(path.to_str().unwrap_or(""));
 
@@ -1101,7 +1101,7 @@ impl TemporalExplorerWindow {
         let win_ab1 = self.clone();
         let win_ab2 = self.clone();
         address_bar::rebuild_address_bar(
-            &imp.address_bar.clone(),
+            imp.toolbar.address_bar(),
             &repo_name,
             &dir,
             move |path: PathBuf| { win_ab1.push_dir(path); },
@@ -1148,28 +1148,43 @@ impl TemporalExplorerWindow {
         let sort_mode = *imp.sort_mode.borrow();
         let hash      = imp.current_hash.borrow().clone().unwrap_or_default();
 
+        let get_node_name = |node: &TreeNode| -> String {
+            node.path()
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_lowercase()
+        };
+
         match sort_mode {
             FileSortMode::Name => {
                 nodes.sort_by(|a, b| {
-                    b.is_dir.cmp(&a.is_dir).then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+                    let a_is_dir = a.is_dir();
+                    let b_is_dir = b.is_dir();
+                    b_is_dir.cmp(&a_is_dir).then(get_node_name(a).cmp(&get_node_name(b)))
                 });
             }
             FileSortMode::Status => {
                 nodes.sort_by(|a, b| {
-                    b.is_dir.cmp(&a.is_dir)
-                        .then(a.status.cmp(&b.status))
-                        .then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+                    let a_is_dir = a.is_dir();
+                    let b_is_dir = b.is_dir();
+                    b_is_dir.cmp(&a_is_dir)
+                        .then(get_node_name(a).cmp(&get_node_name(b)))
                 });
             }
             FileSortMode::Extension => {
                 nodes.sort_by(|a, b| {
-                    let ext_a = std::path::Path::new(&a.name)
+                    let name_a = get_node_name(a);
+                    let name_b = get_node_name(b);
+                    let ext_a = std::path::Path::new(&name_a)
                         .extension().and_then(|e| e.to_str()).unwrap_or("");
-                    let ext_b = std::path::Path::new(&b.name)
+                    let ext_b = std::path::Path::new(&name_b)
                         .extension().and_then(|e| e.to_str()).unwrap_or("");
-                    b.is_dir.cmp(&a.is_dir)
+                    let a_is_dir = a.is_dir();
+                    let b_is_dir = b.is_dir();
+                    b_is_dir.cmp(&a_is_dir)
                         .then(ext_a.cmp(ext_b))
-                        .then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+                        .then(name_a.cmp(&name_b))
                 });
             }
         }
@@ -1259,13 +1274,12 @@ impl TemporalExplorerWindow {
     pub fn enter_location_mode(&self) {
         let imp = self.imp();
         let current = { imp.current_dir.borrow().clone() };
-        imp.location_entry.set_text(current.to_str().unwrap_or(""));
-        imp.location_entry.grab_focus();
-        imp.toolbar_switcher.set_visible_child_name("location");
+        imp.toolbar.location_entry().set_text(current.to_str().unwrap_or(""));
+        imp.toolbar.set_location_mode(true);
     }
 
     fn leave_location_mode(&self) {
-        self.imp().toolbar_switcher.set_visible_child_name("pathbar");
+        self.imp().toolbar.set_location_mode(false);
     }
 
     fn navigate_to_typed_path(&self, text: &str) {

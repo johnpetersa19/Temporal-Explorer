@@ -15,6 +15,7 @@
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+use adw::prelude::*;
 use std::cell::RefCell;
 
 // ── Palette for avatar background based on author email hash ────────────────

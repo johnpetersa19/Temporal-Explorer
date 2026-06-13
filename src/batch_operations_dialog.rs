@@ -170,8 +170,8 @@ impl BatchOperationsDialog {
         }
         for c in commits {
             let row = adw::ActionRow::builder()
-                .title(&c.message)
-                .subtitle(&c.sha[..7.min(c.sha.len())])
+                .title(&c.summary)
+                .subtitle(&c.hash[..7.min(c.hash.len())])
                 .build();
             imp.commit_list.append(&row);
         }
@@ -264,7 +264,7 @@ impl BatchOperationsDialog {
             0 => {
                 // Cherry-pick: list git cherry-pick commands
                 commits.iter()
-                    .map(|c| format!("git cherry-pick {}", &c.sha[..7.min(c.sha.len())]))
+                    .map(|c| format!("git cherry-pick {}", &c.hash[..7.min(c.hash.len())]))
                     .collect::<Vec<_>>()
                     .join("\n")
             }
@@ -277,7 +277,7 @@ impl BatchOperationsDialog {
                 commits.iter().enumerate()
                     .map(|(i, c)| format!("{}/{:04}-{}.patch",
                         prefix, i + 1,
-                        c.message.chars().take(40).collect::<String>()
+                        c.summary.chars().take(40).collect::<String>()
                             .replace(|ch: char| !ch.is_alphanumeric(), "-")
                     ))
                     .collect::<Vec<_>>()
@@ -287,7 +287,7 @@ impl BatchOperationsDialog {
                 // Copy SHAs
                 let short = imp.short_sha_row.is_active();
                 commits.iter()
-                    .map(|c| if short { c.sha[..7.min(c.sha.len())].to_string() } else { c.sha.clone() })
+                    .map(|c| if short { c.hash[..7.min(c.hash.len())].to_string() } else { c.hash.clone() })
                     .collect::<Vec<_>>()
                     .join("\n")
             }
@@ -342,7 +342,7 @@ impl BatchOperationsDialog {
         let idx  = imp.operation_row.selected();
         let commits = imp.commits.borrow();
         let shas = commits.iter()
-            .map(|c| c.sha.clone())
+            .map(|c| c.hash.clone())
             .collect::<Vec<_>>()
             .join("\n");
         drop(commits);

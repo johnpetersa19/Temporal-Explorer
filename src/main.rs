@@ -28,6 +28,8 @@ mod window;
 use application::Application;
 use config::{GETTEXT_PACKAGE, LOCALEDIR, RESOURCES_FILE};
 
+use gio::prelude::*;
+
 fn main() -> glib::ExitCode {
     // Initialise translations
     gettextrs::setlocale(gettextrs::LocaleCategory::LcAll, "");
@@ -39,6 +41,6 @@ fn main() -> glib::ExitCode {
     let res = gio::Resource::load(RESOURCES_FILE).expect("Could not load gresource file");
     gio::resources_register(&res);
 
-    let app = Application::new();
+    let app = Application::new("io.github.johnpetersa19.TemporalExplorer", &gio::ApplicationFlags::default());
     app.run()
 }

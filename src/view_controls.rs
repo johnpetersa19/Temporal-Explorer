@@ -40,11 +40,9 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/view-controls.ui")]
     pub struct ViewControls {
-        #[template_child] pub grid_button:    TemplateChild<gtk::ToggleButton>,
-        #[template_child] pub list_button:    TemplateChild<gtk::ToggleButton>,
-        #[template_child] pub sort_by_name:   TemplateChild<gtk::CheckButton>,
-        #[template_child] pub sort_by_status: TemplateChild<gtk::CheckButton>,
-        #[template_child] pub sort_by_ext:    TemplateChild<gtk::CheckButton>,
+        #[template_child] pub grid_view_button: TemplateChild<gtk::ToggleButton>,
+        #[template_child] pub list_view_button: TemplateChild<gtk::ToggleButton>,
+        #[template_child] pub sort_dropdown:    TemplateChild<gtk::DropDown>,
     }
 
     #[glib::object_subclass]
@@ -66,7 +64,6 @@ mod imp {
     impl ObjectImpl for ViewControls {
         fn constructed(&self) {
             self.parent_constructed();
-            self.obj().setup_callbacks();
         }
 
         fn signals() -> &'static [glib::subclass::Signal] {
@@ -88,7 +85,27 @@ mod imp {
     impl BoxImpl   for ViewControls {}
 
     #[gtk::template_callbacks]
-    impl ViewControls {}
+    impl ViewControls {
+        #[template_callback]
+        fn on_list_toggled(&self) {
+            if self.list_view_button.get().is_active() {
+                self.obj().emit_by_name::<()>("view-mode-changed", &[&false]);
+            }
+        }
+
+        #[template_callback]
+        fn on_grid_toggled(&self) {
+            if self.grid_view_button.get().is_active() {
+                self.obj().emit_by_name::<()>("view-mode-changed", &[&true]);
+            }
+        }
+
+        #[template_callback]
+        fn on_sort_changed(&self, _pspec: &glib::ParamSpec) {
+            let selected = self.sort_dropdown.get().selected();
+            self.obj().emit_by_name::<()>("sort-changed", &[&selected]);
+        }
+    }
 }
 
 // ── Public wrapper ────────────────────────────────────────────────────────────
@@ -109,59 +126,10 @@ impl ViewControls {
         glib::Object::new()
     }
 
-    fn setup_callbacks(&self) {
-        let imp = self.imp();
-
-        {
-            let obj = self.clone();
-            self.imp().grid_button.connect_toggled(move |btn| {
-                if btn.is_active() {
-                    obj.emit_by_name::<()>("view-mode-changed", &[&true]);
-                }
-            });
-        }
-
-        {
-            let obj = self.clone();
-            self.imp().list_button.connect_toggled(move |btn| {
-                if btn.is_active() {
-                    obj.emit_by_name::<()>("view-mode-changed", &[&false]);
-                }
-            });
-        }
-
-        {
-            let obj = self.clone();
-            imp.sort_by_name.connect_toggled(move |btn| {
-                if btn.is_active() {
-                    obj.emit_by_name::<()>("sort-changed", &[&(crate::view_controls::FileSortMode::Name as u32)]);
-                }
-            });
-        }
-
-        {
-            let obj = self.clone();
-            imp.sort_by_status.connect_toggled(move |btn| {
-                if btn.is_active() {
-                    obj.emit_by_name::<()>("sort-changed", &[&(crate::view_controls::FileSortMode::Status as u32)]);
-                }
-            });
-        }
-
-        {
-            let obj = self.clone();
-            imp.sort_by_ext.connect_toggled(move |btn| {
-                if btn.is_active() {
-                    obj.emit_by_name::<()>("sort-changed", &[&(crate::view_controls::FileSortMode::Extension as u32)]);
-                }
-            });
-        }
-    }
-
     /// Sync toggle button states without emitting signals.
     pub fn set_view_mode(&self, is_grid: bool) {
         let imp = self.imp();
-        imp.grid_button.set_active(is_grid);
-        imp.list_button.set_active(!is_grid);
+        imp.grid_view_button.get().set_active(is_grid);
+        imp.list_view_button.get().set_active(!is_grid);
     }
 }

@@ -342,6 +342,7 @@ impl SearchFilterPopover {
 
             let popover = self.clone();
             let author_clone = author.clone();
+            let chips_box_clone = chips_box.clone();
             chip.connect_clicked(move |btn| {
                 let imp = popover.imp();
                 let mut state = imp.filter_state.borrow_mut();
@@ -355,7 +356,7 @@ impl SearchFilterPopover {
                     // Deselect previous chip if any
                     if let Some(ref prev) = state.author {
                         let prev_label = prev.clone();
-                        let mut sibling = chips_box.first_child();
+                        let mut sibling = chips_box_clone.first_child();
                         while let Some(w) = sibling {
                             if let Some(b) = w.downcast_ref::<gtk::Button>() {
                                 if b.label().as_deref() == Some(&prev_label) {

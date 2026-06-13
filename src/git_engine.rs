@@ -204,16 +204,60 @@ pub struct CommitInfo {
     pub author_email: String,
     /// Unix timestamp (seconds since epoch).
     pub timestamp: i64,
+    /// Changed files in this commit.
+    pub changed_files: Vec<String>,
 }
 
 impl CommitInfo {
-    fn from_commit(commit: &git2::Commit<'_>) -> Self {
+    fn from_commit(commit: &git2::Commit<'_>, repo: &git2::Repository) -> Self {
+        let mut changed_files = Vec::new();
+        if let Ok(tree) = commit.tree() {
+            if commit.parent_count() > 0 {
+                for i in 0..commit.parent_count() {
+                    if let Ok(parent) = commit.parent(i) {
+                        if let Ok(parent_tree) = parent.tree() {
+                            if let Ok(diff) = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None) {
+                                let _ = diff.foreach(
+                                    &mut |delta, _| {
+                                        if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                                            changed_files.push(path.to_owned());
+                                        }
+                                        true
+                                    },
+                                    None,
+                                    None,
+                                    None,
+                                );
+                            }
+                        }
+                    }
+                }
+            } else {
+                if let Ok(diff) = repo.diff_tree_to_tree(None, Some(&tree), None) {
+                    let _ = diff.foreach(
+                        &mut |delta, _| {
+                            if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                                changed_files.push(path.to_owned());
+                            }
+                            true
+                        },
+                        None,
+                        None,
+                        None,
+                    );
+                }
+            }
+        }
+        changed_files.sort();
+        changed_files.dedup();
+
         Self {
             hash: commit.id().to_string(),
             summary: commit.summary().unwrap_or("").to_owned(),
             author: commit.author().name().unwrap_or(&gettext("Unknown")).to_owned(),
             author_email: commit.author().email().unwrap_or("").to_owned(),
             timestamp: commit.time().seconds(),
+            changed_files,
         }
     }
 }
@@ -329,7 +373,7 @@ impl HistoryReader {
         for oid in walk {
             let oid = oid?;
             let commit = self.repo.find_commit(oid)?;
-            commits.push(CommitInfo::from_commit(&commit));
+            commits.push(CommitInfo::from_commit(&commit, &self.repo));
             if commits.len() >= LIST_COMMITS_MAX { break; }
         }
         Ok(commits)
@@ -370,7 +414,7 @@ impl HistoryReader {
         for oid in walk {
             let oid = oid?;
             let commit = self.repo.find_commit(oid)?;
-            page.push(CommitInfo::from_commit(&commit));
+            page.push(CommitInfo::from_commit(&commit, &self.repo));
             if page.len() >= page_size {
                 on_page(std::mem::replace(&mut page, Vec::with_capacity(page_size)));
             }
@@ -437,7 +481,7 @@ impl HistoryReader {
                     let mut results = Vec::with_capacity(shard.len());
                     for oid in shard {
                         if let Ok(commit) = repo.find_commit(oid) {
-                            results.push(CommitInfo::from_commit(&commit));
+                            results.push(CommitInfo::from_commit(&commit, &repo));
                         }
                     }
                     results
@@ -498,7 +542,7 @@ impl HistoryReader {
             for oid in walk {
                 let oid = oid?;
                 let commit = self.repo.find_commit(oid)?;
-                results.push(CommitInfo::from_commit(&commit));
+                results.push(CommitInfo::from_commit(&commit, &self.repo));
                 if results.len() >= SEARCH_COMMITS_MAX { break; }
             }
             return Ok(results);
@@ -513,7 +557,7 @@ impl HistoryReader {
             let hash_match = oid_str.starts_with(&q);
 
             let commit = self.repo.find_commit(oid)?;
-            let info = CommitInfo::from_commit(&commit);
+            let info = CommitInfo::from_commit(&commit, &self.repo);
 
             if hash_match
                 || info.summary.to_lowercase().contains(&q)

@@ -74,7 +74,7 @@ cargo_env = [
 cargo_build = custom_target('cargo-build',
   build_by_default: true,
   build_always_stale: true,
-  output: 'temporal-explorer-bin',
+  output: 'temporal-explorer',
   console: true,
   install: true,
   install_dir: get_option('bindir'),

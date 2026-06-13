@@ -36,6 +36,7 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+            klass.bind_template_callbacks();
         }
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
             obj.init_template();
@@ -55,19 +56,24 @@ mod imp {
 
         fn constructed(&self) {
             self.parent_constructed();
-            let obj = self.obj().clone();
-            self.back_button.connect_clicked(move |_| {
-                obj.emit_by_name::<()>("navigate-back", &[]);
-            });
-            let obj = self.obj().clone();
-            self.forward_button.connect_clicked(move |_| {
-                obj.emit_by_name::<()>("navigate-forward", &[]);
-            });
         }
     }
 
     impl WidgetImpl for HistoryControls {}
     impl BoxImpl for HistoryControls {}
+
+    #[gtk::template_callbacks]
+    impl HistoryControls {
+        #[template_callback]
+        fn on_back_clicked(&self) {
+            self.obj().emit_by_name::<()>("navigate-back", &[]);
+        }
+
+        #[template_callback]
+        fn on_forward_clicked(&self) {
+            self.obj().emit_by_name::<()>("navigate-forward", &[]);
+        }
+    }
 }
 
 // ── Public wrapper ─────────────────────────────────────────────────────────────
