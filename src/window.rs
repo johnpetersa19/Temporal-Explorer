@@ -932,19 +932,53 @@ impl TemporalExplorerWindow {
     // ── Timeline loading ───────────────────────────────────────────────────────
 
     fn load_timeline(&self, cancel: Arc<AtomicBool>) {
+        // Number of commits streamed per page from the background thread.
+        // 500 is a good balance: small enough to show the first commits within
+        // milliseconds, large enough to avoid per-page GTK overhead on huge repos.
+        const TIMELINE_PAGE_SIZE: usize = 500;
+
         let repo_path = match self.imp().repo_path.borrow().clone() {
             Some(p) => p,
             None => return,
         };
         self.imp().loading_commits.set(true);
+        // Clear stale commits so the year list is not rebuilt with old data
+        // while the new load is in progress.
+        self.imp().all_commits.borrow_mut().clear();
         self.show_empty_state();
 
-        let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<CommitInfo>, String>>(1);
+        // A rendezvous channel (capacity 0) ensures the worker blocks after
+        // sending each page until the GTK main loop has consumed it, providing
+        // natural back-pressure and bounding memory usage to ~1 page at a time.
+        //
+        // Each message is either:
+        //   Ok(page)     – a non-empty batch of CommitInfo values to append
+        //   Ok(vec![])   – end-of-stream sentinel (worker finished cleanly)
+        //   Err(string)  – fatal error; the worker will not send further pages
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<CommitInfo>, String>>(0);
+
+        let cancel_worker = cancel.clone();
         std::thread::spawn(move || {
-            let result = HistoryReader::open(&repo_path)
-                .and_then(|r| r.list_commits())
-                .map_err(|e| e.to_string());
-            let _ = tx.send(result);
+            let result = HistoryReader::open(&repo_path).and_then(|reader| {
+                reader.list_commits_paginated(TIMELINE_PAGE_SIZE, |page| {
+                    // Stop producing pages as soon as the main thread cancels.
+                    if cancel_worker.load(Ordering::Relaxed) { return; }
+                    // Ignore send errors: the receiver was dropped because the
+                    // window was closed or a new load was started.
+                    let _ = tx.send(Ok(page));
+                })
+            });
+
+            match result {
+                Ok(()) => {
+                    // End-of-stream sentinel: an empty Ok vec signals that all
+                    // pages have been sent successfully.
+                    let _ = tx.send(Ok(Vec::new()));
+                }
+                Err(e) => {
+                    let _ = tx.send(Err(e.to_string()));
+                }
+            }
         });
 
         let win = self.clone();
@@ -957,29 +991,50 @@ impl TemporalExplorerWindow {
             }
 
             match rx.try_recv() {
-                Ok(commits) => {
+                Ok(Ok(page)) if page.is_empty() => {
+                    // End-of-stream: finalize state.
                     win.imp().loading_commits.set(false);
-                    match commits {
-                        Ok(list) => {
-                            if let Some(ref pop) = *win.imp().filter_popover.borrow() {
-                                let mut seen = std::collections::HashSet::new();
-                                let authors: Vec<String> = list.iter()
-                                    .map(|c| c.author.clone())
-                                    .filter(|a| seen.insert(a.clone()))
-                                    .collect();
-                                pop.populate_author_chips(&authors);
-                            }
-
-                            *win.imp().all_commits.borrow_mut() = list;
-                            win.populate_year_list();
-                            win.imp().split_view.set_show_sidebar(true);
+                    win.imp().split_view.set_show_sidebar(true);
+                    // Final year-list refresh to catch any commits that
+                    // arrived in the last partial page.
+                    win.populate_year_list();
+                    glib::ControlFlow::Break
+                }
+                Ok(Ok(page)) => {
+                    // Populate author chips in the filter popover from this page.
+                    if let Some(ref pop) = *win.imp().filter_popover.borrow() {
+                        let mut seen = std::collections::HashSet::new();
+                        // Seed with authors already accumulated so duplicates
+                        // across pages are suppressed correctly.
+                        for c in win.imp().all_commits.borrow().iter() {
+                            seen.insert(c.author.clone());
                         }
-                        Err(e) => win.show_error(&format!("{}: {e}", gettext("Failed to read history"))),
+                        let new_authors: Vec<String> = page.iter()
+                            .map(|c| c.author.clone())
+                            .filter(|a| seen.insert(a.clone()))
+                            .collect();
+                        if !new_authors.is_empty() {
+                            pop.populate_author_chips(&new_authors);
+                        }
                     }
+
+                    // Append the page and refresh the sidebar incrementally so
+                    // the user sees commits appearing as soon as they arrive.
+                    win.imp().all_commits.borrow_mut().extend(page);
+                    win.populate_year_list();
+                    win.imp().split_view.set_show_sidebar(true);
+                    glib::ControlFlow::Continue
+                }
+                Ok(Err(e)) => {
+                    win.imp().loading_commits.set(false);
+                    win.show_error(&format!("{}: {e}", gettext("Failed to read history")));
                     glib::ControlFlow::Break
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-                Err(_) => glib::ControlFlow::Break,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    win.imp().loading_commits.set(false);
+                    glib::ControlFlow::Break
+                }
             }
         });
     }
