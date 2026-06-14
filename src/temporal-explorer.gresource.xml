@@ -26,6 +26,6 @@
     <file compressed="true">view-controls.ui</file>
     <file compressed="true">window.ui</file>
     <file compressed="true">year-row.ui</file>
-    <file alias="style.css">temporal-explorer.css</file>
+    <file compressed="true" alias="style.css">temporal-explorer.css</file>
   </gresource>
 </gresources>
