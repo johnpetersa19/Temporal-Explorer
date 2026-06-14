@@ -213,22 +213,33 @@ impl CommitInfo {
         let mut changed_files = Vec::new();
         if let Ok(tree) = commit.tree() {
             if commit.parent_count() > 0 {
-                for i in 0..commit.parent_count() {
-                    if let Ok(parent) = commit.parent(i) {
-                        if let Ok(parent_tree) = parent.tree() {
-                            if let Ok(diff) = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None) {
-                                let _ = diff.foreach(
-                                    &mut |delta, _| {
-                                        if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                                            changed_files.push(path.to_owned());
-                                        }
-                                        true
-                                    },
-                                    None,
-                                    None,
-                                    None,
-                                );
-                            }
+                // For both regular commits (1 parent) and merge commits (N > 1
+                // parents), diff only against the **first parent**.
+                //
+                // Rationale: diffing against every parent of a merge commit
+                // causes files that exist only in parent[i] to appear as
+                // "modified" in the diff parent[j] → merge_tree for all j ≠ i,
+                // producing false positives in the extension filter.  The
+                // sort/dedup below can remove exact duplicates but cannot
+                // eliminate the semantically incorrect entries.
+                //
+                // Using only parent[0] matches the behaviour of `git show` and
+                // `git log -p`, which is what users expect when inspecting a
+                // merge commit's changed files.
+                if let Ok(parent) = commit.parent(0) {
+                    if let Ok(parent_tree) = parent.tree() {
+                        if let Ok(diff) = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None) {
+                            let _ = diff.foreach(
+                                &mut |delta, _| {
+                                    if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                                        changed_files.push(path.to_owned());
+                                    }
+                                    true
+                                },
+                                None,
+                                None,
+                                None,
+                            );
                         }
                     }
                 }
