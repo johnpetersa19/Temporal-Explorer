@@ -13,7 +13,7 @@
 
 use adw::subclass::prelude::*;
 use gtk::{glib, glib::subclass::Signal};
-use gtk::prelude::{ButtonExt, ObjectExt, WidgetExt};
+use gtk::prelude::{ObjectExt, WidgetExt};
 use std::sync::OnceLock;
 
 // ── Private implementation ─────────────────────────────────────────────────────

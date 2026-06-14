@@ -19,7 +19,7 @@
  */
 
 use gtk::glib;
-use gtk::prelude::{ObjectExt, StaticType, ToggleButtonExt, CheckButtonExt};
+use gtk::prelude::{ObjectExt, StaticType, ToggleButtonExt};
 use gtk::subclass::prelude::*;
 use std::sync::OnceLock;
 

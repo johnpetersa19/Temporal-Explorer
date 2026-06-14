@@ -19,8 +19,6 @@
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::{glib, CompositeTemplate};
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
 use std::cell::RefCell;
 
 // ── GObject implementation ─────────────────────────────────────────────────────
