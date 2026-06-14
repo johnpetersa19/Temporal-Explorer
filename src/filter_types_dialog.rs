@@ -174,7 +174,7 @@ mod imp {
     }
 }
 
-// ── Public wrapper ─────────────────────────────────────────────────────────────────────────
+// ── Public wrapper ───────────────────────────────────────────────────────────────────────
 
 glib::wrapper! {
     pub struct FilterTypesDialog(ObjectSubclass<imp::FilterTypesDialog>)
@@ -203,7 +203,7 @@ impl FilterTypesDialog {
         })
     }
 
-    // ── Internal setup ───────────────────────────────────────────────────────────────────
+    // ── Internal setup ──────────────────────────────────────────────────────────────────────
 
     fn setup(&self) {
         let imp = self.imp();
@@ -292,7 +292,6 @@ impl FilterTypesDialog {
             let Some(&(ext, label, icon)) = filtered.get(pos) else { return };
 
             let hbox = list_item.child().and_downcast::<gtk::Box>().unwrap();
-            let mut children = hbox.observe_children();
 
             // row_icon (index 0)
             if let Some(img) = hbox.first_child().and_downcast::<gtk::Image>() {
@@ -330,9 +329,6 @@ impl FilterTypesDialog {
                     .map_or(false, |s| s == ext);
                 checkmark.set_visible(is_selected);
             }
-
-            drop(filtered);
-            drop(children);
         });
 
         imp.results_list.set_factory(Some(&factory));

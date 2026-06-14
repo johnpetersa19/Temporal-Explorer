@@ -34,7 +34,7 @@ use std::path::PathBuf;
 
 use crate::git_engine::CommitInfo;
 
-// ── BatchOp ───────────────────────────────────────────────────────────────────
+// ── BatchOp ────────────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub enum BatchOp {
@@ -44,6 +44,9 @@ pub enum BatchOp {
 }
 
 impl BatchOp {
+    /// Returns the ComboRow index that corresponds to this operation.
+    /// Used for round-tripping the op discriminant through the GObject signal.
+    #[allow(dead_code)]
     fn index(&self) -> u32 {
         match self {
             Self::CherryPick    { .. } => 0,
@@ -53,7 +56,7 @@ impl BatchOp {
     }
 }
 
-// ── GObject subclass ──────────────────────────────────────────────────────────
+// ── GObject subclass ───────────────────────────────────────────────────────────────
 
 mod imp {
     use super::*;
@@ -137,7 +140,7 @@ mod imp {
     }
 }
 
-// ── Public wrapper ─────────────────────────────────────────────────────────────
+// ── Public wrapper ─────────────────────────────────────────────────────────────────────────
 
 glib::wrapper! {
     pub struct BatchOperationsDialog(ObjectSubclass<imp::BatchOperationsDialog>)
@@ -154,7 +157,7 @@ impl BatchOperationsDialog {
         glib::Object::new()
     }
 
-    // ── Public API ─────────────────────────────────────────────────────────
+    // ── Public API ────────────────────────────────────────────────────────────────────
 
     /// Populate the commit list; must be called before `present`.
     pub fn set_commits(&self, commits: &[CommitInfo]) {
@@ -217,7 +220,7 @@ impl BatchOperationsDialog {
         imp.run_button.set_sensitive(false);
     }
 
-    // ── Internal ───────────────────────────────────────────────────────────
+    // ── Internal ──────────────────────────────────────────────────────────────────────
 
     fn setup_callbacks(&self) {
         let imp = self.imp();
