@@ -1,0 +1,22 @@
+# Rust / Cargo
+target/
+Cargo.lock
+
+# GNOME Builder
+.buildconfig
+.builds/
+_build/
+
+# Flatpak builder cache
+.flatpak-builder/
+
+# Editor artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,13 @@
+# .cargo/config.toml
+#
+# Local build configuration for faster dev compile times.
+#
+# Requirements (Arch Linux):
+#   sudo pacman -S mold clang
+#
+# mold is the fastest linker available on Linux and dramatically reduces
+# link times compared to the default GNU ld, especially for GTK/GNOME apps.
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
