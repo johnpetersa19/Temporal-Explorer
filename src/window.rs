@@ -931,7 +931,7 @@ impl TemporalExplorerWindow {
 
     // ── Timeline loading ───────────────────────────────────────────────────────
 
-    fn load_timeline(&self, _cancel: Arc<AtomicBool>) {
+    fn load_timeline(&self, cancel: Arc<AtomicBool>) {
         let repo_path = match self.imp().repo_path.borrow().clone() {
             Some(p) => p,
             None => return,
@@ -948,30 +948,39 @@ impl TemporalExplorerWindow {
         });
 
         let win = self.clone();
-        glib::idle_add_local(move || match rx.try_recv() {
-            Ok(commits) => {
-                win.imp().loading_commits.set(false);
-                match commits {
-                    Ok(list) => {
-                        if let Some(ref pop) = *win.imp().filter_popover.borrow() {
-                            let mut seen = std::collections::HashSet::new();
-                            let authors: Vec<String> = list.iter()
-                                .map(|c| c.author.clone())
-                                .filter(|a| seen.insert(a.clone()))
-                                .collect();
-                            pop.populate_author_chips(&authors);
-                        }
-
-                        *win.imp().all_commits.borrow_mut() = list;
-                        win.populate_year_list();
-                        win.imp().split_view.set_show_sidebar(true);
-                    }
-                    Err(e) => win.show_error(&format!("{}: {e}", gettext("Failed to read history"))),
-                }
-                glib::ControlFlow::Break
+        glib::idle_add_local(move || {
+            // If the user opened another repository while this load was in
+            // flight, discard the result and stop polling to prevent
+            // overwriting `all_commits` with stale data.
+            if cancel.load(Ordering::Relaxed) {
+                return glib::ControlFlow::Break;
             }
-            Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-            Err(_) => glib::ControlFlow::Break,
+
+            match rx.try_recv() {
+                Ok(commits) => {
+                    win.imp().loading_commits.set(false);
+                    match commits {
+                        Ok(list) => {
+                            if let Some(ref pop) = *win.imp().filter_popover.borrow() {
+                                let mut seen = std::collections::HashSet::new();
+                                let authors: Vec<String> = list.iter()
+                                    .map(|c| c.author.clone())
+                                    .filter(|a| seen.insert(a.clone()))
+                                    .collect();
+                                pop.populate_author_chips(&authors);
+                            }
+
+                            *win.imp().all_commits.borrow_mut() = list;
+                            win.populate_year_list();
+                            win.imp().split_view.set_show_sidebar(true);
+                        }
+                        Err(e) => win.show_error(&format!("{}: {e}", gettext("Failed to read history"))),
+                    }
+                    glib::ControlFlow::Break
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(_) => glib::ControlFlow::Break,
+            }
         });
     }
 
