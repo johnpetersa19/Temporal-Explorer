@@ -17,6 +17,25 @@
 //! the `Adw.HeaderBar` with all its children lives here so that
 //! `window.blp` only needs `$TemporalToolbar toolbar {}` at the `[top]`
 //! slot of the content `Adw.ToolbarView`.
+//!
+//! # Widget ↔ Blueprint correspondence
+//!
+//! Every `#[template_child]` field below **must** have a matching `id` in
+//! `toolbar.blp`.  The table below documents the mapping:
+//!
+//! | Rust field              | Blueprint id            | Slot     |
+//! |-------------------------|-------------------------|----------|
+//! | `header_bar`            | `header_bar`            | root     |
+//! | `history_controls`      | `history_controls`      | `[start]`|
+//! | `open_repo_button`      | `open_repo_button`      | `[start]`|
+//! | `new_branch_button`     | `new_branch_button`     | `[start]`|
+//! | `show_sidebar_button`   | `show_sidebar_button`   | `[start]`|
+//! | `toolbar_switcher`      | `toolbar_switcher`      | `[title]`|
+//! | `address_bar`           | `address_bar`           | `[title]`|
+//! | `location_entry`        | `location_entry`        | `[title]`|
+//! | `location_cancel_btn`   | `location_cancel_btn`   | `[title]`|
+//! | `view_controls`         | `view_controls`         | `[end]`  |
+//! | `main_menu_button`      | `main_menu_button`      | `[end]`  |
 
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
@@ -42,6 +61,11 @@ mod imp {
         pub history_controls: TemplateChild<HistoryControls>,
         #[template_child]
         pub open_repo_button: TemplateChild<gtk::Button>,
+        // new_branch_button is declared in toolbar.blp ([start] slot).
+        // It uses action-name "win.new-branch" so it fires automatically;
+        // the field is exposed here so window.rs can query its state if needed.
+        #[template_child]
+        pub new_branch_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub show_sidebar_button: TemplateChild<gtk::ToggleButton>,
 
@@ -103,6 +127,13 @@ impl TemporalToolbar {
 
     pub fn open_repo_button(&self) -> &gtk::Button {
         &self.imp().open_repo_button
+    }
+
+    /// The "New Branch" button declared in toolbar.blp.
+    /// Fires `win.new-branch` automatically via `action-name`;
+    /// this accessor allows window.rs to set sensitivity when no repo is loaded.
+    pub fn new_branch_button(&self) -> &gtk::Button {
+        &self.imp().new_branch_button
     }
 
     pub fn show_sidebar_button(&self) -> &gtk::ToggleButton {
