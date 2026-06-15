@@ -496,16 +496,48 @@ impl TemporalExplorerWindow {
     }
 
     // ── HistoryControls wiring ────────────────────────────────────────────────
+    //
+    // The toolbar exposes a single HistoryControls widget that serves both
+    // dir-nav (back/forward within a snapshot's directory tree) and
+    // commit-nav (back/forward across previously visited commits).
+    //
+    // Dispatch rule (evaluated on every signal emission):
+    //   • A snapshot is "open" when current_hash is Some AND current_dir
+    //     is non-empty (i.e. the user has descended into at least one
+    //     sub-directory).
+    //   • While a snapshot is open the signals drive dir-nav so the user
+    //     can step back up the directory tree without losing the commit.
+    //   • At the root of a snapshot (current_dir is empty) or when no
+    //     commit is selected the signals drive commit-nav.
+    //
+    // This keeps navigate_back and navigate_forward reachable from
+    // live code (silencing the dead_code warning) without changing the
+    // existing commit-nav behaviour.
 
     fn setup_history_controls(&self) {
         let win = self.clone();
         self.imp().toolbar.history_controls().connect_local("navigate-back", false, move |_| {
-            win.navigate_commit_back();
+            let imp = win.imp();
+            let in_snapshot = imp.current_hash.borrow().is_some()
+                && !imp.current_dir.borrow().as_os_str().is_empty();
+            if in_snapshot {
+                win.navigate_back();
+            } else {
+                win.navigate_commit_back();
+            }
             None
         });
+
         let win = self.clone();
         self.imp().toolbar.history_controls().connect_local("navigate-forward", false, move |_| {
-            win.navigate_commit_forward();
+            let imp = win.imp();
+            let in_snapshot = imp.current_hash.borrow().is_some()
+                && !imp.current_dir.borrow().as_os_str().is_empty();
+            if in_snapshot {
+                win.navigate_forward();
+            } else {
+                win.navigate_commit_forward();
+            }
             None
         });
     }
@@ -1314,6 +1346,10 @@ impl TemporalExplorerWindow {
         self.navigate_to_dir(dir);
     }
 
+    /// Navigate back one step in the directory history of the current snapshot.
+    ///
+    /// Called by `setup_history_controls` when the user presses the back button
+    /// while inside a snapshot's sub-directory (`current_dir` is non-empty).
     fn navigate_back(&self) {
         let imp = self.imp();
         if let Some(dir) = imp.history_back.borrow_mut().pop() {
@@ -1323,6 +1359,10 @@ impl TemporalExplorerWindow {
         }
     }
 
+    /// Navigate forward one step in the directory history of the current snapshot.
+    ///
+    /// Called by `setup_history_controls` when the user presses the forward button
+    /// while inside a snapshot's sub-directory (`current_dir` is non-empty).
     fn navigate_forward(&self) {
         let imp = self.imp();
         if let Some(dir) = imp.history_forward.borrow_mut().pop() {
@@ -1332,14 +1372,14 @@ impl TemporalExplorerWindow {
         }
     }
 
-    /// Update dir-nav button sensitivity from the back/forward stacks.
+    /// Update toolbar button sensitivity from the dir-nav back/forward stacks.
     ///
     /// # Note
-    /// Commit-nav and dir-nav currently share the same `HistoryControls`
-    /// widget, so calling this overrides the state set by
-    /// `update_commit_nav_buttons`.  A dedicated `DirNavControls` widget
-    /// in `toolbar.blp` would resolve the conflict; until then this is
-    /// only called during directory traversal inside a snapshot.
+    /// Commit-nav and dir-nav share the same `HistoryControls` widget in the
+    /// toolbar.  `setup_history_controls` dispatches the signals to the correct
+    /// handler based on context (dir-nav when inside a snapshot sub-directory,
+    /// commit-nav otherwise).  This function updates the button state for the
+    /// dir-nav case; `update_commit_nav_buttons` handles the commit-nav case.
     fn update_dir_nav_buttons(&self) {
         let imp = self.imp();
         let can_back    = !imp.history_back.borrow().is_empty();
