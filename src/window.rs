@@ -397,17 +397,26 @@ impl TemporalExplorerWindow {
 
     /// Create a local branch at HEAD of the currently loaded repository.
     ///
-    /// # Lifetime note
+    /// # Borrow-checker / lifetime rationale
     ///
-    /// `git2::Branch<'_>` borrows from the `Repository` it was created on,
-    /// so we cannot hold a `RefCell` borrow across the `repo.branch()` call —
-    /// the temporary `Result<Branch<'_>>` destructor would run after the guard
-    /// drops, violating borrow rules (E0597).
+    /// `git2::Branch<'repo>` borrows from the `Repository` it was created on.
+    /// When `repo` is a local variable owned by a closure passed to `and_then`,
+    /// returning the `Branch` from that closure is illegal (E0515) because the
+    /// borrow of `repo` would escape the scope in which `repo` is owned.
     ///
-    /// Solution: resolve the HEAD OID inside a tightly-scoped block, then open
-    /// a short-lived secondary `Repository` handle whose lifetime is fully
-    /// contained within the branch-creation block.  All observable state
-    /// (the branch on disk) is identical to the single-handle approach.
+    /// ## Fix
+    ///
+    /// Two complementary techniques are used here:
+    ///
+    /// 1. **Resolve HEAD OID in a tightly-scoped block** — the `RefCell` borrow
+    ///    on `self.imp().repository` is released before we do anything else,
+    ///    so no live borrow is held across later fallible operations.
+    ///
+    /// 2. **Map `Branch` to `()` inside the closure** — `repo.branch(…)` returns
+    ///    `Result<Branch<'_>, git2::Error>`.  Calling `.map(|_| ())` immediately
+    ///    drops the `Branch` (and its borrow of `repo`) *within* the closure,
+    ///    so the closure returns `Result<(), String>` — a type with no lifetime
+    ///    parameters — which can be safely returned to the outer scope.
     pub fn create_branch(&self, name: &str) {
         // ── 1. Resolve repo_path and HEAD OID — borrow ends here ─────────────
         let (repo_path, head_oid) = {
@@ -447,9 +456,15 @@ impl TemporalExplorerWindow {
 
         // ── 3. Open a short-lived handle and create the branch ────────────────
         //
-        // The secondary handle is opened only for this one operation.
+        // A secondary `Repository` handle is opened solely for this operation.
         // Its lifetime — and therefore the lifetime of `Branch<'_>` — is
         // entirely contained within this block, satisfying the borrow checker.
+        //
+        // `.map(|_| ())` drops the `Branch` (and its borrow of `repo`) inside
+        // the closure so `Result<(), String>` — with no lifetime parameter —
+        // is what gets returned to the outer scope.  Without this `.map`, the
+        // compiler would emit E0515 because the `Branch` borrow would escape
+        // the closure that owns `repo`.
         let result = git2::Repository::open(&path)
             .map_err(|e| format!("{}: {e}", gettext("Cannot open repository")))
             .and_then(|repo| {
@@ -457,12 +472,13 @@ impl TemporalExplorerWindow {
                     .find_commit(head_oid)
                     .map_err(|e| format!("{}: {e}", gettext("Cannot find HEAD commit")))?;
                 repo.branch(name, &commit, false)
+                    .map(|_| ())   // ← drop Branch<'_> here; borrow of `repo` ends
                     .map_err(|e| format!("{} \u{2018}{}\u{2019}: {e}", gettext("Failed to create branch"), name))
             });
 
         // ── 4. Report outcome ─────────────────────────────────────────────────
         match result {
-            Ok(_) => {
+            Ok(()) => {
                 let toast = adw::Toast::new(&format!(
                     "{} \u{2018}{}\u{2019}",
                     gettext("Created branch"),
