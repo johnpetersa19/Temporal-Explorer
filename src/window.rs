@@ -261,7 +261,7 @@ fn matches_calendar(ts: i64, q: &str) -> bool {
         10 => "october",   11 => "november",  12 => "december",
         _  => "",
     };
-    let month_abbr = &month_full[..3.min(month_full.len())];
+    let month_abbr       = &month_full[..3.min(month_full.len())];
     let month_translated = timeline_filter::month_name(month).to_lowercase();
 
     iso_date.contains(q)
@@ -272,6 +272,22 @@ fn matches_calendar(ts: i64, q: &str) -> bool {
         || month_abbr == q
         || month_translated.contains(q)
 }
+
+// ── Short-hash helpers ─────────────────────────────────────────────────────────
+
+/// Returns the short (7-char) prefix of a full commit hash.
+#[inline]
+fn short_hash(hash: &str) -> &str {
+    &hash[..7.min(hash.len())]
+}
+
+/// Returns the first 8 characters of a full commit hash (used in the info bar).
+#[inline]
+fn display_hash(hash: &str) -> &str {
+    &hash[..8.min(hash.len())]
+}
+
+// ── TemporalExplorerWindow impl ────────────────────────────────────────────────
 
 impl TemporalExplorerWindow {
     pub fn new<P: IsA<gtk::Application>>(application: &P) -> Self {
@@ -354,11 +370,11 @@ impl TemporalExplorerWindow {
 
     fn setup_actions(&self) {
         let actions: &[(&str, fn(&TemporalExplorerWindow))] = &[
-            ("batch-operations",  Self::show_batch_operations_dialog),
-            ("select-by-pattern", Self::show_select_by_pattern_dialog),
-            ("filter-file-type",  Self::show_filter_types_dialog),
+            ("batch-operations",   Self::show_batch_operations_dialog),
+            ("select-by-pattern",  Self::show_select_by_pattern_dialog),
+            ("filter-file-type",   Self::show_filter_types_dialog),
             ("show-column-chooser", Self::show_column_chooser),
-            ("new-branch",        Self::show_new_branch_dialog),
+            ("new-branch",         Self::show_new_branch_dialog),
         ];
 
         for (name, handler) in actions {
@@ -432,7 +448,7 @@ impl TemporalExplorerWindow {
         });
     }
 
-    /// Push `hash` onto the commit navigation back-stack and clear forward.
+    /// Push `hash` onto the commit navigation back-stack and clear the forward stack.
     fn push_commit_nav(&self, hash: &str) {
         let imp = self.imp();
         imp.commit_nav_forward.borrow_mut().clear();
@@ -446,23 +462,21 @@ impl TemporalExplorerWindow {
 
     fn navigate_commit_back(&self) {
         let imp = self.imp();
-        let prev = imp.commit_nav_back.borrow_mut().pop();
-        if let Some(hash) = prev {
+        if let Some(prev) = imp.commit_nav_back.borrow_mut().pop() {
             if let Some(current) = imp.current_hash.borrow().clone() {
                 imp.commit_nav_forward.borrow_mut().push(current);
             }
-            self.jump_to_commit_hash(hash);
+            self.jump_to_commit_hash(prev);
         }
     }
 
     fn navigate_commit_forward(&self) {
         let imp = self.imp();
-        let next = imp.commit_nav_forward.borrow_mut().pop();
-        if let Some(hash) = next {
+        if let Some(next) = imp.commit_nav_forward.borrow_mut().pop() {
             if let Some(current) = imp.current_hash.borrow().clone() {
                 imp.commit_nav_back.borrow_mut().push(current);
             }
-            self.jump_to_commit_hash(hash);
+            self.jump_to_commit_hash(next);
         }
     }
 
@@ -470,14 +484,14 @@ impl TemporalExplorerWindow {
     fn jump_to_commit_hash(&self, hash: String) {
         let imp = self.imp();
         *imp.current_hash.borrow_mut() = Some(hash.clone());
-        *imp.current_dir.borrow_mut() = PathBuf::new();
+        *imp.current_dir.borrow_mut()  = PathBuf::new();
         imp.history_back.borrow_mut().clear();
         imp.history_forward.borrow_mut().clear();
 
         {
             let commits = imp.all_commits.borrow();
-            if let Some(commit) = commits.iter().find(|c| c.hash.starts_with(&hash[..7.min(hash.len())])) {
-                imp.commit_hash_label.set_label(&commit.hash[..8.min(commit.hash.len())]);
+            if let Some(commit) = commits.iter().find(|c| c.hash.starts_with(short_hash(&hash))) {
+                imp.commit_hash_label.set_label(display_hash(&commit.hash));
                 imp.commit_message_label.set_label(&commit.summary);
                 imp.commit_date_label.set_label(&Self::format_timestamp(commit.timestamp));
                 imp.commit_info_bar.set_revealed(true);
@@ -531,7 +545,7 @@ impl TemporalExplorerWindow {
         let dialog = ColumnChooser::new();
         dialog.apply_visibility(&self.imp().column_visibility.borrow());
 
-        let win = self.clone();
+        let win     = self.clone();
         let dlg_ref = dialog.clone();
         dialog.connect_local("columns-changed", false, move |_| {
             *win.imp().column_visibility.borrow_mut() = dlg_ref.visibility();
@@ -577,7 +591,7 @@ impl TemporalExplorerWindow {
                             let _ = std::fs::create_dir_all(&dest_dir);
                             for (i, sha) in shas_clone.iter().enumerate() {
                                 let patch_path = dest_dir.join(
-                                    format!("{:04}-{}.patch", i + 1, &sha[..7.min(sha.len())])
+                                    format!("{:04}-{}.patch", i + 1, short_hash(sha))
                                 );
                                 if let Ok(repo) = git2::Repository::open(&repo_path) {
                                     if let Ok(oid) = git2::Oid::from_str(sha) {
@@ -619,7 +633,7 @@ impl TemporalExplorerWindow {
                 BatchOp::CopyShas { short } => {
                     let text = shas
                         .iter()
-                        .map(|s| if short { s[..7.min(s.len())].to_string() } else { s.clone() })
+                        .map(|s| if short { short_hash(s).to_string() } else { s.clone() })
                         .collect::<Vec<_>>()
                         .join("\n");
                     if let Some(display) = gtk::gdk::Display::default() {
@@ -659,7 +673,7 @@ impl TemporalExplorerWindow {
                         list_row.data::<String>("hash").map(|p| p.as_ref().clone())
                     };
                     if let Some(hash) = hash_opt {
-                        let is_match = matching.iter().any(|m| m.starts_with(&hash[..7.min(hash.len())]));
+                        let is_match = matching.iter().any(|m| m.starts_with(short_hash(&hash)));
                         if is_match {
                             list_row.add_css_class("pattern-match");
                         } else {
@@ -1080,14 +1094,14 @@ impl TemporalExplorerWindow {
         self.push_commit_nav(&hash);
 
         *imp.current_hash.borrow_mut() = Some(hash.clone());
-        *imp.current_dir.borrow_mut() = PathBuf::new();
+        *imp.current_dir.borrow_mut()  = PathBuf::new();
         imp.history_back.borrow_mut().clear();
         imp.history_forward.borrow_mut().clear();
 
         {
             let commits = imp.all_commits.borrow();
-            if let Some(commit) = commits.iter().find(|c| c.hash.starts_with(&hash[..7.min(hash.len())])) {
-                imp.commit_hash_label.set_label(&commit.hash[..8.min(commit.hash.len())]);
+            if let Some(commit) = commits.iter().find(|c| c.hash.starts_with(short_hash(&hash))) {
+                imp.commit_hash_label.set_label(display_hash(&commit.hash));
                 imp.commit_message_label.set_label(&commit.summary);
                 imp.commit_date_label.set_label(&Self::format_timestamp(commit.timestamp));
                 imp.commit_info_bar.set_revealed(true);
@@ -1167,12 +1181,7 @@ impl TemporalExplorerWindow {
         };
 
         match sort_mode {
-            FileSortMode::Name => {
-                nodes.sort_by(|a, b| {
-                    b.is_dir().cmp(&a.is_dir()).then(get_node_name(a).cmp(&get_node_name(b)))
-                });
-            }
-            FileSortMode::Status => {
+            FileSortMode::Name | FileSortMode::Status => {
                 nodes.sort_by(|a, b| {
                     b.is_dir().cmp(&a.is_dir()).then(get_node_name(a).cmp(&get_node_name(b)))
                 });
@@ -1365,11 +1374,10 @@ impl TemporalExplorerWindow {
                     if !active_filter.matches(c) { return false; }
                     if q.is_empty() { return true; }
 
-                    let short_hash = &c.hash[..7.min(c.hash.len())];
                     let text_match =
                         c.summary.to_lowercase().contains(&q)
                         || c.hash.to_lowercase().contains(&q)
-                        || short_hash.to_lowercase().starts_with(&q)
+                        || short_hash(&c.hash).starts_with(&q)
                         || c.author.to_lowercase().contains(&q);
 
                     text_match || matches_calendar(c.timestamp, &q)
