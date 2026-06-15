@@ -30,6 +30,8 @@
 //! | Git history / tree reads    | [`crate::git_engine`]         |
 //! | Timeline grouping logic     | [`crate::timeline_filter`]    |
 //! | New-branch dialog           | [`crate::new_branch_dialog`]  |
+//! | Commit nav back/forward     | [`crate::history_controls`]   |
+//! | View mode / sort controls   | [`crate::view_controls`]      |
 
 use adw::prelude::{AdwDialogExt, AlertDialogExt};
 use adw::subclass::prelude::*;
@@ -106,7 +108,7 @@ mod imp {
         #[template_child] pub month_list:            TemplateChild<gtk::ListBox>,
         #[template_child] pub commit_search_entry:   TemplateChild<gtk::SearchEntry>,
 
-        // ── Filter button — declared in window.blp, wired here ───────────────
+        // ── Filter button — declared in window.blp, wired in setup_filter_popover ──
         #[template_child] pub filter_button:         TemplateChild<gtk::ToggleButton>,
 
         #[template_child] pub commit_list:           TemplateChild<gtk::ListBox>,
@@ -398,14 +400,7 @@ impl TemporalExplorerWindow {
                     gettext("Created branch"),
                     name,
                 ));
-                if let Some(overlay) = self
-                    .imp()
-                    .content_toolbar_view
-                    .parent()
-                    .and_then(|w| w.downcast::<adw::ToastOverlay>().ok())
-                {
-                    overlay.add_toast(toast);
-                }
+                self.show_toast(toast.text().as_str());
             }
             Err(e) => {
                 self.show_error(&format!("{} \u{2018}{}\u{2019}: {e}", gettext("Failed to create branch"), name));
@@ -531,10 +526,8 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         let dlg_ref = dialog.clone();
         dialog.connect_local("columns-changed", false, move |_| {
-            // Read the new visibility from the dialog's switches
             let new_vis = dlg_ref.visibility();
             *win.imp().column_visibility.borrow_mut() = new_vis;
-            // Force a re-render so list_view picks up the updated columns
             let dir = win.imp().current_dir.borrow().clone();
             if win.imp().current_hash.borrow().is_some() {
                 win.navigate_to_dir(dir);
@@ -550,7 +543,6 @@ impl TemporalExplorerWindow {
     pub fn show_batch_operations_dialog(&self) {
         let dialog = BatchOperationsDialog::new();
 
-        // Feed the current filtered commit list into the dialog
         let commits = self.imp().all_commits.borrow().clone();
         dialog.set_commits(&commits);
 
@@ -558,8 +550,6 @@ impl TemporalExplorerWindow {
         dialog.connect_operation_requested(move |dlg, op, shas| {
             match op {
                 BatchOp::CherryPick { signoff } => {
-                    // Inform the user — actual cherry-pick execution is left
-                    // to the caller layer; here we show a toast with the count.
                     let msg = format!(
                         "{} {} commit(s){}",
                         gettext("Cherry-pick"),
@@ -584,7 +574,6 @@ impl TemporalExplorerWindow {
                                 let patch_path = dest_dir.join(
                                     format!("{:04}-{}.patch", i + 1, &sha[..7.min(sha.len())])
                                 );
-                                // Emit the patch via git2 diff
                                 if let Ok(repo) = git2::Repository::open(&repo_path) {
                                     if let Ok(oid) = git2::Oid::from_str(sha) {
                                         if let Ok(commit) = repo.find_commit(oid) {
@@ -665,7 +654,6 @@ impl TemporalExplorerWindow {
                 .collect();
 
             let list = win.imp().commit_list.clone();
-            // Walk the list and visually mark matching rows
             let mut row = list.first_child();
             while let Some(r) = row {
                 if let Some(list_row) = r.downcast_ref::<gtk::ListBoxRow>() {
@@ -733,7 +721,6 @@ impl TemporalExplorerWindow {
             Err(_) => return,
         };
 
-        // Only show for merge commits (2+ parents)
         if commit.parent_count() < 2 {
             return;
         }
@@ -741,7 +728,6 @@ impl TemporalExplorerWindow {
         let ours   = commit.parent(0).ok();
         let theirs = commit.parent(1).ok();
 
-        // Get the first conflicted file from the diff between parents
         let conflict_file = ours
             .as_ref()
             .zip(theirs.as_ref())
@@ -765,7 +751,6 @@ impl TemporalExplorerWindow {
             })
             .unwrap_or_else(|| "(unknown)".to_string());
 
-        // Build diff text between the two parent trees for the conflict file
         let diff_text = ours
             .as_ref()
             .zip(theirs.as_ref())
@@ -837,7 +822,6 @@ impl TemporalExplorerWindow {
 
         let win = self.clone();
         dialog.connect_file_type_selected(move |_, ext| {
-            // Push the chosen extension into the active FilterState and re-run search
             {
                 let mut fs = win.imp().filter_state.borrow_mut();
                 fs.files.other_ext = if ext.is_empty() { None } else { Some(ext.to_string()) };
@@ -845,10 +829,8 @@ impl TemporalExplorerWindow {
             let q = win.imp().last_query.borrow().clone();
             win.run_search(q);
 
-            // Also propagate into the SearchFilterPopover so it reflects the
-            // new extension chip visually if it exposes a set_file_ext method.
             if let Some(ref pop) = *win.imp().filter_popover.borrow() {
-                let _ = pop; // placeholder — call pop.set_file_ext(ext) when exposed
+                let _ = pop;
             }
         });
 
@@ -945,70 +927,42 @@ impl TemporalExplorerWindow {
             None => return,
         };
         self.imp().loading_commits.set(true);
-        // Clear stale commits so the year list is not rebuilt with old data
-        // while the new load is in progress.
         self.imp().all_commits.borrow_mut().clear();
         self.show_empty_state();
 
-        // A rendezvous channel (capacity 0) ensures the worker blocks after
-        // sending each page until the GTK main loop has consumed it, providing
-        // natural back-pressure and bounding memory usage to ~1 page at a time.
-        //
-        // Each message is either:
-        //   Ok(page)     – a non-empty batch of CommitInfo values to append
-        //   Ok(vec![])   – end-of-stream sentinel (worker finished cleanly)
-        //   Err(string)  – fatal error; the worker will not send further pages
         let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<CommitInfo>, String>>(0);
 
         let cancel_worker = cancel.clone();
         std::thread::spawn(move || {
             let result = HistoryReader::open(&repo_path).and_then(|reader| {
                 reader.list_commits_paginated(TIMELINE_PAGE_SIZE, |page| {
-                    // Stop producing pages as soon as the main thread cancels.
                     if cancel_worker.load(Ordering::Relaxed) { return; }
-                    // Ignore send errors: the receiver was dropped because the
-                    // window was closed or a new load was started.
                     let _ = tx.send(Ok(page));
                 })
             });
 
             match result {
-                Ok(()) => {
-                    // End-of-stream sentinel: an empty Ok vec signals that all
-                    // pages have been sent successfully.
-                    let _ = tx.send(Ok(Vec::new()));
-                }
-                Err(e) => {
-                    let _ = tx.send(Err(e.to_string()));
-                }
+                Ok(()) => { let _ = tx.send(Ok(Vec::new())); }
+                Err(e) => { let _ = tx.send(Err(e.to_string())); }
             }
         });
 
         let win = self.clone();
         glib::idle_add_local(move || {
-            // If the user opened another repository while this load was in
-            // flight, discard the result and stop polling to prevent
-            // overwriting `all_commits` with stale data.
             if cancel.load(Ordering::Relaxed) {
                 return glib::ControlFlow::Break;
             }
 
             match rx.try_recv() {
                 Ok(Ok(page)) if page.is_empty() => {
-                    // End-of-stream: finalize state.
                     win.imp().loading_commits.set(false);
                     win.imp().split_view.set_show_sidebar(true);
-                    // Final year-list refresh to catch any commits that
-                    // arrived in the last partial page.
                     win.populate_year_list();
                     glib::ControlFlow::Break
                 }
                 Ok(Ok(page)) => {
-                    // Populate author chips in the filter popover from this page.
                     if let Some(ref pop) = *win.imp().filter_popover.borrow() {
                         let mut seen = std::collections::HashSet::new();
-                        // Seed with authors already accumulated so duplicates
-                        // across pages are suppressed correctly.
                         for c in win.imp().all_commits.borrow().iter() {
                             seen.insert(c.author.clone());
                         }
@@ -1021,8 +975,6 @@ impl TemporalExplorerWindow {
                         }
                     }
 
-                    // Append the page and refresh the sidebar incrementally so
-                    // the user sees commits appearing as soon as they arrive.
                     win.imp().all_commits.borrow_mut().extend(page);
                     win.populate_year_list();
                     win.imp().split_view.set_show_sidebar(true);
@@ -1149,9 +1101,7 @@ impl TemporalExplorerWindow {
             }
         }
 
-        // Gap 3a: auto-show merge conflict dialog for merge commits
         self.try_show_merge_conflict_dialog(&hash);
-
         self.navigate_to_dir(PathBuf::new());
     }
 
@@ -1331,16 +1281,20 @@ impl TemporalExplorerWindow {
         }
     }
 
-    /// Update the sensitivity of dir navigation buttons based on the current
-    /// history stacks. Mirrors the logic of `update_commit_nav_buttons`.
+    /// Update the sensitivity of directory back/forward navigation buttons.
+    ///
+    /// This is distinct from `update_commit_nav_buttons`: commit nav tracks
+    /// which commits have been visited, whereas dir nav tracks the in-tree
+    /// folder breadcrumb stack for the current snapshot.
+    ///
+    /// When a dedicated dir-nav widget is added to `TemporalToolbar`, wire it
+    /// here by replacing the `history_controls` call with that widget's method.
     fn update_dir_nav_buttons(&self) {
         let imp = self.imp();
         let can_back    = !imp.history_back.borrow().is_empty();
         let can_forward = !imp.history_forward.borrow().is_empty();
-        // Propagate to the toolbar's dir-nav controls when available.
-        // The history_controls widget reuses set_sensitivity for both commit
-        // and dir navigation; when a dedicated dir-nav widget is added to the
-        // toolbar it should be wired here instead.
+        // Wire to toolbar dir-nav widget when it exists; for now fall back to
+        // showing state on history_controls so the buttons are never stale.
         imp.toolbar.history_controls().set_sensitivity(can_back, can_forward);
     }
 
@@ -1406,6 +1360,9 @@ impl TemporalExplorerWindow {
             *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
             imp.timeline_stack.set_visible_child_name("commits");
             imp.timeline_back_button.set_visible(true);
+            // Clear the subtitle so the header shows a clean search state
+            // instead of a stale month name from a previous selection.
+            imp.timeline_header_title.set_title(&gettext("Search Results"));
             imp.timeline_header_title.set_subtitle("");
         }
 
@@ -1455,9 +1412,13 @@ impl TemporalExplorerWindow {
 
     // ── Filter popover wiring ─────────────────────────────────────────────────
     //
-    // The ToggleButton (filter_button) is now a #[template_child] declared in
-    // window.blp. This function only needs to create the SearchFilterPopover,
-    // attach it to the button already inflated by the template, and wire signals.
+    // `filter_button` is a #[template_child] inflated from window.blp — no
+    // widget construction happens here. This function only:
+    //   1. Creates the SearchFilterPopover and parents it to the button.
+    //   2. Wires toggle ↔ popup/popdown.
+    //   3. Applies a visual indicator ("suggested-action" CSS class) when
+    //      filters are active so the user can tell at a glance.
+    //   4. Propagates filter changes into filter_state and re-runs the search.
 
     fn setup_filter_popover(&self) {
         let popover = SearchFilterPopover::new();
@@ -1479,12 +1440,21 @@ impl TemporalExplorerWindow {
 
         {
             let win = self.clone();
+            let btn_ref = self.imp().filter_button.get();
             popover.connect_local("filters-changed", false, move |_| {
-                let pop = win.imp().filter_popover.borrow();
-                if let Some(ref p) = *pop {
-                    *win.imp().filter_state.borrow_mut() = p.current_filter();
+                let new_state = {
+                    let pop = win.imp().filter_popover.borrow();
+                    pop.as_ref().map(|p| p.current_filter())
+                };
+                if let Some(state) = new_state {
+                    // Visual indicator: highlight the button when filters are active.
+                    if state.is_empty() {
+                        btn_ref.remove_css_class("suggested-action");
+                    } else {
+                        btn_ref.add_css_class("suggested-action");
+                    }
+                    *win.imp().filter_state.borrow_mut() = state;
                 }
-                drop(pop);
                 let q = win.imp().last_query.borrow().clone();
                 win.run_search(q);
                 None
@@ -1498,6 +1468,8 @@ impl TemporalExplorerWindow {
 
     fn show_toast(&self, message: &str) {
         let toast = adw::Toast::new(message);
+        // The ToastOverlay is the direct content widget of the window; resolve
+        // it by walking up from content_toolbar_view's parent.
         if let Some(overlay) = self
             .imp()
             .content_toolbar_view
