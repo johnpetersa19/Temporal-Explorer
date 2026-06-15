@@ -18,24 +18,13 @@
 //! `window.blp` only needs `$TemporalToolbar toolbar {}` at the `[top]`
 //! slot of the content `Adw.ToolbarView`.
 //!
-//! # Widget ↔ Blueprint correspondence
+//! ## Blueprint ↔ Rust mapping
 //!
-//! Every `#[template_child]` field below **must** have a matching `id` in
-//! `toolbar.blp`.  The table below documents the mapping:
-//!
-//! | Rust field              | Blueprint id            | Slot     |
-//! |-------------------------|-------------------------|----------|
-//! | `header_bar`            | `header_bar`            | root     |
-//! | `history_controls`      | `history_controls`      | `[start]`|
-//! | `open_repo_button`      | `open_repo_button`      | `[start]`|
-//! | `new_branch_button`     | `new_branch_button`     | `[start]`|
-//! | `show_sidebar_button`   | `show_sidebar_button`   | `[start]`|
-//! | `toolbar_switcher`      | `toolbar_switcher`      | `[title]`|
-//! | `address_bar`           | `address_bar`           | `[title]`|
-//! | `location_entry`        | `location_entry`        | `[title]`|
-//! | `location_cancel_btn`   | `location_cancel_btn`   | `[title]`|
-//! | `view_controls`         | `view_controls`         | `[end]`  |
-//! | `main_menu_button`      | `main_menu_button`      | `[end]`  |
+//! Every widget declared with an `id` in `toolbar.blp` **must** appear
+//! here as a `#[template_child]` so the template can be bound at
+//! construction time.  Adding a widget to the `.blp` without a matching
+//! `TemplateChild` field silently leaves it unwired (no panic, but the
+//! widget is invisible to Rust code).
 
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
@@ -56,20 +45,26 @@ mod imp {
         #[template_child]
         pub header_bar: TemplateChild<adw::HeaderBar>,
 
-        // Start-slot buttons — forwarded to window.rs
+        // ── Start-slot buttons ────────────────────────────────────────────────
         #[template_child]
         pub history_controls: TemplateChild<HistoryControls>,
+
+        /// "Open Repository" button — wired in window.rs via connect_clicked.
         #[template_child]
         pub open_repo_button: TemplateChild<gtk::Button>,
-        // new_branch_button is declared in toolbar.blp ([start] slot).
-        // It uses action-name "win.new-branch" so it fires automatically;
-        // the field is exposed here so window.rs can query its state if needed.
+
+        /// "New Branch" button — declared in toolbar.blp with
+        /// `action-name: "win.new-branch"` so it fires the GAction directly.
+        /// Exposed here so callers can also connect signals if needed.
         #[template_child]
         pub new_branch_button: TemplateChild<gtk::Button>,
+
+        /// Sidebar toggle — bound bidirectionally to `split_view.show-sidebar`
+        /// in window.rs `setup_callbacks`.
         #[template_child]
         pub show_sidebar_button: TemplateChild<gtk::ToggleButton>,
 
-        // Title-slot: pathbar / location-entry switcher
+        // ── Title-slot: pathbar / location-entry switcher ─────────────────────
         #[template_child]
         pub toolbar_switcher: TemplateChild<gtk::Stack>,
         #[template_child]
@@ -79,7 +74,7 @@ mod imp {
         #[template_child]
         pub location_cancel_btn: TemplateChild<gtk::Button>,
 
-        // End-slot widgets
+        // ── End-slot widgets ──────────────────────────────────────────────────
         #[template_child]
         pub view_controls: TemplateChild<ViewControls>,
         #[template_child]
@@ -129,9 +124,12 @@ impl TemporalToolbar {
         &self.imp().open_repo_button
     }
 
-    /// The "New Branch" button declared in toolbar.blp.
-    /// Fires `win.new-branch` automatically via `action-name`;
-    /// this accessor allows window.rs to set sensitivity when no repo is loaded.
+    /// The "New Branch" button.
+    ///
+    /// Its `action-name` is already set to `"win.new-branch"` in the
+    /// Blueprint, so clicking it fires the action automatically.  This
+    /// accessor is provided for cases where additional signal wiring is
+    /// needed (e.g. disabling the button when no repository is loaded).
     pub fn new_branch_button(&self) -> &gtk::Button {
         &self.imp().new_branch_button
     }

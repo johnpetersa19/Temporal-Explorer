@@ -31,34 +31,25 @@
 //! | Timeline grouping logic     | [`crate::timeline_filter`]    |
 //! | New-branch dialog           | [`crate::new_branch_dialog`]  |
 //!
-//! # Blueprint ↔ Rust template-child correspondence
+//! ## Blueprint ↔ Rust contract
 //!
-//! All graphical panels / widgets are declared in `window.blp` and wired
-//! here as `#[template_child]` fields.  Nothing visual is constructed
-//! imperatively in this file — only behaviour (signals, state machines)
-//! lives in Rust.
+//! Every widget that carries an `id` in `window.blp` **must** be listed
+//! as a `#[template_child]` in `imp::TemporalExplorerWindow`.  The only
+//! exception is `SearchFilterPopover`, which is a custom widget created
+//! at runtime and stored as a plain `RefCell<Option<…>>` because its
+//! parent (`filter_button`) is not known at template-inflate time.
 //!
-//! | `#[template_child]` field   | Blueprint id                | Notes                         |
-//! |-----------------------------|-----------------------------|-------------------------------|
-//! | `toolbar`                   | `toolbar`                   | composite sub-widget          |
-//! | `window_title`              | `window_title`              |                               |
-//! | `timeline_stack`            | `timeline_stack`            |                               |
-//! | `timeline_back_button`      | `timeline_back_button`      |                               |
-//! | `timeline_header_title`     | `timeline_header_title`     |                               |
-//! | `year_list`                 | `year_list`                 |                               |
-//! | `month_list`                | `month_list`                |                               |
-//! | `commit_search_entry`       | `commit_search_entry`       |                               |
-//! | `filter_button`             | `filter_button`             | ToggleButton for filter popover|
-//! | `commit_list`               | `commit_list`               |                               |
-//! | `content_toolbar_view`      | `content_toolbar_view`      |                               |
-//! | `right_panel_stack`         | `right_panel_stack`         |                               |
-//! | `right_panel_content`       | `right_panel_content`       |                               |
-//! | `empty_state`               | `empty_state`               |                               |
-//! | `split_view`                | `split_view`                |                               |
-//! | `commit_info_bar`           | `commit_info_bar`           |                               |
-//! | `commit_hash_label`         | `commit_hash_label`         |                               |
-//! | `commit_message_label`      | `commit_message_label`      |                               |
-//! | `commit_date_label`         | `commit_date_label`         |                               |
+//! ### Panel widgets declared in `.blp` and wired here
+//!
+//! | Widget id             | Blueprint file   | Rust field             |
+//! |-----------------------|------------------|------------------------|
+//! | `filter_button`       | `window.blp`     | `#[template_child]`    |
+//! | `commit_search_entry` | `window.blp`     | `#[template_child]`    |
+//! | `timeline_stack`      | `window.blp`     | `#[template_child]`    |
+//! | `right_panel_stack`   | `window.blp`     | `#[template_child]`    |
+//! | `commit_info_bar`     | `window.blp`     | `#[template_child]`    |
+//! | `toolbar`             | `window.blp`     | `#[template_child]`    |
+//! | `new_branch_button`   | `toolbar.blp`    | via `TemporalToolbar`  |
 
 use adw::prelude::{AdwDialogExt, AlertDialogExt};
 use adw::subclass::prelude::*;
@@ -136,19 +127,17 @@ mod imp {
         #[template_child] pub commit_search_entry:   TemplateChild<gtk::SearchEntry>,
 
         // ── Filter button — declared in window.blp, wired here ───────────────
-        // The ToggleButton with id `filter_button` lives in the search bar Box
-        // inside the sidebar (window.blp).  The SearchFilterPopover is attached
-        // to it at runtime in setup_filter_popover(); no widget is constructed
-        // imperatively.
+        // The ToggleButton is fully described in the Blueprint (id: filter_button).
+        // setup_filter_popover() attaches the SearchFilterPopover to this button
+        // at runtime — no imperative widget construction needed.
         #[template_child] pub filter_button:         TemplateChild<gtk::ToggleButton>,
 
         #[template_child] pub commit_list:           TemplateChild<gtk::ListBox>,
 
         // ── Filter popover (custom widget, kept as runtime field) ─────────────
-        // SearchFilterPopover is a custom GObject widget that cannot be
-        // instantiated directly in Blueprint without a generated .ui binding.
-        // It is created once in setup_filter_popover() and parented to
-        // filter_button so GTK manages its lifetime correctly.
+        // SearchFilterPopover is created in setup_filter_popover() and parented
+        // to filter_button.  It cannot be a TemplateChild because its type is
+        // not registered in Blueprint at template-inflate time.
         pub filter_popover: RefCell<Option<SearchFilterPopover>>,
 
         #[template_child] pub content_toolbar_view:  TemplateChild<adw::ToolbarView>,
@@ -291,16 +280,16 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         imp.toolbar.open_repo_button().connect_clicked(move |_| { win.open_repo_dialog(); });
 
-        // Disable new-branch button until a repository is loaded.
-        // The button fires win.new-branch via action-name in toolbar.blp;
-        // sensitivity is re-enabled inside load_repository().
-        imp.toolbar.new_branch_button().set_sensitive(false);
-
         // Bind show_sidebar_button to split_view show-sidebar property
         imp.toolbar.show_sidebar_button().bind_property("active", &imp.split_view.get(), "show-sidebar")
             .bidirectional()
             .sync_create()
             .build();
+
+        // Disable new_branch_button when no repository is loaded.
+        // The button already fires win.new-branch via action-name in the Blueprint;
+        // here we just ensure it is insensitive until a repo is open.
+        imp.toolbar.new_branch_button().set_sensitive(false);
 
         let win_g = self.clone();
         let gesture = gtk::GestureClick::new();
@@ -952,7 +941,7 @@ impl TemporalExplorerWindow {
                 self.imp().window_title.set_title(&repo_name);
                 self.imp().window_title.set_subtitle(path.to_str().unwrap_or(""));
 
-                // Re-enable new-branch button now that a repository is available.
+                // Enable new-branch button now that a repository is loaded.
                 self.imp().toolbar.new_branch_button().set_sensitive(true);
 
                 if let Some(ref pop) = *self.imp().filter_popover.borrow() {
@@ -995,39 +984,65 @@ impl TemporalExplorerWindow {
         self.imp().all_commits.borrow_mut().clear();
         self.show_empty_state();
 
+        // A rendezvous channel (capacity 0) ensures the worker blocks after
+        // sending each page until the GTK main loop has consumed it, providing
+        // natural back-pressure and bounding memory usage to ~1 page at a time.
+        //
+        // Each message is either:
+        //   Ok(page)     – a non-empty batch of CommitInfo values to append
+        //   Ok(vec![])   – end-of-stream sentinel (worker finished cleanly)
+        //   Err(string)  – fatal error; the worker will not send further pages
         let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<CommitInfo>, String>>(0);
 
         let cancel_worker = cancel.clone();
         std::thread::spawn(move || {
             let result = HistoryReader::open(&repo_path).and_then(|reader| {
                 reader.list_commits_paginated(TIMELINE_PAGE_SIZE, |page| {
+                    // Stop producing pages as soon as the main thread cancels.
                     if cancel_worker.load(Ordering::Relaxed) { return; }
+                    // Ignore send errors: the receiver was dropped because the
+                    // window was closed or a new load was started.
                     let _ = tx.send(Ok(page));
                 })
             });
 
             match result {
-                Ok(()) => { let _ = tx.send(Ok(Vec::new())); }
-                Err(e) => { let _ = tx.send(Err(e.to_string())); }
+                Ok(()) => {
+                    // End-of-stream sentinel: an empty Ok vec signals that all
+                    // pages have been sent successfully.
+                    let _ = tx.send(Ok(Vec::new()));
+                }
+                Err(e) => {
+                    let _ = tx.send(Err(e.to_string()));
+                }
             }
         });
 
         let win = self.clone();
         glib::idle_add_local(move || {
+            // If the user opened another repository while this load was in
+            // flight, discard the result and stop polling to prevent
+            // overwriting `all_commits` with stale data.
             if cancel.load(Ordering::Relaxed) {
                 return glib::ControlFlow::Break;
             }
 
             match rx.try_recv() {
                 Ok(Ok(page)) if page.is_empty() => {
+                    // End-of-stream: finalize state.
                     win.imp().loading_commits.set(false);
                     win.imp().split_view.set_show_sidebar(true);
+                    // Final year-list refresh to catch any commits that
+                    // arrived in the last partial page.
                     win.populate_year_list();
                     glib::ControlFlow::Break
                 }
                 Ok(Ok(page)) => {
+                    // Populate author chips in the filter popover from this page.
                     if let Some(ref pop) = *win.imp().filter_popover.borrow() {
                         let mut seen = std::collections::HashSet::new();
+                        // Seed with authors already accumulated so duplicates
+                        // across pages are suppressed correctly.
                         for c in win.imp().all_commits.borrow().iter() {
                             seen.insert(c.author.clone());
                         }
@@ -1040,6 +1055,8 @@ impl TemporalExplorerWindow {
                         }
                     }
 
+                    // Append the page and refresh the sidebar incrementally so
+                    // the user sees commits appearing as soon as they arrive.
                     win.imp().all_commits.borrow_mut().extend(page);
                     win.populate_year_list();
                     win.imp().split_view.set_show_sidebar(true);
@@ -1348,14 +1365,20 @@ impl TemporalExplorerWindow {
         }
     }
 
-    /// Update the sensitivity of directory navigation buttons based on the
+    /// Update the sensitivity of the directory navigation buttons based on the
     /// current `history_back` / `history_forward` stacks.
     ///
-    /// This mirrors the logic of `update_commit_nav_buttons` for the file-tree
-    /// navigation layer.  Until a dedicated dir-nav widget is added to
-    /// `TemporalToolbar`, the shared `history_controls` widget is reused so
-    /// the back/forward arrows always reflect whichever navigation is active.
-    /// When a dedicated widget is added it should be wired here instead.
+    /// # Architecture note
+    ///
+    /// Today commit-nav and dir-nav both share the same `HistoryControls`
+    /// widget (via `toolbar.history_controls()`).  This means calling
+    /// `set_sensitivity` here overrides the commit-nav state set by
+    /// `update_commit_nav_buttons`, and vice-versa.  The correct fix is to
+    /// add a *second* `DirNavControls` widget to `toolbar.blp`, register it
+    /// as a `#[template_child]` in `toolbar.rs`, expose an accessor, and wire
+    /// it here.  Until that widget exists, keep this call scoped only to
+    /// contexts where no commit is being navigated (i.e. directory traversal
+    /// inside a snapshot).
     fn update_dir_nav_buttons(&self) {
         let imp = self.imp();
         let can_back    = !imp.history_back.borrow().is_empty();
@@ -1474,11 +1497,10 @@ impl TemporalExplorerWindow {
 
     // ── Filter popover wiring ─────────────────────────────────────────────────
     //
-    // The ToggleButton (filter_button) is declared in window.blp and inflated
-    // by the template engine — no widget is constructed here imperatively.
+    // The ToggleButton (filter_button) is a #[template_child] declared in
+    // window.blp — no imperative widget construction needed here.
     // This function only creates the SearchFilterPopover, parents it to the
-    // already-inflated button, and wires the toggle / closed / filters-changed
-    // signals.
+    // already-inflated button, and wires the popup/popdown/filters-changed signals.
 
     fn setup_filter_popover(&self) {
         let popover = SearchFilterPopover::new();
