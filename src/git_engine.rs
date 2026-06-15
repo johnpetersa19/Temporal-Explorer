@@ -80,21 +80,42 @@ use std::sync::Arc;
 
 /// Hard cap for [`HistoryReader::list_commits`] (non-paginated).
 /// Above this, callers should use [`HistoryReader::list_commits_paginated`].
+///
+/// Exposed as `pub` so external callers can size pre-allocated buffers
+/// without duplicating the magic number.  The compiler warns about
+/// "never used" because no call site in this crate references it directly
+/// at runtime — the actual enforcement is the `if commits.len() >= LIST_COMMITS_MAX`
+/// branch inside `list_commits`.  The constant is kept public as part of
+/// the documented API contract.
+#[allow(dead_code)]
 pub const LIST_COMMITS_MAX: usize = 50_000;
 
 /// Hard cap for a full recursive tree walk in [`SnapshotResolver::resolve_tree`].
 /// The limit is enforced *inside* [`SnapshotMaterializer::materialize`] so that
 /// the walk is aborted early — before all memory and I/O are consumed.
+///
+/// Not referenced from outside this module; `#[allow(dead_code)]` suppresses
+/// the warning without removing the documented safety bound.
+#[allow(dead_code)]
 const MAX_FULL_TREE_ENTRIES: usize = 8_000;
 
 /// Maximum recursion depth for [`SnapshotMaterializer::materialize`].
 /// Prevents stack overflow on pathologically deep trees.
+///
+/// Not referenced from outside this module; `#[allow(dead_code)]` suppresses
+/// the warning without removing the documented safety bound.
+#[allow(dead_code)]
 const MAX_TREE_DEPTH: usize = 64;
 
 /// Number of cached directory listings in [`DirCache`].
 const DIR_CACHE_MAX_ENTRIES: usize = 64;
 
 /// Maximum number of parallel worker threads for CPU-bound work.
+///
+/// Referenced only through [`CpuPool::worker_threads`], which is itself
+/// currently unused at the call-site level.  Both are preserved as part of
+/// the public threading API — see the note on `CpuPool`.
+#[allow(dead_code)]
 const MAX_WORKER_THREADS: usize = 8;
 
 /// Maximum number of parallel threads for I/O-bound git object-DB access.
@@ -171,8 +192,21 @@ impl CpuPool {
         Self { logical_cores }
     }
 
+    /// Returns the number of logical CPU cores detected at construction time.
+    ///
+    /// Currently unused inside this crate — `io_threads` is the active
+    /// accessor.  Kept as part of the public `CpuPool` API so external
+    /// consumers can inspect core count without re-detecting it.
+    #[allow(dead_code)]
     #[inline] pub fn logical_cores(self) -> usize { self.logical_cores }
 
+    /// Returns the recommended number of CPU-bound worker threads
+    /// (capped at [`MAX_WORKER_THREADS`]).
+    ///
+    /// Currently unused inside this crate — the active parallel path calls
+    /// `io_threads` instead.  Kept as part of the public threading API for
+    /// future CPU-bound work (e.g. diff generation, blame).
+    #[allow(dead_code)]
     #[inline] pub fn worker_threads(self) -> usize {
         self.logical_cores.min(MAX_WORKER_THREADS)
     }
@@ -276,6 +310,11 @@ impl CommitInfo {
 // ── SubmoduleInfo / SubmoduleStatus ──────────────────────────────────────────────────────
 
 /// Initialization / checkout status of a submodule.
+///
+/// Currently unused by the UI layer — submodule support is planned for a
+/// future release.  `#[allow(dead_code)]` suppresses the compiler warning
+/// while keeping the type available for that work.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SubmoduleStatus {
     /// `.gitmodules` entry exists and the submodule directory is present.
@@ -287,6 +326,11 @@ pub enum SubmoduleStatus {
 }
 
 /// Metadata for a single Git submodule discovered in a repository.
+///
+/// Currently unused by the UI layer — submodule support is planned for a
+/// future release.  `#[allow(dead_code)]` suppresses the compiler warning
+/// while keeping the struct available for that work.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct SubmoduleInfo {
     pub name: String,
@@ -306,6 +350,13 @@ pub struct SubmoduleInfo {
 ///
 /// Returns `Err` when `.gitmodules` cannot be parsed, allowing callers to
 /// distinguish "no submodules" from "read error".
+///
+/// # Note — currently unused by the UI
+///
+/// The submodule panel is planned for a future release.  Until it lands,
+/// `#[allow(dead_code)]` suppresses the compiler warning without removing
+/// this function from the public API.
+#[allow(dead_code)]
 pub fn detect_submodules(repo: &Repository) -> Result<Vec<SubmoduleInfo>, git2::Error> {
     let submodules = repo.submodules()?;
 
@@ -340,6 +391,12 @@ pub fn detect_submodules(repo: &Repository) -> Result<Vec<SubmoduleInfo>, git2::
 /// [`detect_submodules`].  Use this only when no `Repository` handle is
 /// available; otherwise prefer the `&Repository` overload to avoid
 /// a redundant `open()` call.
+///
+/// # Note — currently unused by the UI
+///
+/// See the note on [`detect_submodules`].  Both functions will become active
+/// once the submodule panel is implemented.
+#[allow(dead_code)]
 pub fn detect_submodules_at(repo_path: &Path) -> Result<Vec<SubmoduleInfo>, git2::Error> {
     let repo = Repository::open(repo_path)?;
     detect_submodules(&repo)
@@ -368,13 +425,32 @@ impl HistoryReader {
     /// Returns a reference to the underlying [`Repository`].
     ///
     /// Use `reader.repo()` — **not** `reader.repo` (private field).
+    ///
+    /// # Note — currently unused inside this crate
+    ///
+    /// The accessor is part of the public API documented in the module-level
+    /// doc-comment.  External crates (e.g. an integration test harness or a
+    /// future plugin crate) may call it without the compiler knowing.
+    #[allow(dead_code)]
     pub fn repo(&self) -> &Repository { &self.repo }
 
     /// Returns the [`CpuPool`] detected at construction time.
+    ///
+    /// # Note — currently unused inside this crate
+    ///
+    /// See the note on [`HistoryReader::repo`].
+    #[allow(dead_code)]
     pub fn cpu_pool(&self) -> CpuPool { self.cpu_pool }
 
     /// Returns up to [`LIST_COMMITS_MAX`] commits reachable from HEAD,
     /// sorted newest-first.
+    ///
+    /// # Note — currently unused inside this crate
+    ///
+    /// The active code path is [`list_commits_paginated`] (streaming).
+    /// This non-paginated variant is preserved for consumers that need
+    /// all commits in one allocation (e.g. snapshot diffing, export tools).
+    #[allow(dead_code)]
     pub fn list_commits(&self) -> Result<Vec<CommitInfo>, git2::Error> {
         let mut walk = self.repo.revwalk()?;
         push_head_safe(&mut walk, &self.repo)?;
@@ -586,6 +662,14 @@ impl HistoryReader {
     /// Used in `window.rs` to avoid opening the same repository path twice:
     /// the window opens it once for validation via `HistoryReader::open`, then
     /// calls this method to retrieve the inner handle for tree/snapshot browsing.
+    ///
+    /// # Note — currently unused inside this crate
+    ///
+    /// The active code path in `window.rs::load_repository` opens the repo
+    /// independently via `git2::Repository::open`.  This accessor is preserved
+    /// for a future refactor that routes all repository handles through
+    /// `HistoryReader` to avoid redundant opens.
+    #[allow(dead_code)]
     pub fn into_git2(self) -> Repository { self.repo }
 }
 
@@ -708,6 +792,14 @@ impl<'repo> SnapshotResolver<'repo> {
     /// Hitting either cap is **not** treated as an error: the function returns
     /// `Ok` with the nodes collected so far and logs the truncation reason to
     /// stderr.  Only genuine git2 I/O failures propagate as `Err`.
+    ///
+    /// # Note — currently unused by the UI
+    ///
+    /// The active code path for file browsing calls [`resolve_dir`] (lazy,
+    /// one directory at a time).  This full-tree variant is preserved for
+    /// future non-interactive consumers such as export, indexing, or static
+    /// analysis tools that need the complete snapshot in one call.
+    #[allow(dead_code)]
     pub fn resolve_tree(&self, revision: &str) -> Result<Vec<TreeNode>, git2::Error> {
         let obj = self.repo.revparse_single(revision)?;
         let commit = obj.peel_to_commit()?;
@@ -735,6 +827,13 @@ impl<'repo> SnapshotResolver<'repo> {
 /// of propagating a fake `Err` to the UI.
 ///
 /// This enum is private to the module and must not be exposed in the public API.
+///
+/// # Note — currently unused at the call-site level
+///
+/// `materialize_inner` is only called from `resolve_tree`, which is itself
+/// guarded by `#[allow(dead_code)]`.  This attribute silences the cascade
+/// warning without removing the type.
+#[allow(dead_code)]
 enum MaterializeOutcome {
     /// Walk completed without hitting any limit.
     Complete(Vec<TreeNode>),
@@ -760,6 +859,13 @@ impl<'repo> SnapshotMaterializer<'repo> {
     /// - `Complete`  → `Ok(nodes)`
     /// - `Truncated` → `Ok(nodes)` (truncation is not an error)
     /// - git2 I/O failures → `Err(e)` (propagated unchanged)
+    ///
+    /// # Note — currently unused by the UI
+    ///
+    /// See [`SnapshotResolver::resolve_tree`] for context.  This method
+    /// exists as a stable public entry point for callers that already hold
+    /// a `git2::Tree` reference and do not need to go through `resolve_tree`.
+    #[allow(dead_code)]
     pub fn materialize(
         &self,
         tree: &git2::Tree<'_>,
@@ -780,6 +886,13 @@ impl<'repo> SnapshotMaterializer<'repo> {
     /// Only genuine git2 I/O errors (e.g. `find_tree` failures) are returned
     /// as `Err`.  Reaching the entry cap or the depth cap is encoded as
     /// `Ok(Truncated(...))`
+    ///
+    /// # Note — currently unused by the UI
+    ///
+    /// Called only from `materialize` and `resolve_tree`, both of which are
+    /// guarded by `#[allow(dead_code)]`.  This attribute silences the cascade
+    /// warning without removing the implementation.
+    #[allow(dead_code)]
     fn materialize_inner(
         &self,
         tree: &git2::Tree<'_>,
