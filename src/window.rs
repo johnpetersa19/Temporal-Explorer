@@ -396,24 +396,72 @@ impl TemporalExplorerWindow {
     }
 
     /// Create a local branch at HEAD of the currently loaded repository.
+    ///
+    /// # Lifetime note
+    ///
+    /// `git2::Branch<'_>` borrows from the `Repository` it was created on,
+    /// so we cannot hold a `RefCell` borrow across the `repo.branch()` call —
+    /// the temporary `Result<Branch<'_>>` destructor would run after the guard
+    /// drops, violating borrow rules (E0597).
+    ///
+    /// Solution: resolve the HEAD OID inside a tightly-scoped block, then open
+    /// a short-lived secondary `Repository` handle whose lifetime is fully
+    /// contained within the branch-creation block.  All observable state
+    /// (the branch on disk) is identical to the single-handle approach.
     pub fn create_branch(&self, name: &str) {
-        let repo_guard = self.imp().repository.borrow();
-        let Some(ref repo) = *repo_guard else {
-            self.show_error(&gettext("No repository loaded."));
+        // ── 1. Resolve repo_path and HEAD OID — borrow ends here ─────────────
+        let (repo_path, head_oid) = {
+            let guard = self.imp().repository.borrow();
+            let Some(ref repo) = *guard else {
+                self.show_error(&gettext("No repository loaded."));
+                return;
+            };
+
+            let head = match repo.head() {
+                Ok(h) => h,
+                Err(e) => {
+                    self.show_error(&format!("{}: {e}", gettext("Cannot read HEAD")));
+                    return;
+                }
+            };
+
+            let oid = match head.peel_to_commit() {
+                Ok(c) => c.id(),
+                Err(e) => {
+                    self.show_error(&format!("{}: {e}", gettext("Cannot peel HEAD to commit")));
+                    return;
+                }
+            };
+
+            // Clone the path so the borrow on `self.imp().repository` can end.
+            let path = self.imp().repo_path.borrow().clone();
+            (path, oid)
+        };
+        // repo_guard is dropped here; no borrows of `self.imp()` are live.
+
+        // ── 2. Resolve the repo_path ──────────────────────────────────────────
+        let Some(path) = repo_path else {
+            self.show_error(&gettext("No repository path stored."));
             return;
         };
 
-        let head = match repo.head() {
-            Ok(h) => h,
-            Err(e) => { self.show_error(&format!("{}: {e}", gettext("Cannot read HEAD"))); return; }
-        };
+        // ── 3. Open a short-lived handle and create the branch ────────────────
+        //
+        // The secondary handle is opened only for this one operation.
+        // Its lifetime — and therefore the lifetime of `Branch<'_>` — is
+        // entirely contained within this block, satisfying the borrow checker.
+        let result = git2::Repository::open(&path)
+            .map_err(|e| format!("{}: {e}", gettext("Cannot open repository")))
+            .and_then(|repo| {
+                let commit = repo
+                    .find_commit(head_oid)
+                    .map_err(|e| format!("{}: {e}", gettext("Cannot find HEAD commit")))?;
+                repo.branch(name, &commit, false)
+                    .map_err(|e| format!("{} \u{2018}{}\u{2019}: {e}", gettext("Failed to create branch"), name))
+            });
 
-        let commit = match head.peel_to_commit() {
-            Ok(c) => c,
-            Err(e) => { self.show_error(&format!("{}: {e}", gettext("Cannot peel HEAD to commit"))); return; }
-        };
-
-        match repo.branch(name, &commit, false) {
+        // ── 4. Report outcome ─────────────────────────────────────────────────
+        match result {
             Ok(_) => {
                 let toast = adw::Toast::new(&format!(
                     "{} \u{2018}{}\u{2019}",
@@ -427,9 +475,7 @@ impl TemporalExplorerWindow {
                     overlay.add_toast(toast);
                 }
             }
-            Err(e) => {
-                self.show_error(&format!("{} \u{2018}{}\u{2019}: {e}", gettext("Failed to create branch"), name));
-            }
+            Err(msg) => self.show_error(&msg),
         }
     }
 
