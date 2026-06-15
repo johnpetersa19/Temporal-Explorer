@@ -33,11 +33,11 @@
 //!
 //! ## Blueprint ↔ Rust contract
 //!
-//! Every widget that carries an `id` in `window.blp` **must** be listed
-//! as a `#[template_child]` in `imp::TemporalExplorerWindow`.  The only
-//! exception is `SearchFilterPopover`, which is a custom widget created
-//! at runtime and stored as a plain `RefCell<Option<…>>` because its
-//! parent (`filter_button`) is not known at template-inflate time.
+//! Every widget with an `id` in `window.blp` **must** appear as a
+//! `#[template_child]` in `imp::TemporalExplorerWindow`.  The only
+//! exception is `SearchFilterPopover`, created at runtime and stored
+//! as `RefCell<Option<…>>` because its parent (`filter_button`) is
+//! not known at template-inflate time.
 //!
 //! ### Panel widgets declared in `.blp` and wired here
 //!
@@ -80,11 +80,13 @@ use crate::toolbar::TemporalToolbar;
 
 // ── ViewMode ───────────────────────────────────────────────────────────────────
 
+/// Whether the right panel renders files as a list or a grid.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum ViewMode { #[default] List, Grid }
 
 // ── TimelineLevel ──────────────────────────────────────────────────────────────
 
+/// The currently visible drill-down level of the left timeline panel.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum TimelineLevel {
     #[default] Years,
@@ -94,6 +96,7 @@ pub enum TimelineLevel {
 
 // ── DebugRepository ────────────────────────────────────────────────────────────
 
+/// Newtype wrapper that makes `git2::Repository` implement `Debug`.
 pub struct DebugRepository(pub git2::Repository);
 
 impl std::fmt::Debug for DebugRepository {
@@ -115,10 +118,11 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/window.ui")]
     pub struct TemporalExplorerWindow {
+        // ── Toolbar / title ──────────────────────────────────────────────────
         #[template_child] pub toolbar:               TemplateChild<TemporalToolbar>,
         #[template_child] pub window_title:          TemplateChild<adw::WindowTitle>,
 
-        // ── Composite widgets ────────────────────────────────────────────────
+        // ── Timeline panel ───────────────────────────────────────────────────
         #[template_child] pub timeline_stack:        TemplateChild<gtk::Stack>,
         #[template_child] pub timeline_back_button:  TemplateChild<gtk::Button>,
         #[template_child] pub timeline_header_title: TemplateChild<adw::WindowTitle>,
@@ -126,31 +130,30 @@ mod imp {
         #[template_child] pub month_list:            TemplateChild<gtk::ListBox>,
         #[template_child] pub commit_search_entry:   TemplateChild<gtk::SearchEntry>,
 
-        // ── Filter button — declared in window.blp, wired here ───────────────
-        // The ToggleButton is fully described in the Blueprint (id: filter_button).
-        // setup_filter_popover() attaches the SearchFilterPopover to this button
-        // at runtime — no imperative widget construction needed.
+        // ── Filter button (declared in window.blp; popover wired at runtime) ─
         #[template_child] pub filter_button:         TemplateChild<gtk::ToggleButton>,
 
         #[template_child] pub commit_list:           TemplateChild<gtk::ListBox>,
 
-        // ── Filter popover (custom widget, kept as runtime field) ─────────────
-        // SearchFilterPopover is created in setup_filter_popover() and parented
-        // to filter_button.  It cannot be a TemplateChild because its type is
-        // not registered in Blueprint at template-inflate time.
+        // SearchFilterPopover cannot be a TemplateChild — its type is not
+        // registered in Blueprint at template-inflate time, so it is created
+        // in setup_filter_popover() and stored here.
         pub filter_popover: RefCell<Option<SearchFilterPopover>>,
 
+        // ── Right panel ──────────────────────────────────────────────────────
         #[template_child] pub content_toolbar_view:  TemplateChild<adw::ToolbarView>,
         #[template_child] pub right_panel_stack:     TemplateChild<gtk::Stack>,
         #[template_child] pub right_panel_content:   TemplateChild<gtk::Box>,
         #[template_child] pub empty_state:           TemplateChild<adw::StatusPage>,
         #[template_child] pub split_view:            TemplateChild<adw::OverlaySplitView>,
 
+        // ── Commit info bar ──────────────────────────────────────────────────
         #[template_child] pub commit_info_bar:       TemplateChild<gtk::ActionBar>,
         #[template_child] pub commit_hash_label:     TemplateChild<gtk::Label>,
         #[template_child] pub commit_message_label:  TemplateChild<gtk::Label>,
         #[template_child] pub commit_date_label:     TemplateChild<gtk::Label>,
 
+        // ── Runtime state ────────────────────────────────────────────────────
         pub all_commits:      RefCell<Vec<CommitInfo>>,
         pub repo_path:        RefCell<Option<PathBuf>>,
         pub repository:       RefCell<Option<DebugRepository>>,
@@ -162,15 +165,12 @@ mod imp {
         pub view_mode:        RefCell<ViewMode>,
         pub repo_name:        RefCell<String>,
 
-        // ── Commit navigation stack ──────────────────────────────────────────
+        // ── Commit navigation history ────────────────────────────────────────
         pub commit_nav_back:    RefCell<Vec<String>>,
         pub commit_nav_forward: RefCell<Vec<String>>,
 
-        // ── Sort mode ────────────────────────────────────────────────────────
-        pub sort_mode: RefCell<FileSortMode>,
-
-        // ── Column chooser state ─────────────────────────────────────────────
-        pub column_visibility: RefCell<ColumnVisibility>,
+        pub sort_mode:          RefCell<FileSortMode>,
+        pub column_visibility:  RefCell<ColumnVisibility>,
 
         pub timeline_level:   RefCell<TimelineLevel>,
         pub selected_year:    Cell<i32>,
@@ -188,11 +188,15 @@ mod imp {
         const NAME: &'static str = "TemporalExplorerWindow";
         type Type = super::TemporalExplorerWindow;
         type ParentType = adw::ApplicationWindow;
+
         fn class_init(klass: &mut Self::Class) {
             TemporalToolbar::ensure_type();
             klass.bind_template();
         }
-        fn instance_init(obj: &glib::subclass::InitializingObject<Self>) { obj.init_template(); }
+
+        fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
+            obj.init_template();
+        }
     }
 
     impl ObjectImpl for TemporalExplorerWindow {
@@ -222,16 +226,20 @@ glib::wrapper! {
 
 // ── Free helpers ───────────────────────────────────────────────────────────────
 
+/// Remove all children from a `gtk::Box`.
 fn clear_box(container: &gtk::Box) {
     while let Some(child) = container.first_child() {
         container.remove(&child);
     }
 }
 
-// ── Calendar / date matching helpers ──────────────────────────────────────────
+// ── Calendar / date matching ───────────────────────────────────────────────────
 
-/// Returns `true` if `query` matches any date-related field of the commit's
-/// timestamp.
+/// Returns `true` if `query` matches any date-related representation of `ts`.
+///
+/// Recognised formats: ISO date (`2024-03-15`), year-month (`2024-03`),
+/// bare year (`2024`), full/abbreviated English month name, and the
+/// locale-translated month name returned by [`timeline_filter::month_name`].
 fn matches_calendar(ts: i64, q: &str) -> bool {
     let Ok(dt) = glib::DateTime::from_unix_local(ts) else { return false };
 
@@ -280,15 +288,14 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         imp.toolbar.open_repo_button().connect_clicked(move |_| { win.open_repo_dialog(); });
 
-        // Bind show_sidebar_button to split_view show-sidebar property
+        // Keep show_sidebar_button in sync with the split-view's show-sidebar property.
         imp.toolbar.show_sidebar_button().bind_property("active", &imp.split_view.get(), "show-sidebar")
             .bidirectional()
             .sync_create()
             .build();
 
-        // Disable new_branch_button when no repository is loaded.
-        // The button already fires win.new-branch via action-name in the Blueprint;
-        // here we just ensure it is insensitive until a repo is open.
+        // new_branch_button fires win.new-branch via action-name in Blueprint;
+        // start insensitive until a repository is loaded.
         imp.toolbar.new_branch_button().set_sensitive(false);
 
         let win_g = self.clone();
@@ -343,46 +350,22 @@ impl TemporalExplorerWindow {
         self.setup_actions();
     }
 
-    // ── GioAction registration ────────────────────────────────────────────────
+    // ── GAction registration ──────────────────────────────────────────────────
 
     fn setup_actions(&self) {
-        // win.batch-operations
-        {
-            let win = self.clone();
-            let action = gio::SimpleAction::new("batch-operations", None);
-            action.connect_activate(move |_, _| { win.show_batch_operations_dialog(); });
-            self.add_action(&action);
-        }
+        let actions: &[(&str, fn(&TemporalExplorerWindow))] = &[
+            ("batch-operations",  Self::show_batch_operations_dialog),
+            ("select-by-pattern", Self::show_select_by_pattern_dialog),
+            ("filter-file-type",  Self::show_filter_types_dialog),
+            ("show-column-chooser", Self::show_column_chooser),
+            ("new-branch",        Self::show_new_branch_dialog),
+        ];
 
-        // win.select-by-pattern
-        {
+        for (name, handler) in actions {
             let win = self.clone();
-            let action = gio::SimpleAction::new("select-by-pattern", None);
-            action.connect_activate(move |_, _| { win.show_select_by_pattern_dialog(); });
-            self.add_action(&action);
-        }
-
-        // win.filter-file-type
-        {
-            let win = self.clone();
-            let action = gio::SimpleAction::new("filter-file-type", None);
-            action.connect_activate(move |_, _| { win.show_filter_types_dialog(); });
-            self.add_action(&action);
-        }
-
-        // win.show-column-chooser
-        {
-            let win = self.clone();
-            let action = gio::SimpleAction::new("show-column-chooser", None);
-            action.connect_activate(move |_, _| { win.show_column_chooser(); });
-            self.add_action(&action);
-        }
-
-        // win.new-branch
-        {
-            let win = self.clone();
-            let action = gio::SimpleAction::new("new-branch", None);
-            action.connect_activate(move |_, _| { win.show_new_branch_dialog(); });
+            let h = *handler;
+            let action = gio::SimpleAction::new(name, None);
+            action.connect_activate(move |_, _| h(&win));
             self.add_action(&action);
         }
     }
@@ -392,13 +375,11 @@ impl TemporalExplorerWindow {
     fn show_new_branch_dialog(&self) {
         let dialog = NewBranchDialog::new();
         let win = self.clone();
-        dialog.connect_branch_created(move |_, name| {
-            win.create_branch(name);
-        });
+        dialog.connect_branch_created(move |_, name| { win.create_branch(name); });
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
-    /// Create a local branch at the current HEAD of the loaded repository.
+    /// Create a local branch at HEAD of the currently loaded repository.
     pub fn create_branch(&self, name: &str) {
         let repo_guard = self.imp().repository.borrow();
         let Some(ref repo) = *repo_guard else {
@@ -408,18 +389,12 @@ impl TemporalExplorerWindow {
 
         let head = match repo.head() {
             Ok(h) => h,
-            Err(e) => {
-                self.show_error(&format!("{}: {e}", gettext("Cannot read HEAD")));
-                return;
-            }
+            Err(e) => { self.show_error(&format!("{}: {e}", gettext("Cannot read HEAD"))); return; }
         };
 
         let commit = match head.peel_to_commit() {
             Ok(c) => c,
-            Err(e) => {
-                self.show_error(&format!("{}: {e}", gettext("Cannot peel HEAD to commit")));
-                return;
-            }
+            Err(e) => { self.show_error(&format!("{}: {e}", gettext("Cannot peel HEAD to commit"))); return; }
         };
 
         match repo.branch(name, &commit, false) {
@@ -429,9 +404,7 @@ impl TemporalExplorerWindow {
                     gettext("Created branch"),
                     name,
                 ));
-                if let Some(overlay) = self
-                    .imp()
-                    .content_toolbar_view
+                if let Some(overlay) = self.imp().content_toolbar_view
                     .parent()
                     .and_then(|w| w.downcast::<adw::ToastOverlay>().ok())
                 {
@@ -441,7 +414,7 @@ impl TemporalExplorerWindow {
             Err(e) => {
                 self.show_error(&format!("{} \u{2018}{}\u{2019}: {e}", gettext("Failed to create branch"), name));
             }
-        };
+        }
     }
 
     // ── HistoryControls wiring ────────────────────────────────────────────────
@@ -459,7 +432,7 @@ impl TemporalExplorerWindow {
         });
     }
 
-    /// Push a commit hash onto the navigation stack (called from on_commit_selected).
+    /// Push `hash` onto the commit navigation back-stack and clear forward.
     fn push_commit_nav(&self, hash: &str) {
         let imp = self.imp();
         imp.commit_nav_forward.borrow_mut().clear();
@@ -473,7 +446,7 @@ impl TemporalExplorerWindow {
 
     fn navigate_commit_back(&self) {
         let imp = self.imp();
-        let prev = { imp.commit_nav_back.borrow_mut().pop() };
+        let prev = imp.commit_nav_back.borrow_mut().pop();
         if let Some(hash) = prev {
             if let Some(current) = imp.current_hash.borrow().clone() {
                 imp.commit_nav_forward.borrow_mut().push(current);
@@ -484,7 +457,7 @@ impl TemporalExplorerWindow {
 
     fn navigate_commit_forward(&self) {
         let imp = self.imp();
-        let next = { imp.commit_nav_forward.borrow_mut().pop() };
+        let next = imp.commit_nav_forward.borrow_mut().pop();
         if let Some(hash) = next {
             if let Some(current) = imp.current_hash.borrow().clone() {
                 imp.commit_nav_back.borrow_mut().push(current);
@@ -493,6 +466,7 @@ impl TemporalExplorerWindow {
         }
     }
 
+    /// Navigate directly to `hash`, resetting dir history and updating the info bar.
     fn jump_to_commit_hash(&self, hash: String) {
         let imp = self.imp();
         *imp.current_hash.borrow_mut() = Some(hash.clone());
@@ -526,8 +500,7 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         self.imp().toolbar.view_controls().connect_local("view-mode-changed", false, move |args| {
             let is_grid = args[1].get::<bool>().unwrap_or(false);
-            let new_mode = if is_grid { ViewMode::Grid } else { ViewMode::List };
-            { *win.imp().view_mode.borrow_mut() = new_mode; }
+            *win.imp().view_mode.borrow_mut() = if is_grid { ViewMode::Grid } else { ViewMode::List };
             let dir = win.imp().current_dir.borrow().clone();
             if win.imp().current_hash.borrow().is_some() {
                 win.navigate_to_dir(dir);
@@ -543,7 +516,7 @@ impl TemporalExplorerWindow {
                 2 => FileSortMode::Extension,
                 _ => FileSortMode::Name,
             };
-            { *win.imp().sort_mode.borrow_mut() = mode; }
+            *win.imp().sort_mode.borrow_mut() = mode;
             let dir = win.imp().current_dir.borrow().clone();
             if win.imp().current_hash.borrow().is_some() {
                 win.navigate_to_dir(dir);
@@ -552,20 +525,16 @@ impl TemporalExplorerWindow {
         });
     }
 
-    // ── Gap 1 — ColumnChooser (signal now fully wired) ────────────────────────
+    // ── ColumnChooser ─────────────────────────────────────────────────────────
 
     pub fn show_column_chooser(&self) {
         let dialog = ColumnChooser::new();
-        let current_vis = self.imp().column_visibility.borrow().clone();
-        dialog.apply_visibility(&current_vis);
+        dialog.apply_visibility(&self.imp().column_visibility.borrow());
 
         let win = self.clone();
         let dlg_ref = dialog.clone();
         dialog.connect_local("columns-changed", false, move |_| {
-            // Read the new visibility from the dialog's switches
-            let new_vis = dlg_ref.visibility();
-            *win.imp().column_visibility.borrow_mut() = new_vis;
-            // Force a re-render so list_view picks up the updated columns
+            *win.imp().column_visibility.borrow_mut() = dlg_ref.visibility();
             let dir = win.imp().current_dir.borrow().clone();
             if win.imp().current_hash.borrow().is_some() {
                 win.navigate_to_dir(dir);
@@ -576,21 +545,16 @@ impl TemporalExplorerWindow {
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
-    // ── Gap 2a — BatchOperationsDialog ───────────────────────────────────────
+    // ── BatchOperationsDialog ─────────────────────────────────────────────────
 
     pub fn show_batch_operations_dialog(&self) {
         let dialog = BatchOperationsDialog::new();
-
-        // Feed the current filtered commit list into the dialog
-        let commits = self.imp().all_commits.borrow().clone();
-        dialog.set_commits(&commits);
+        dialog.set_commits(&self.imp().all_commits.borrow());
 
         let win = self.clone();
         dialog.connect_operation_requested(move |dlg, op, shas| {
             match op {
                 BatchOp::CherryPick { signoff } => {
-                    // Inform the user — actual cherry-pick execution is left
-                    // to the caller layer; here we show a toast with the count.
                     let msg = format!(
                         "{} {} commit(s){}",
                         gettext("Cherry-pick"),
@@ -602,8 +566,8 @@ impl TemporalExplorerWindow {
                 }
                 BatchOp::ExportPatches { dest_dir } => {
                     let shas_clone = shas.clone();
-                    let repo_path = win.imp().repo_path.borrow().clone();
-                    let dlg_ref   = dlg.clone();
+                    let repo_path  = win.imp().repo_path.borrow().clone();
+                    let dlg_ref    = dlg.clone();
                     dlg.set_progress_visible(true);
 
                     let (tx, rx) = std::sync::mpsc::sync_channel::<()>(1);
@@ -615,7 +579,6 @@ impl TemporalExplorerWindow {
                                 let patch_path = dest_dir.join(
                                     format!("{:04}-{}.patch", i + 1, &sha[..7.min(sha.len())])
                                 );
-                                // Emit the patch via git2 diff
                                 if let Ok(repo) = git2::Repository::open(&repo_path) {
                                     if let Ok(oid) = git2::Oid::from_str(sha) {
                                         if let Ok(commit) = repo.find_commit(oid) {
@@ -648,10 +611,7 @@ impl TemporalExplorerWindow {
                     });
 
                     glib::idle_add_local(move || match rx.try_recv() {
-                        Ok(()) => {
-                            dlg_ref.mark_done();
-                            glib::ControlFlow::Break
-                        }
+                        Ok(()) => { dlg_ref.mark_done(); glib::ControlFlow::Break }
                         Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
                         Err(_) => glib::ControlFlow::Break,
                     });
@@ -665,11 +625,7 @@ impl TemporalExplorerWindow {
                     if let Some(display) = gtk::gdk::Display::default() {
                         display.clipboard().set_text(&text);
                     }
-                    win.show_toast(&format!(
-                        "{} {} SHA(s)",
-                        gettext("Copied"),
-                        shas.len()
-                    ));
+                    win.show_toast(&format!("{} {} SHA(s)", gettext("Copied"), shas.len()));
                     dlg.mark_done();
                 }
             }
@@ -678,13 +634,11 @@ impl TemporalExplorerWindow {
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
-    // ── Gap 2b — SelectCommitsByPattern ──────────────────────────────────────
+    // ── SelectCommitsByPattern ────────────────────────────────────────────────
 
     pub fn show_select_by_pattern_dialog(&self) {
         let dialog = SelectCommitsByPattern::new();
-
-        let commits = self.imp().all_commits.borrow().clone();
-        dialog.set_commits(&commits);
+        dialog.set_commits(&self.imp().all_commits.borrow());
 
         let win = self.clone();
         dialog.connect_pattern_selected(move |_, pattern, mode, icase| {
@@ -696,7 +650,8 @@ impl TemporalExplorerWindow {
                 .collect();
 
             let list = win.imp().commit_list.clone();
-            // Walk the list and visually mark matching rows
+
+            // Mark matching rows with CSS class "pattern-match".
             let mut row = list.first_child();
             while let Some(r) = row {
                 if let Some(list_row) = r.downcast_ref::<gtk::ListBoxRow>() {
@@ -717,7 +672,7 @@ impl TemporalExplorerWindow {
                 }
             }
 
-            // Scroll to first match
+            // Scroll to first match.
             let mut row2 = list.first_child();
             while let Some(r) = row2 {
                 if let Some(list_row) = r.downcast_ref::<gtk::ListBoxRow>() {
@@ -731,18 +686,15 @@ impl TemporalExplorerWindow {
                 }
             }
 
-            win.show_toast(&format!(
-                "{} {} commit(s)",
-                gettext("Selected"),
-                matching.len()
-            ));
+            win.show_toast(&format!("{} {} commit(s)", gettext("Selected"), matching.len()));
         });
 
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
-    // ── Gap 3a — MergeConflictDialog (shown for merge commits) ───────────────
+    // ── MergeConflictDialog ───────────────────────────────────────────────────
 
+    /// Show the merge-conflict inspector only for merge commits (≥ 2 parents).
     fn try_show_merge_conflict_dialog(&self, hash: &str) {
         let repo_path = match self.imp().repo_path.borrow().clone() {
             Some(p) => p,
@@ -764,15 +716,11 @@ impl TemporalExplorerWindow {
             Err(_) => return,
         };
 
-        // Only show for merge commits (2+ parents)
-        if commit.parent_count() < 2 {
-            return;
-        }
+        if commit.parent_count() < 2 { return; }
 
         let ours   = commit.parent(0).ok();
         let theirs = commit.parent(1).ok();
 
-        // Get the first conflicted file from the diff between parents
         let conflict_file = ours
             .as_ref()
             .zip(theirs.as_ref())
@@ -796,7 +744,6 @@ impl TemporalExplorerWindow {
             })
             .unwrap_or_else(|| "(unknown)".to_string());
 
-        // Build diff text between the two parent trees for the conflict file
         let diff_text = ours
             .as_ref()
             .zip(theirs.as_ref())
@@ -829,17 +776,13 @@ impl TemporalExplorerWindow {
             }
         };
 
-        let (ours_sha, ours_author, ours_date)     = fmt_commit(ours.as_ref());
+        let (ours_sha, ours_author, ours_date)       = fmt_commit(ours.as_ref());
         let (theirs_sha, theirs_author, theirs_date) = fmt_commit(theirs.as_ref());
 
         let info = ConflictInfo {
             file_path: conflict_file,
-            ours_sha,
-            ours_author,
-            ours_date,
-            theirs_sha,
-            theirs_author,
-            theirs_date,
+            ours_sha, ours_author, ours_date,
+            theirs_sha, theirs_author, theirs_date,
             diff_text,
         };
 
@@ -861,14 +804,13 @@ impl TemporalExplorerWindow {
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
-    // ── Gap 3b — FilterTypesDialog ────────────────────────────────────────────
+    // ── FilterTypesDialog ─────────────────────────────────────────────────────
 
     pub fn show_filter_types_dialog(&self) {
         let dialog = FilterTypesDialog::new();
 
         let win = self.clone();
         dialog.connect_file_type_selected(move |_, ext| {
-            // Push the chosen extension into the active FilterState and re-run search
             {
                 let mut fs = win.imp().filter_state.borrow_mut();
                 fs.files.other_ext = if ext.is_empty() { None } else { Some(ext.to_string()) };
@@ -876,8 +818,7 @@ impl TemporalExplorerWindow {
             let q = win.imp().last_query.borrow().clone();
             win.run_search(q);
 
-            // Also propagate into the SearchFilterPopover so it reflects the
-            // new extension chip visually if it exposes a set_file_ext method.
+            // Propagate into SearchFilterPopover when set_file_ext is exposed.
             if let Some(ref pop) = *win.imp().filter_popover.borrow() {
                 let _ = pop; // placeholder — call pop.set_file_ext(ext) when exposed
             }
@@ -918,9 +859,9 @@ impl TemporalExplorerWindow {
 
     pub fn load_repository(&self, path: PathBuf) {
         let cancel = Arc::new(AtomicBool::new(false));
-        { if let Some(prev) = self.imp().load_cancel.borrow_mut().take() {
+        if let Some(prev) = self.imp().load_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
-        }}
+        }
         *self.imp().load_cancel.borrow_mut() = Some(cancel.clone());
 
         match git2::Repository::open(&path) {
@@ -929,23 +870,24 @@ impl TemporalExplorerWindow {
                     .and_then(|n| n.to_str())
                     .unwrap_or("repository")
                     .to_string();
-                *self.imp().repo_path.borrow_mut() = Some(path.clone());
-                *self.imp().repository.borrow_mut() = Some(DebugRepository(repo));
-                *self.imp().repo_name.borrow_mut() = repo_name.clone();
-                *self.imp().current_dir.borrow_mut() = PathBuf::new();
-                self.imp().history_back.borrow_mut().clear();
-                self.imp().history_forward.borrow_mut().clear();
-                self.imp().commit_nav_back.borrow_mut().clear();
-                self.imp().commit_nav_forward.borrow_mut().clear();
-                self.imp().toolbar.history_controls().reset();
-                self.imp().window_title.set_title(&repo_name);
-                self.imp().window_title.set_subtitle(path.to_str().unwrap_or(""));
 
-                // Enable new-branch button now that a repository is loaded.
-                self.imp().toolbar.new_branch_button().set_sensitive(true);
+                let imp = self.imp();
+                *imp.repo_path.borrow_mut()   = Some(path.clone());
+                *imp.repository.borrow_mut()  = Some(DebugRepository(repo));
+                *imp.repo_name.borrow_mut()   = repo_name.clone();
+                *imp.current_dir.borrow_mut() = PathBuf::new();
+                imp.history_back.borrow_mut().clear();
+                imp.history_forward.borrow_mut().clear();
+                imp.commit_nav_back.borrow_mut().clear();
+                imp.commit_nav_forward.borrow_mut().clear();
+                imp.toolbar.history_controls().reset();
+                imp.window_title.set_title(&repo_name);
+                imp.window_title.set_subtitle(path.to_str().unwrap_or(""));
+                imp.toolbar.new_branch_button().set_sensitive(true);
 
-                if let Some(ref pop) = *self.imp().filter_popover.borrow() {
-                    if let Some(ref repo_wrapper) = *self.imp().repository.borrow() {
+                // Populate branch chips in the filter popover.
+                if let Some(ref pop) = *imp.filter_popover.borrow() {
+                    if let Some(ref repo_wrapper) = *imp.repository.borrow() {
                         let branches: Vec<String> = repo_wrapper
                             .branches(Some(git2::BranchType::Local))
                             .map(|iter| {
@@ -969,80 +911,57 @@ impl TemporalExplorerWindow {
     // ── Timeline loading ───────────────────────────────────────────────────────
 
     fn load_timeline(&self, cancel: Arc<AtomicBool>) {
-        // Number of commits streamed per page from the background thread.
-        // 500 is a good balance: small enough to show the first commits within
-        // milliseconds, large enough to avoid per-page GTK overhead on huge repos.
+        // 500 commits per page: fast enough for incremental display,
+        // large enough to avoid per-page GTK overhead on large repos.
         const TIMELINE_PAGE_SIZE: usize = 500;
 
         let repo_path = match self.imp().repo_path.borrow().clone() {
             Some(p) => p,
             None => return,
         };
+
         self.imp().loading_commits.set(true);
-        // Clear stale commits so the year list is not rebuilt with old data
-        // while the new load is in progress.
         self.imp().all_commits.borrow_mut().clear();
         self.show_empty_state();
 
-        // A rendezvous channel (capacity 0) ensures the worker blocks after
-        // sending each page until the GTK main loop has consumed it, providing
-        // natural back-pressure and bounding memory usage to ~1 page at a time.
-        //
-        // Each message is either:
-        //   Ok(page)     – a non-empty batch of CommitInfo values to append
-        //   Ok(vec![])   – end-of-stream sentinel (worker finished cleanly)
-        //   Err(string)  – fatal error; the worker will not send further pages
+        // Rendezvous channel (capacity 0): the worker blocks after each page
+        // until the GTK main loop consumes it, bounding memory to ~1 page.
+        // Messages: Ok(page) | Ok(vec![]) (EOS sentinel) | Err(msg)
         let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<CommitInfo>, String>>(0);
 
         let cancel_worker = cancel.clone();
         std::thread::spawn(move || {
             let result = HistoryReader::open(&repo_path).and_then(|reader| {
                 reader.list_commits_paginated(TIMELINE_PAGE_SIZE, |page| {
-                    // Stop producing pages as soon as the main thread cancels.
                     if cancel_worker.load(Ordering::Relaxed) { return; }
-                    // Ignore send errors: the receiver was dropped because the
-                    // window was closed or a new load was started.
                     let _ = tx.send(Ok(page));
                 })
             });
 
             match result {
-                Ok(()) => {
-                    // End-of-stream sentinel: an empty Ok vec signals that all
-                    // pages have been sent successfully.
-                    let _ = tx.send(Ok(Vec::new()));
-                }
-                Err(e) => {
-                    let _ = tx.send(Err(e.to_string()));
-                }
+                Ok(()) => { let _ = tx.send(Ok(Vec::new())); }
+                Err(e) => { let _ = tx.send(Err(e.to_string())); }
             }
         });
 
         let win = self.clone();
         glib::idle_add_local(move || {
-            // If the user opened another repository while this load was in
-            // flight, discard the result and stop polling to prevent
-            // overwriting `all_commits` with stale data.
             if cancel.load(Ordering::Relaxed) {
                 return glib::ControlFlow::Break;
             }
 
             match rx.try_recv() {
                 Ok(Ok(page)) if page.is_empty() => {
-                    // End-of-stream: finalize state.
+                    // End-of-stream: all pages received.
                     win.imp().loading_commits.set(false);
                     win.imp().split_view.set_show_sidebar(true);
-                    // Final year-list refresh to catch any commits that
-                    // arrived in the last partial page.
                     win.populate_year_list();
                     glib::ControlFlow::Break
                 }
                 Ok(Ok(page)) => {
-                    // Populate author chips in the filter popover from this page.
+                    // Populate new author chips, suppressing duplicates across pages.
                     if let Some(ref pop) = *win.imp().filter_popover.borrow() {
                         let mut seen = std::collections::HashSet::new();
-                        // Seed with authors already accumulated so duplicates
-                        // across pages are suppressed correctly.
                         for c in win.imp().all_commits.borrow().iter() {
                             seen.insert(c.author.clone());
                         }
@@ -1055,8 +974,6 @@ impl TemporalExplorerWindow {
                         }
                     }
 
-                    // Append the page and refresh the sidebar incrementally so
-                    // the user sees commits appearing as soon as they arrive.
                     win.imp().all_commits.borrow_mut().extend(page);
                     win.populate_year_list();
                     win.imp().split_view.set_show_sidebar(true);
@@ -1083,10 +1000,8 @@ impl TemporalExplorerWindow {
         imp.year_list.remove_all();
 
         let commits = imp.all_commits.borrow();
-        let years = timeline_filter::years_in_range(&commits);
-        for (year, count) in &years {
-            let row = commit_controller::build_year_row(*year, *count);
-            imp.year_list.append(&row);
+        for (year, count) in &timeline_filter::years_in_range(&commits) {
+            imp.year_list.append(&commit_controller::build_year_row(*year, *count));
         }
 
         *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
@@ -1104,10 +1019,8 @@ impl TemporalExplorerWindow {
         imp.month_list.remove_all();
 
         let commits = imp.all_commits.borrow();
-        let months = timeline_filter::months_for_year(&commits, year);
-        for (month, count) in &months {
-            let row = commit_controller::build_month_row(*month, *count);
-            imp.month_list.append(&row);
+        for (month, count) in &timeline_filter::months_for_year(&commits, year) {
+            imp.month_list.append(&commit_controller::build_month_row(*month, *count));
         }
 
         *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
@@ -1124,7 +1037,7 @@ impl TemporalExplorerWindow {
         let year = imp.selected_year.get();
         imp.commit_list.remove_all();
 
-        let commits = imp.all_commits.borrow().clone();
+        let commits  = imp.all_commits.borrow().clone();
         let filtered = timeline_filter::commits_for_month(&commits, year, month);
         commit_controller::populate_commit_list(&imp.commit_list, &filtered);
 
@@ -1141,9 +1054,7 @@ impl TemporalExplorerWindow {
 
     fn timeline_pop(&self) {
         let imp = self.imp();
-        let current_level = { *imp.timeline_level.borrow() };
-
-        match current_level {
+        match *imp.timeline_level.borrow() {
             TimelineLevel::Commits => {
                 *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
                 imp.timeline_stack.set_visible_child_name("months");
@@ -1183,9 +1094,7 @@ impl TemporalExplorerWindow {
             }
         }
 
-        // Gap 3a: auto-show merge conflict dialog for merge commits
         self.try_show_merge_conflict_dialog(&hash);
-
         self.navigate_to_dir(PathBuf::new());
     }
 
@@ -1193,8 +1102,8 @@ impl TemporalExplorerWindow {
 
     pub fn navigate_to_dir(&self, dir: PathBuf) {
         let imp = self.imp();
-        let hash = match imp.current_hash.borrow().clone() { Some(h) => h, None => return };
-        let repo_path = match imp.repo_path.borrow().clone() { Some(p) => p, None => return };
+        let hash      = match imp.current_hash.borrow().clone() { Some(h) => h, None => return };
+        let repo_path = match imp.repo_path.borrow().clone()    { Some(p) => p, None => return };
         let repo_name = imp.repo_name.borrow().clone();
 
         *imp.current_dir.borrow_mut() = dir.clone();
@@ -1211,9 +1120,9 @@ impl TemporalExplorerWindow {
         self.update_dir_nav_buttons();
 
         let cancel = Arc::new(AtomicBool::new(false));
-        { if let Some(prev) = imp.load_cancel.borrow_mut().take() {
+        if let Some(prev) = imp.load_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
-        }}
+        }
         *imp.load_cancel.borrow_mut() = Some(cancel);
 
         let dir_clone = dir.clone();
@@ -1234,7 +1143,7 @@ impl TemporalExplorerWindow {
             Ok(result) => {
                 match result {
                     Ok(nodes) => win.render_dir(nodes),
-                    Err(e) => win.show_error(&format!("{}: {e}", gettext("Error reading tree"))),
+                    Err(e)    => win.show_error(&format!("{}: {e}", gettext("Error reading tree"))),
                 }
                 glib::ControlFlow::Break
             }
@@ -1244,7 +1153,7 @@ impl TemporalExplorerWindow {
     }
 
     fn render_dir(&self, mut nodes: Vec<TreeNode>) {
-        let imp = self.imp();
+        let imp       = self.imp();
         let mode      = *imp.view_mode.borrow();
         let sort_mode = *imp.sort_mode.borrow();
         let hash      = imp.current_hash.borrow().clone().unwrap_or_default();
@@ -1260,30 +1169,21 @@ impl TemporalExplorerWindow {
         match sort_mode {
             FileSortMode::Name => {
                 nodes.sort_by(|a, b| {
-                    let a_is_dir = a.is_dir();
-                    let b_is_dir = b.is_dir();
-                    b_is_dir.cmp(&a_is_dir).then(get_node_name(a).cmp(&get_node_name(b)))
+                    b.is_dir().cmp(&a.is_dir()).then(get_node_name(a).cmp(&get_node_name(b)))
                 });
             }
             FileSortMode::Status => {
                 nodes.sort_by(|a, b| {
-                    let a_is_dir = a.is_dir();
-                    let b_is_dir = b.is_dir();
-                    b_is_dir.cmp(&a_is_dir)
-                        .then(get_node_name(a).cmp(&get_node_name(b)))
+                    b.is_dir().cmp(&a.is_dir()).then(get_node_name(a).cmp(&get_node_name(b)))
                 });
             }
             FileSortMode::Extension => {
                 nodes.sort_by(|a, b| {
                     let name_a = get_node_name(a);
                     let name_b = get_node_name(b);
-                    let ext_a = std::path::Path::new(&name_a)
-                        .extension().and_then(|e| e.to_str()).unwrap_or("");
-                    let ext_b = std::path::Path::new(&name_b)
-                        .extension().and_then(|e| e.to_str()).unwrap_or("");
-                    let a_is_dir = a.is_dir();
-                    let b_is_dir = b.is_dir();
-                    b_is_dir.cmp(&a_is_dir)
+                    let ext_a = std::path::Path::new(&name_a).extension().and_then(|e| e.to_str()).unwrap_or("");
+                    let ext_b = std::path::Path::new(&name_b).extension().and_then(|e| e.to_str()).unwrap_or("");
+                    b.is_dir().cmp(&a.is_dir())
                         .then(ext_a.cmp(ext_b))
                         .then(name_a.cmp(&name_b))
                 });
@@ -1324,61 +1224,51 @@ impl TemporalExplorerWindow {
     // ── File preview ──────────────────────────────────────────────────────────
 
     pub fn preview_file(&self, path: &std::path::Path) {
-        let hash = match self.imp().current_hash.borrow().clone() { Some(h) => h, None => return };
-        let repo_path = match self.imp().repo_path.borrow().clone() { Some(p) => p, None => return };
+        let hash      = match self.imp().current_hash.borrow().clone() { Some(h) => h, None => return };
+        let repo_path = match self.imp().repo_path.borrow().clone()    { Some(p) => p, None => return };
 
         match git2::Repository::open(&repo_path) {
-            Ok(repo) => {
-                file_preview::show_file_preview(self, &repo, &hash, path);
-            }
-            Err(e) => self.show_error(&format!("{}: {e}", gettext("Cannot open repository"))),
+            Ok(repo) => file_preview::show_file_preview(self, &repo, &hash, path),
+            Err(e)   => self.show_error(&format!("{}: {e}", gettext("Cannot open repository"))),
         }
     }
 
     // ── Navigation helpers ────────────────────────────────────────────────────
 
     pub fn push_dir(&self, dir: PathBuf) {
-        let imp = self.imp();
+        let imp  = self.imp();
         let prev = imp.current_dir.borrow().clone();
-        { imp.history_back.borrow_mut().push(prev); }
-        { imp.history_forward.borrow_mut().clear(); }
+        imp.history_back.borrow_mut().push(prev);
+        imp.history_forward.borrow_mut().clear();
         self.navigate_to_dir(dir);
     }
 
     fn navigate_back(&self) {
         let imp = self.imp();
-        let dir = { imp.history_back.borrow_mut().pop() };
-        if let Some(dir) = dir {
-            let cur = { imp.current_dir.borrow().clone() };
-            { imp.history_forward.borrow_mut().push(cur); }
+        if let Some(dir) = imp.history_back.borrow_mut().pop() {
+            let cur = imp.current_dir.borrow().clone();
+            imp.history_forward.borrow_mut().push(cur);
             self.navigate_to_dir(dir);
         }
     }
 
     fn navigate_forward(&self) {
         let imp = self.imp();
-        let dir = { imp.history_forward.borrow_mut().pop() };
-        if let Some(dir) = dir {
-            let cur = { imp.current_dir.borrow().clone() };
-            { imp.history_back.borrow_mut().push(cur); }
+        if let Some(dir) = imp.history_forward.borrow_mut().pop() {
+            let cur = imp.current_dir.borrow().clone();
+            imp.history_back.borrow_mut().push(cur);
             self.navigate_to_dir(dir);
         }
     }
 
-    /// Update the sensitivity of the directory navigation buttons based on the
-    /// current `history_back` / `history_forward` stacks.
+    /// Update dir-nav button sensitivity from the back/forward stacks.
     ///
-    /// # Architecture note
-    ///
-    /// Today commit-nav and dir-nav both share the same `HistoryControls`
-    /// widget (via `toolbar.history_controls()`).  This means calling
-    /// `set_sensitivity` here overrides the commit-nav state set by
-    /// `update_commit_nav_buttons`, and vice-versa.  The correct fix is to
-    /// add a *second* `DirNavControls` widget to `toolbar.blp`, register it
-    /// as a `#[template_child]` in `toolbar.rs`, expose an accessor, and wire
-    /// it here.  Until that widget exists, keep this call scoped only to
-    /// contexts where no commit is being navigated (i.e. directory traversal
-    /// inside a snapshot).
+    /// # Note
+    /// Commit-nav and dir-nav currently share the same `HistoryControls`
+    /// widget, so calling this overrides the state set by
+    /// `update_commit_nav_buttons`.  A dedicated `DirNavControls` widget
+    /// in `toolbar.blp` would resolve the conflict; until then this is
+    /// only called during directory traversal inside a snapshot.
     fn update_dir_nav_buttons(&self) {
         let imp = self.imp();
         let can_back    = !imp.history_back.borrow().is_empty();
@@ -1389,8 +1279,8 @@ impl TemporalExplorerWindow {
     // ── Location bar ──────────────────────────────────────────────────────────
 
     pub fn enter_location_mode(&self) {
-        let imp = self.imp();
-        let current = { imp.current_dir.borrow().clone() };
+        let imp     = self.imp();
+        let current = imp.current_dir.borrow().clone();
         imp.toolbar.location_entry().set_text(current.to_str().unwrap_or(""));
         imp.toolbar.set_location_mode(true);
     }
@@ -1406,6 +1296,7 @@ impl TemporalExplorerWindow {
 
     // ── Search ────────────────────────────────────────────────────────────────
 
+    /// Debounce search input by 200 ms before executing `run_search`.
     fn on_search_changed(&self, query: String) {
         let imp = self.imp();
 
@@ -1418,9 +1309,7 @@ impl TemporalExplorerWindow {
 
         let win = self.clone();
         glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
-            if flag.load(Ordering::Relaxed) {
-                return glib::ControlFlow::Break;
-            }
+            if flag.load(Ordering::Relaxed) { return glib::ControlFlow::Break; }
             win.run_search(query.clone());
             glib::ControlFlow::Break
         });
@@ -1433,15 +1322,15 @@ impl TemporalExplorerWindow {
         let active_filter = imp.filter_state.borrow().clone();
 
         let cancel = Arc::new(AtomicBool::new(false));
-        { if let Some(prev) = imp.search_cancel.borrow_mut().take() {
+        if let Some(prev) = imp.search_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
-        }}
+        }
         *imp.search_cancel.borrow_mut() = Some(cancel);
 
         let list = imp.commit_list.clone();
         list.remove_all();
 
-        let all = imp.all_commits.borrow().clone();
+        let all           = imp.all_commits.borrow().clone();
         let selected_year = imp.selected_year.get();
 
         if !query.is_empty() {
@@ -1473,9 +1362,7 @@ impl TemporalExplorerWindow {
                             .unwrap_or(false)
                     };
                     if !year_ok { return false; }
-
                     if !active_filter.matches(c) { return false; }
-
                     if q.is_empty() { return true; }
 
                     let short_hash = &c.hash[..7.min(c.hash.len())];
@@ -1485,9 +1372,7 @@ impl TemporalExplorerWindow {
                         || short_hash.to_lowercase().starts_with(&q)
                         || c.author.to_lowercase().contains(&q);
 
-                    let date_match = matches_calendar(c.timestamp, &q);
-
-                    text_match || date_match
+                    text_match || matches_calendar(c.timestamp, &q)
                 })
                 .collect()
         };
@@ -1497,10 +1382,9 @@ impl TemporalExplorerWindow {
 
     // ── Filter popover wiring ─────────────────────────────────────────────────
     //
-    // The ToggleButton (filter_button) is a #[template_child] declared in
-    // window.blp — no imperative widget construction needed here.
-    // This function only creates the SearchFilterPopover, parents it to the
-    // already-inflated button, and wires the popup/popdown/filters-changed signals.
+    // filter_button is a #[template_child] from window.blp.
+    // This function creates SearchFilterPopover, parents it to that button,
+    // and wires popup/popdown/filters-changed.
 
     fn setup_filter_popover(&self) {
         let popover = SearchFilterPopover::new();
@@ -1541,9 +1425,7 @@ impl TemporalExplorerWindow {
 
     fn show_toast(&self, message: &str) {
         let toast = adw::Toast::new(message);
-        if let Some(overlay) = self
-            .imp()
-            .content_toolbar_view
+        if let Some(overlay) = self.imp().content_toolbar_view
             .parent()
             .and_then(|w| w.downcast::<adw::ToastOverlay>().ok())
         {
