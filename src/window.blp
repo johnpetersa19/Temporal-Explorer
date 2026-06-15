@@ -31,12 +31,26 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
         content: Box {
           orientation: vertical;
 
-          SearchEntry commit_search_entry {
-            placeholder-text: _("Search commits, hash, date…");
+          // Search bar + filter toggle — declared here so the widget tree
+          // is fully described in Blueprint without any imperative injection.
+          Box {
+            orientation: horizontal;
+            spacing: 0;
             margin-start: 8;
             margin-end: 8;
             margin-top: 8;
             margin-bottom: 8;
+
+            SearchEntry commit_search_entry {
+              placeholder-text: _("Search commits, hash, date\u2026");
+              hexpand: true;
+            }
+
+            ToggleButton filter_button {
+              icon-name: "funnel-symbolic";
+              tooltip-text: _("Filters");
+              styles ["flat"]
+            }
           }
 
           Stack timeline_stack {

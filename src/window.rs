@@ -105,10 +105,13 @@ mod imp {
         #[template_child] pub year_list:             TemplateChild<gtk::ListBox>,
         #[template_child] pub month_list:            TemplateChild<gtk::ListBox>,
         #[template_child] pub commit_search_entry:   TemplateChild<gtk::SearchEntry>,
+
+        // ── Filter button — declared in window.blp, wired here ───────────────
+        #[template_child] pub filter_button:         TemplateChild<gtk::ToggleButton>,
+
         #[template_child] pub commit_list:           TemplateChild<gtk::ListBox>,
 
-        // ── Filter button (injected into toolbar at runtime) ─────────────────
-        pub filter_button:  RefCell<Option<gtk::ToggleButton>>,
+        // ── Filter popover (custom widget, kept as runtime field) ─────────────
         pub filter_popover: RefCell<Option<SearchFilterPopover>>,
 
         #[template_child] pub content_toolbar_view:  TemplateChild<adw::ToolbarView>,
@@ -1328,9 +1331,17 @@ impl TemporalExplorerWindow {
         }
     }
 
+    /// Update the sensitivity of dir navigation buttons based on the current
+    /// history stacks. Mirrors the logic of `update_commit_nav_buttons`.
     fn update_dir_nav_buttons(&self) {
-        let _ = self.imp().history_back.try_borrow();
-        let _ = self.imp().history_forward.try_borrow();
+        let imp = self.imp();
+        let can_back    = !imp.history_back.borrow().is_empty();
+        let can_forward = !imp.history_forward.borrow().is_empty();
+        // Propagate to the toolbar's dir-nav controls when available.
+        // The history_controls widget reuses set_sensitivity for both commit
+        // and dir navigation; when a dedicated dir-nav widget is added to the
+        // toolbar it should be wired here instead.
+        imp.toolbar.history_controls().set_sensitivity(can_back, can_forward);
     }
 
     // ── Location bar ──────────────────────────────────────────────────────────
@@ -1443,15 +1454,14 @@ impl TemporalExplorerWindow {
     }
 
     // ── Filter popover wiring ─────────────────────────────────────────────────
+    //
+    // The ToggleButton (filter_button) is now a #[template_child] declared in
+    // window.blp. This function only needs to create the SearchFilterPopover,
+    // attach it to the button already inflated by the template, and wire signals.
 
     fn setup_filter_popover(&self) {
         let popover = SearchFilterPopover::new();
-
-        let btn = gtk::ToggleButton::builder()
-            .icon_name("funnel-symbolic")
-            .tooltip_text(gettext("Filters"))
-            .css_classes(vec!["flat".to_string()])
-            .build();
+        let btn = self.imp().filter_button.get();
 
         popover.set_parent(&btn);
 
@@ -1481,14 +1491,6 @@ impl TemporalExplorerWindow {
             });
         }
 
-        if let Some(parent) = self.imp().commit_search_entry
-            .parent()
-            .and_then(|w| w.downcast::<gtk::Box>().ok())
-        {
-            parent.append(&btn);
-        }
-
-        *self.imp().filter_button.borrow_mut()  = Some(btn);
         *self.imp().filter_popover.borrow_mut() = Some(popover);
     }
 
