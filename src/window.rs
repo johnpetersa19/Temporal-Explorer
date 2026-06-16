@@ -1480,26 +1480,50 @@ impl TemporalExplorerWindow {
 
     /// Navigate back one step in the directory history of the current snapshot.
     ///
-    /// Called by `setup_history_controls` when the user presses the back button
-    /// while inside a snapshot's sub-directory (`current_dir` is non-empty).
+    /// # Borrow safety
+    ///
+    /// All RefCell guards (`history_back`, `current_dir`, `history_forward`) are
+    /// resolved into owned values inside a tightly-scoped block.  That block ends
+    /// — and every guard is dropped — **before** `navigate_to_dir` is called.
+    /// `navigate_to_dir` itself borrows `current_dir` mutably, so any live guard
+    /// on it at call-time would cause a "RefCell already mutably borrowed" panic
+    /// inside the non-unwinding glib closure marshaller (fatal SIGABRT).
     fn navigate_back(&self) {
-        let imp = self.imp();
-        if let Some(dir) = imp.history_back.borrow_mut().pop() {
-            let cur = imp.current_dir.borrow().clone();
-            imp.history_forward.borrow_mut().push(cur);
+        // ── Extract all needed values; every borrow guard drops at end of block ──
+        let (dir_to_go, cur_dir) = {
+            let imp = self.imp();
+            let dir_to_go = imp.history_back.borrow_mut().pop();
+            let cur_dir   = imp.current_dir.borrow().clone();
+            (dir_to_go, cur_dir)
+            // imp, history_back borrow_mut, and current_dir borrow are all dropped here
+        };
+
+        if let Some(dir) = dir_to_go {
+            // No RefCell is borrowed at this point.
+            self.imp().history_forward.borrow_mut().push(cur_dir);
             self.navigate_to_dir(dir);
         }
     }
 
     /// Navigate forward one step in the directory history of the current snapshot.
     ///
-    /// Called by `setup_history_controls` when the user presses the forward button
-    /// while inside a snapshot's sub-directory (`current_dir` is non-empty).
+    /// # Borrow safety
+    ///
+    /// Mirrors `navigate_back`: all RefCell guards are resolved into owned values
+    /// before `navigate_to_dir` is called.
     fn navigate_forward(&self) {
-        let imp = self.imp();
-        if let Some(dir) = imp.history_forward.borrow_mut().pop() {
-            let cur = imp.current_dir.borrow().clone();
-            imp.history_back.borrow_mut().push(cur);
+        // ── Extract all needed values; every borrow guard drops at end of block ──
+        let (dir_to_go, cur_dir) = {
+            let imp = self.imp();
+            let dir_to_go = imp.history_forward.borrow_mut().pop();
+            let cur_dir   = imp.current_dir.borrow().clone();
+            (dir_to_go, cur_dir)
+            // imp, history_forward borrow_mut, and current_dir borrow are all dropped here
+        };
+
+        if let Some(dir) = dir_to_go {
+            // No RefCell is borrowed at this point.
+            self.imp().history_back.borrow_mut().push(cur_dir);
             self.navigate_to_dir(dir);
         }
     }
