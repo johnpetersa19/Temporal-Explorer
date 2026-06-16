@@ -69,6 +69,17 @@
 //!
 //! `repo` and `cpu_pool` are private.  Use the public accessor methods
 //! `reader.repo()` and `reader.cpu_pool()` — never access the fields directly.
+//!
+//! # Performance — lazy `changed_files`
+//!
+//! `CommitInfo::changed_files` is **not** populated during the initial history
+//! walk.  Computing a `diff_tree_to_tree` for every commit while streaming
+//! tens of thousands of rows is O(N × diff_cost) and saturates the CPU.
+//!
+//! The field starts as an empty `Vec`.  Call [`CommitInfo::load_changed_files`]
+//! with an open `Repository` handle when the diff is actually needed — for
+//! example, when the user selects a commit in the sidebar or opens the
+//! `FilterTypesDialog`.  The method is idempotent: subsequent calls are no-ops.
 
 use gettextrs::gettext;
 use git2::{ObjectType, Repository, SubmoduleIgnore};
@@ -225,6 +236,11 @@ impl Default for CpuPool {
 // ── CommitInfo ───────────────────────────────────────────────────────────────────────────
 
 /// Lightweight representation of a single commit, used to populate the UI list.
+///
+/// `changed_files` starts **empty** and is only populated on demand by
+/// [`CommitInfo::load_changed_files`].  This avoids running a full
+/// `diff_tree_to_tree` for every commit during the initial history walk,
+/// which was the root cause of the 80 % CPU spike and slow load times.
 #[derive(Debug, Clone)]
 pub struct CommitInfo {
     /// Full 40-character SHA-1 hash.
@@ -238,72 +254,120 @@ pub struct CommitInfo {
     pub author_email: String,
     /// Unix timestamp (seconds since epoch).
     pub timestamp: i64,
-    /// Changed files in this commit.
+    /// Files changed by this commit (extensions used by `FilterTypesDialog`).
+    ///
+    /// Populated lazily on first call to [`load_changed_files`].
+    /// Empty until that call is made.
     pub changed_files: Vec<String>,
 }
 
 impl CommitInfo {
-    fn from_commit(commit: &git2::Commit<'_>, repo: &git2::Repository) -> Self {
-        let mut changed_files = Vec::new();
-        if let Ok(tree) = commit.tree() {
-            if commit.parent_count() > 0 {
-                // For both regular commits (1 parent) and merge commits (N > 1
-                // parents), diff only against the **first parent**.
-                //
-                // Rationale: diffing against every parent of a merge commit
-                // causes files that exist only in parent[i] to appear as
-                // "modified" in the diff parent[j] → merge_tree for all j ≠ i,
-                // producing false positives in the extension filter.  The
-                // sort/dedup below can remove exact duplicates but cannot
-                // eliminate the semantically incorrect entries.
-                //
-                // Using only parent[0] matches the behaviour of `git show` and
-                // `git log -p`, which is what users expect when inspecting a
-                // merge commit's changed files.
-                if let Ok(parent) = commit.parent(0) {
-                    if let Ok(parent_tree) = parent.tree() {
-                        if let Ok(diff) = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None) {
-                            let _ = diff.foreach(
-                                &mut |delta, _| {
-                                    if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                                        changed_files.push(path.to_owned());
-                                    }
-                                    true
-                                },
-                                None,
-                                None,
-                                None,
-                            );
-                        }
+    // ── Private fast constructor ────────────────────────────────────────────────
+    //
+    // Collects only the lightweight scalar fields. No diff is computed.
+    // Used by every code path that walks the history (serial, parallel, search).
+    #[inline]
+    fn from_commit_fast(commit: &git2::Commit<'_>) -> Self {
+        Self {
+            hash:         commit.id().to_string(),
+            summary:      commit.summary().unwrap_or("").to_owned(),
+            author:       commit.author().name().unwrap_or(&gettext("Unknown")).to_owned(),
+            author_email: commit.author().email().unwrap_or("").to_owned(),
+            timestamp:    commit.time().seconds(),
+            changed_files: Vec::new(),
+        }
+    }
+
+    // ── Legacy constructor (kept for call-site compatibility) ───────────────────
+    //
+    // Accepts `repo` for signature compatibility with the old API but no longer
+    // uses it — the diff is deferred to `load_changed_files`. All internal call
+    // sites have been updated to `from_commit_fast`; this wrapper exists so that
+    // any external consumers that already call `CommitInfo::from_commit` continue
+    // to compile without changes.
+    #[allow(dead_code)]
+    pub(crate) fn from_commit(commit: &git2::Commit<'_>, _repo: &git2::Repository) -> Self {
+        Self::from_commit_fast(commit)
+    }
+
+    /// Computes and caches the list of files changed by this commit.
+    ///
+    /// This method is **idempotent**: if `changed_files` is already populated
+    /// (non-empty), it returns immediately without opening any git objects.
+    ///
+    /// Call this lazily — only when the diff is actually needed, for example:
+    /// - when the user clicks a commit row to inspect it, or
+    /// - when `FilterTypesDialog` needs to filter commits by file extension.
+    ///
+    /// For merge commits the diff is computed against the **first parent only**,
+    /// matching the behaviour of `git show` / `git log -p` and avoiding the
+    /// false-positive duplicates that arise from diffing all N parents.
+    pub fn load_changed_files(&mut self, repo: &git2::Repository) {
+        // Idempotent — skip if already populated.
+        if !self.changed_files.is_empty() {
+            return;
+        }
+
+        let oid = match git2::Oid::from_str(&self.hash) {
+            Ok(o)  => o,
+            Err(_) => return,
+        };
+        let commit = match repo.find_commit(oid) {
+            Ok(c)  => c,
+            Err(_) => return,
+        };
+        let tree = match commit.tree() {
+            Ok(t)  => t,
+            Err(_) => return,
+        };
+
+        let mut files = Vec::new();
+
+        if commit.parent_count() > 0 {
+            // Regular commit or merge commit — diff against first parent only.
+            // See module-level doc for the rationale.
+            if let Ok(parent) = commit.parent(0) {
+                if let Ok(parent_tree) = parent.tree() {
+                    if let Ok(diff) = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None) {
+                        let _ = diff.foreach(
+                            &mut |delta, _| {
+                                if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                                    files.push(path.to_owned());
+                                }
+                                true
+                            },
+                            None, None, None,
+                        );
                     }
                 }
-            } else {
-                if let Ok(diff) = repo.diff_tree_to_tree(None, Some(&tree), None) {
-                    let _ = diff.foreach(
-                        &mut |delta, _| {
-                            if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                                changed_files.push(path.to_owned());
-                            }
-                            true
-                        },
-                        None,
-                        None,
-                        None,
-                    );
-                }
+            }
+        } else {
+            // Root commit — diff against empty tree.
+            if let Ok(diff) = repo.diff_tree_to_tree(None, Some(&tree), None) {
+                let _ = diff.foreach(
+                    &mut |delta, _| {
+                        if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                            files.push(path.to_owned());
+                        }
+                        true
+                    },
+                    None, None, None,
+                );
             }
         }
-        changed_files.sort();
-        changed_files.dedup();
 
-        Self {
-            hash: commit.id().to_string(),
-            summary: commit.summary().unwrap_or("").to_owned(),
-            author: commit.author().name().unwrap_or(&gettext("Unknown")).to_owned(),
-            author_email: commit.author().email().unwrap_or("").to_owned(),
-            timestamp: commit.time().seconds(),
-            changed_files,
-        }
+        files.sort();
+        files.dedup();
+        self.changed_files = files;
+    }
+
+    /// Returns `true` if `changed_files` has already been loaded.
+    ///
+    /// Useful for UI code that wants to show a spinner or placeholder until
+    /// the diff is available, without triggering the load itself.
+    #[inline]
+    pub fn has_changed_files_loaded(&self) -> bool {
+        !self.changed_files.is_empty()
     }
 }
 
@@ -445,6 +509,9 @@ impl HistoryReader {
     /// Returns up to [`LIST_COMMITS_MAX`] commits reachable from HEAD,
     /// sorted newest-first.
     ///
+    /// `changed_files` is **not** populated here — call
+    /// [`CommitInfo::load_changed_files`] on individual commits when needed.
+    ///
     /// # Note — currently unused inside this crate
     ///
     /// The active code path is [`list_commits_paginated`] (streaming).
@@ -460,7 +527,8 @@ impl HistoryReader {
         for oid in walk {
             let oid = oid?;
             let commit = self.repo.find_commit(oid)?;
-            commits.push(CommitInfo::from_commit(&commit, &self.repo));
+            // Use fast constructor — no diff at load time.
+            commits.push(CommitInfo::from_commit_fast(&commit));
             if commits.len() >= LIST_COMMITS_MAX { break; }
         }
         Ok(commits)
@@ -471,6 +539,10 @@ impl HistoryReader {
     /// Uses [`MIN_COMMITS_FOR_PARALLEL`] (not `page_size`) as the threshold for
     /// switching to the parallel path, so the decision is independent of the
     /// caller's pagination preference.
+    ///
+    /// `changed_files` is **not** populated — call
+    /// [`CommitInfo::load_changed_files`] on individual commits when the diff
+    /// is actually needed.
     pub fn list_commits_paginated(
         &self,
         page_size: usize,
@@ -501,7 +573,8 @@ impl HistoryReader {
         for oid in walk {
             let oid = oid?;
             let commit = self.repo.find_commit(oid)?;
-            page.push(CommitInfo::from_commit(&commit, &self.repo));
+            // Fast constructor — no diff until load_changed_files is called.
+            page.push(CommitInfo::from_commit_fast(&commit));
             if page.len() >= page_size {
                 on_page(std::mem::replace(&mut page, Vec::with_capacity(page_size)));
             }
@@ -541,6 +614,11 @@ impl HistoryReader {
     /// to restore chronological order that may have been disrupted by shard
     /// interleaving. This guarantees the same ordering as the serial path and
     /// ensures the timeline sidebar sees all years correctly.
+    ///
+    /// `changed_files` is intentionally **not** computed here — the parallel
+    /// path spawns up to 4 threads each opening their own `Repository`; running
+    /// a diff per commit per thread would multiply the already-expensive diff
+    /// cost by the thread count, causing the 80 % CPU spike.
     fn list_commits_paginated_parallel(
         &self,
         page_size: usize,
@@ -568,7 +646,8 @@ impl HistoryReader {
                     let mut results = Vec::with_capacity(shard.len());
                     for oid in shard {
                         if let Ok(commit) = repo.find_commit(oid) {
-                            results.push(CommitInfo::from_commit(&commit, &repo));
+                            // Fast constructor — no diff in parallel threads.
+                            results.push(CommitInfo::from_commit_fast(&commit));
                         }
                     }
                     results
@@ -591,10 +670,6 @@ impl HistoryReader {
         }
 
         // Re-sort by timestamp (newest-first) after merging shards.
-        // Shards are distributed by OID index, not by time, so the merged
-        // result can be out of chronological order. This sort restores the
-        // same ordering produced by the serial path and ensures the timeline
-        // sidebar displays all years correctly.
         all.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
 
         let page_size = page_size.max(1);
@@ -629,7 +704,7 @@ impl HistoryReader {
             for oid in walk {
                 let oid = oid?;
                 let commit = self.repo.find_commit(oid)?;
-                results.push(CommitInfo::from_commit(&commit, &self.repo));
+                results.push(CommitInfo::from_commit_fast(&commit));
                 if results.len() >= SEARCH_COMMITS_MAX { break; }
             }
             return Ok(results);
@@ -644,7 +719,7 @@ impl HistoryReader {
             let hash_match = oid_str.starts_with(&q);
 
             let commit = self.repo.find_commit(oid)?;
-            let info = CommitInfo::from_commit(&commit, &self.repo);
+            let info = CommitInfo::from_commit_fast(&commit);
 
             if hash_match
                 || info.summary.to_lowercase().contains(&q)
@@ -659,9 +734,7 @@ impl HistoryReader {
 
     /// Extracts the underlying `git2::Repository` out of this reader.
     ///
-    /// Used in `window.rs` to avoid opening the same repository path twice:
-    /// the window opens it once for validation via `HistoryReader::open`, then
-    /// calls this method to retrieve the inner handle for tree/snapshot browsing.
+    /// Used in `window.rs` to avoid opening the same repository path twice.
     ///
     /// # Note — currently unused inside this crate
     ///
@@ -805,9 +878,6 @@ impl<'repo> SnapshotResolver<'repo> {
         let commit = obj.peel_to_commit()?;
         let tree = commit.tree()?;
         let materializer = SnapshotMaterializer::new(self.repo);
-        // materialize_inner uses MaterializeOutcome to distinguish truncation
-        // (Ok variant) from real git2 errors.  resolve_tree maps both
-        // Truncated and Complete to Ok, never surfacing the limit as Err.
         match materializer.materialize_inner(&tree, PathBuf::new(), 0, MAX_FULL_TREE_ENTRIES)? {
             MaterializeOutcome::Complete(nodes) => Ok(nodes),
             MaterializeOutcome::Truncated(nodes, reason) => {
@@ -827,18 +897,11 @@ impl<'repo> SnapshotResolver<'repo> {
 /// of propagating a fake `Err` to the UI.
 ///
 /// This enum is private to the module and must not be exposed in the public API.
-///
-/// # Note — currently unused at the call-site level
-///
-/// `materialize_inner` is only called from `resolve_tree`, which is itself
-/// guarded by `#[allow(dead_code)]`.  This attribute silences the cascade
-/// warning without removing the type.
 #[allow(dead_code)]
 enum MaterializeOutcome {
     /// Walk completed without hitting any limit.
     Complete(Vec<TreeNode>),
-    /// Walk was cut short at an entry or depth limit.  The `String` contains a
-    /// human-readable reason logged to stderr by the caller.
+    /// Walk was cut short at an entry or depth limit.
     Truncated(Vec<TreeNode>, String),
 }
 
@@ -855,16 +918,7 @@ impl<'repo> SnapshotMaterializer<'repo> {
     /// Public entry point kept for API compatibility.
     ///
     /// Delegates to [`materialize_inner`] and maps [`MaterializeOutcome`] back
-    /// to the original `Result<Vec<TreeNode>, git2::Error>` signature:
-    /// - `Complete`  → `Ok(nodes)`
-    /// - `Truncated` → `Ok(nodes)` (truncation is not an error)
-    /// - git2 I/O failures → `Err(e)` (propagated unchanged)
-    ///
-    /// # Note — currently unused by the UI
-    ///
-    /// See [`SnapshotResolver::resolve_tree`] for context.  This method
-    /// exists as a stable public entry point for callers that already hold
-    /// a `git2::Tree` reference and do not need to go through `resolve_tree`.
+    /// to the original `Result<Vec<TreeNode>, git2::Error>` signature.
     #[allow(dead_code)]
     pub fn materialize(
         &self,
@@ -879,19 +933,7 @@ impl<'repo> SnapshotMaterializer<'repo> {
         }
     }
 
-    /// Core recursive walk.  Returns a [`MaterializeOutcome`] so that callers
-    /// can distinguish a clean finish from a limit-induced truncation without
-    /// abusing `Err` as a control-flow signal.
-    ///
-    /// Only genuine git2 I/O errors (e.g. `find_tree` failures) are returned
-    /// as `Err`.  Reaching the entry cap or the depth cap is encoded as
-    /// `Ok(Truncated(...))`
-    ///
-    /// # Note — currently unused by the UI
-    ///
-    /// Called only from `materialize` and `resolve_tree`, both of which are
-    /// guarded by `#[allow(dead_code)]`.  This attribute silences the cascade
-    /// warning without removing the implementation.
+    /// Core recursive walk.
     #[allow(dead_code)]
     fn materialize_inner(
         &self,
@@ -934,7 +976,7 @@ impl<'repo> SnapshotMaterializer<'repo> {
                 }
                 Some(ObjectType::Tree) => {
                     nodes.push(TreeNode::Dir(path.clone()));
-                    let subtree = self.repo.find_tree(entry.id())?; // real I/O error — propagate
+                    let subtree = self.repo.find_tree(entry.id())?;
                     let remaining = limit.saturating_sub(nodes.len());
                     match self.materialize_inner(&subtree, path, depth + 1, remaining)? {
                         MaterializeOutcome::Complete(mut children) => {
@@ -942,8 +984,6 @@ impl<'repo> SnapshotMaterializer<'repo> {
                         }
                         MaterializeOutcome::Truncated(mut children, reason) => {
                             nodes.append(&mut children);
-                            // Propagate the truncation signal upward so the
-                            // top-level caller (resolve_tree) can log it once.
                             return Ok(MaterializeOutcome::Truncated(nodes, reason));
                         }
                     }
@@ -958,9 +998,6 @@ impl<'repo> SnapshotMaterializer<'repo> {
     }
 
     /// Reads the raw byte content of a file at `path` in the given `revision`.
-    ///
-    /// Returns an error if `path` refers to a directory, submodule, or any
-    /// non-blob object.
     pub fn read_file(
         &self,
         revision: &str,
