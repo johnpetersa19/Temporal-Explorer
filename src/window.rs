@@ -289,6 +289,12 @@ fn bump_year_count(year_counts: &mut Vec<(i32, usize)>, year: i32) {
 /// bare year (`2024`), full/abbreviated English month name, and the
 /// locale-translated month name returned by [`timeline_filter::month_name`].
 fn matches_calendar(ts: i64, q: &str) -> bool {
+    // Fast reject for ordinary text queries. Calendar matches are short:
+    // years, ISO dates, year-month values, timestamps, and month names.
+    if q.len() < 2 || q.len() > 16 {
+        return false;
+    }
+
     let Ok(dt) = glib::DateTime::from_unix_local(ts) else {
         return false;
     };
@@ -297,13 +303,12 @@ fn matches_calendar(ts: i64, q: &str) -> bool {
     let month = dt.month() as u32;
     let day = dt.day_of_month();
 
-    let iso_date = format!("{:04}-{:02}-{:02}", year, month, day);
-    let year_month = format!("{:04}-{:02}", year, month);
-    let year_str = format!("{:04}", year);
-    let human = dt
-        .format("%Y-%m-%d %H:%M")
-        .map(|s| s.to_string())
-        .unwrap_or_default();
+    // Common numeric filters first, before allocating formatted strings.
+    if q.len() == 4 {
+        if let Ok(q_year) = q.parse::<i32>() {
+            return year == q_year;
+        }
+    }
 
     let month_full = match month {
         1 => "january",
@@ -321,15 +326,24 @@ fn matches_calendar(ts: i64, q: &str) -> bool {
         _ => "",
     };
     let month_abbr = &month_full[..3.min(month_full.len())];
-    let month_translated = timeline_filter::month_name(month).to_lowercase();
 
-    iso_date.contains(q)
-        || year_month.contains(q)
-        || year_str == q
-        || human.contains(q)
-        || month_full.contains(q)
-        || month_abbr == q
-        || month_translated.contains(q)
+    // Month-only queries do not need ISO/timestamp allocation.
+    if q.chars().all(|c| c.is_ascii_alphabetic()) {
+        return month_full.contains(q)
+            || month_abbr == q
+            || timeline_filter::month_name(month)
+                .to_lowercase()
+                .contains(q);
+    }
+
+    let iso_date = format!("{:04}-{:02}-{:02}", year, month, day);
+    let year_month = format!("{:04}-{:02}", year, month);
+    let human = dt
+        .format("%Y-%m-%d %H:%M")
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+
+    iso_date.contains(q) || year_month.contains(q) || human.contains(q)
 }
 
 // ── Short-hash helpers ─────────────────────────────────────────────────────────
@@ -952,11 +966,11 @@ impl TemporalExplorerWindow {
 
         let win = self.clone();
         dialog.connect_pattern_selected(move |_, pattern, mode, icase| {
-            let all = win.imp().all_commits.borrow().clone();
-            let matching: Vec<String> = all
+            let all = win.imp().all_commits.borrow();
+            let matching: std::collections::HashSet<String> = all
                 .iter()
                 .filter(|c| commit_matches_pattern(c, pattern, mode, icase))
-                .map(|c| c.hash.clone())
+                .map(|c| short_hash(&c.hash).to_string())
                 .collect();
 
             let list = win.imp().commit_list.clone();
@@ -968,7 +982,7 @@ impl TemporalExplorerWindow {
                     let hash = list_row.widget_name().to_string();
 
                     if !hash.is_empty() {
-                        let is_match = matching.iter().any(|m| m.starts_with(short_hash(&hash)));
+                        let is_match = matching.contains(short_hash(&hash));
 
                         if is_match {
                             list_row.add_css_class("pattern-match");
