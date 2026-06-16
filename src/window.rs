@@ -1018,6 +1018,54 @@ impl TemporalExplorerWindow {
 
     // ── Timeline loading ───────────────────────────────────────────────────────
 
+    /// Feeds new author names into the filter popover, deduplicating against
+    /// authors already seen in previous pages.
+    ///
+    /// Called once per received page so the popover chips grow incrementally
+    /// as commits stream in, without re-scanning the entire `all_commits` vec.
+    fn update_author_chips_for_page(&self, page: &[CommitInfo]) {
+        let imp = self.imp();
+        let pop_borrow = imp.filter_popover.borrow();
+        let Some(ref pop) = *pop_borrow else { return };
+
+        // Build the set of authors already known to avoid duplicate chips.
+        let mut seen: std::collections::HashSet<String> = imp
+            .all_commits
+            .borrow()
+            .iter()
+            .map(|c| c.author.clone())
+            .collect();
+
+        let new_authors: Vec<String> = page
+            .iter()
+            .map(|c| c.author.clone())
+            .filter(|a| seen.insert(a.clone()))
+            .collect();
+
+        if !new_authors.is_empty() {
+            pop.populate_author_chips(&new_authors);
+        }
+    }
+
+    /// Displays an empty-repository state in the timeline sidebar.
+    ///
+    /// Called when `load_timeline` receives the EOS sentinel but `all_commits`
+    /// is still empty — meaning the repository has no commits reachable from
+    /// HEAD (freshly initialised repo, unborn branch, or detached HEAD with no
+    /// history).  Showing an explicit message is far better than leaving the
+    /// sidebar blank and making the user wonder whether loading is still in
+    /// progress.
+    fn show_empty_repository_state(&self) {
+        let imp = self.imp();
+        imp.year_list.remove_all();
+        *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
+        imp.timeline_stack.set_visible_child_name("years");
+        imp.timeline_back_button.set_visible(false);
+        imp.timeline_header_title.set_title(&gettext("Timeline"));
+        imp.timeline_header_title.set_subtitle(&gettext("No commits found"));
+        imp.split_view.set_show_sidebar(true);
+    }
+
     fn load_timeline(&self, cancel: Arc<AtomicBool>) {
         // 500 commits per page: fast enough for incremental display,
         // large enough to avoid per-page GTK overhead on large repos.
@@ -1030,22 +1078,32 @@ impl TemporalExplorerWindow {
 
         self.imp().loading_commits.set(true);
         self.imp().all_commits.borrow_mut().clear();
+
+        // Show the empty state *before* the worker starts so the UI never
+        // displays stale content from a previous repository during loading.
         self.show_empty_state();
 
         // Rendezvous channel (capacity 0): the worker blocks after each page
         // until the GTK main loop consumes it, bounding memory to ~1 page.
-        // Messages: Ok(page) | Ok(vec![]) (EOS sentinel) | Err(msg)
+        //
+        // Protocol:
+        //   Ok(non-empty vec)  — one page of CommitInfo; more pages may follow.
+        //   Ok(empty vec)      — end-of-stream (EOS) sentinel; no more pages.
+        //   Err(msg)           — fatal git2 error; worker has exited.
         let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<CommitInfo>, String>>(0);
 
         let cancel_worker = cancel.clone();
         std::thread::spawn(move || {
             let result = HistoryReader::open(&repo_path).and_then(|reader| {
                 reader.list_commits_paginated(TIMELINE_PAGE_SIZE, |page| {
+                    // Honour cancellation between pages so switching repos is instant.
                     if cancel_worker.load(Ordering::Relaxed) { return; }
                     let _ = tx.send(Ok(page));
                 })
             });
 
+            // Send the EOS sentinel (empty vec) on success, or the error string.
+            // The idle callback distinguishes them by the is_empty() check.
             match result {
                 Ok(()) => { let _ = tx.send(Ok(Vec::new())); }
                 Err(e) => { let _ = tx.send(Err(e.to_string())); }
@@ -1054,45 +1112,53 @@ impl TemporalExplorerWindow {
 
         let win = self.clone();
         glib::idle_add_local(move || {
+            // Abort idle callbacks belonging to a superseded load operation.
             if cancel.load(Ordering::Relaxed) {
                 return glib::ControlFlow::Break;
             }
 
             match rx.try_recv() {
+                // ── End-of-stream sentinel ────────────────────────────────────
                 Ok(Ok(page)) if page.is_empty() => {
-                    // End-of-stream: all pages received.
                     win.imp().loading_commits.set(false);
-                    win.imp().split_view.set_show_sidebar(true);
-                    win.populate_year_list();
+
+                    // Guard: if no commits arrived at all the repository has no
+                    // history reachable from HEAD (empty repo, unborn branch, or
+                    // detached HEAD with no ancestors).  Show an informative state
+                    // instead of silently leaving the sidebar blank.
+                    if win.imp().all_commits.borrow().is_empty() {
+                        win.show_empty_repository_state();
+                    } else {
+                        win.imp().split_view.set_show_sidebar(true);
+                        win.populate_year_list();
+                    }
+
                     glib::ControlFlow::Break
                 }
+
+                // ── Data page: accumulate and refresh timeline ────────────────
                 Ok(Ok(page)) => {
-                    // Populate new author chips, suppressing duplicates across pages.
-                    if let Some(ref pop) = *win.imp().filter_popover.borrow() {
-                        let mut seen = std::collections::HashSet::new();
-                        for c in win.imp().all_commits.borrow().iter() {
-                            seen.insert(c.author.clone());
-                        }
-                        let new_authors: Vec<String> = page.iter()
-                            .map(|c| c.author.clone())
-                            .filter(|a| seen.insert(a.clone()))
-                            .collect();
-                        if !new_authors.is_empty() {
-                            pop.populate_author_chips(&new_authors);
-                        }
-                    }
+                    // Update author chips incrementally — before extending
+                    // all_commits so the dedup set reflects the current state.
+                    win.update_author_chips_for_page(&page);
 
                     win.imp().all_commits.borrow_mut().extend(page);
                     win.populate_year_list();
                     win.imp().split_view.set_show_sidebar(true);
                     glib::ControlFlow::Continue
                 }
+
+                // ── Fatal error from the worker thread ────────────────────────
                 Ok(Err(e)) => {
                     win.imp().loading_commits.set(false);
                     win.show_error(&format!("{}: {e}", gettext("Failed to read history")));
                     glib::ControlFlow::Break
                 }
+
+                // ── Worker hasn't sent yet — yield back to the GTK main loop ──
                 Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+
+                // ── Channel closed unexpectedly (worker panicked) ─────────────
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                     win.imp().loading_commits.set(false);
                     glib::ControlFlow::Break
