@@ -515,20 +515,31 @@ impl TemporalExplorerWindow {
     // same RefCell is called.  This prevents "RefCell already mutably
     // borrowed" panics when navigate_commit_back / navigate_commit_forward
     // write to current_hash or current_dir inside jump_to_commit_hash.
+    //
+    // CRITICAL: do NOT keep a live `imp` binding across the dispatch call.
+    // The glib closure marshaller cannot unwind, so any panic caused by a
+    // RefCell double-borrow is immediately fatal (SIGABRT).  All borrow
+    // guards must be dropped — and `imp` itself released — before calling
+    // navigate_back / navigate_commit_back / navigate_forward /
+    // navigate_commit_forward.
 
     fn setup_history_controls(&self) {
         let win = self.clone();
         self.imp().toolbar.history_controls().connect_local("navigate-back", false, move |_| {
-            let imp = win.imp();
+            // ── Step 1: snapshot condition into owned bools ───────────────────
+            // All borrow() guards are dropped at the end of this block.
+            // `imp` is NOT stored in a let-binding that outlives this block,
+            // because doing so would keep an implicit borrow alive across the
+            // dispatch call below, which triggers the RefCell panic.
+            let (has_hash, in_subdir) = {
+                let imp = win.imp();
+                let has_hash  = imp.current_hash.borrow().is_some();
+                let in_subdir = !imp.current_dir.borrow().as_os_str().is_empty();
+                (has_hash, in_subdir)
+                // imp, and both borrow() guards, are dropped here
+            };
 
-            // ── Extract both borrow values into owned locals before any call ──
-            // Holding live borrow() guards across navigate_back() /
-            // navigate_commit_back() would alias with the borrow_mut() calls
-            // inside jump_to_commit_hash(), causing a panic at runtime.
-            let has_hash = imp.current_hash.borrow().is_some();
-            let in_subdir = !imp.current_dir.borrow().as_os_str().is_empty();
-            // Both guards are dropped here — no RefCell is borrowed below.
-
+            // ── Step 2: dispatch — no RefCell is borrowed at this point ───────
             if has_hash && in_subdir {
                 win.navigate_back();
             } else {
@@ -539,13 +550,14 @@ impl TemporalExplorerWindow {
 
         let win = self.clone();
         self.imp().toolbar.history_controls().connect_local("navigate-forward", false, move |_| {
-            let imp = win.imp();
-
-            // Same pattern as "navigate-back": snapshot the condition into
-            // owned bools so all borrows are released before dispatch.
-            let has_hash = imp.current_hash.borrow().is_some();
-            let in_subdir = !imp.current_dir.borrow().as_os_str().is_empty();
-            // Both guards are dropped here.
+            // Same pattern as "navigate-back".
+            let (has_hash, in_subdir) = {
+                let imp = win.imp();
+                let has_hash  = imp.current_hash.borrow().is_some();
+                let in_subdir = !imp.current_dir.borrow().as_os_str().is_empty();
+                (has_hash, in_subdir)
+                // imp, and both borrow() guards, are dropped here
+            };
 
             if has_hash && in_subdir {
                 win.navigate_forward();
