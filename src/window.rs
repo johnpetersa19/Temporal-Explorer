@@ -1658,7 +1658,8 @@ self.update_commit_nav_buttons();
         });
 
         let win = self.clone();
-        popover.connect_filter_changed(move |_, state| {
+        popover.connect_filters_changed(move |popover_ref| {
+                let state = popover_ref.filter_state();
             *win.imp().filter_state.borrow_mut() = state;
             let q = win.imp().last_query.borrow().clone();
             win.run_search(q);
@@ -1714,10 +1715,10 @@ self.update_commit_nav_buttons();
                         // which is expensive; skipped for now.
                     }
                     // ── Date range filter ─────────────────────────────────────
-                    if let Some(since) = filter.date_range.since {
+                    if let Some(since) = filter.date.from {
                         if c.timestamp < since { return false; }
                     }
-                    if let Some(until) = filter.date_range.until {
+                    if let Some(until) = filter.date.to {
                         if c.timestamp > until { return false; }
                     }
                     // ── File-type / extension filter ──────────────────────────
