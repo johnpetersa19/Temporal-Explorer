@@ -14,6 +14,7 @@ use adw::prelude::*;
 use adw::subclass::prelude::*;
 use std::cell::RefCell;
 use std::sync::OnceLock;
+use gettextrs::gettext;
 
 // ── Known file types ─────────────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,38 @@ const KNOWN_TYPES: &[(&str, &str, &str)] = &[
 
 /// Extensions shown on the start state as quick chips.
 const COMMON_EXTENSIONS: &[&str] = &["rs", "toml", "blp", "py", "js", "md", "json", "sh"];
+
+
+fn translated_file_type_label(label: &str) -> String {
+    match label {
+        "Rust source" => gettext("Rust source"),
+        "TOML config" => gettext("TOML config"),
+        "Blueprint UI" => gettext("Blueprint UI"),
+        "Python script" => gettext("Python script"),
+        "JavaScript" => gettext("JavaScript"),
+        "TypeScript" => gettext("TypeScript"),
+        "C source" => gettext("C source"),
+        "C++ source" => gettext("C++ source"),
+        "C/C++ header" => gettext("C/C++ header"),
+        "Go source" => gettext("Go source"),
+        "Java source" => gettext("Java source"),
+        "Kotlin source" => gettext("Kotlin source"),
+        "Swift source" => gettext("Swift source"),
+        "Shell script" => gettext("Shell script"),
+        "Markdown" => gettext("Markdown"),
+        "JSON data" => gettext("JSON data"),
+        "YAML config" => gettext("YAML config"),
+        "XML document" => gettext("XML document"),
+        "SQL query" => gettext("SQL query"),
+        "HTML document" => gettext("HTML document"),
+        "CSS stylesheet" => gettext("CSS stylesheet"),
+        "Plain text" => gettext("Plain text"),
+        "Lock file (Cargo/npm)" => gettext("Lock file (Cargo/npm)"),
+        "PNG image" => gettext("PNG image"),
+        "SVG vector image" => gettext("SVG vector image"),
+        other => other.to_string(),
+    }
+}
 
 // ── GObject subclass ─────────────────────────────────────────────────────────────────────────
 
@@ -305,7 +338,8 @@ impl FilterTypesDialog {
                 .and_downcast::<gtk::Box>()
             {
                 if let Some(desc) = text_box.first_child().and_downcast::<gtk::Label>() {
-                    desc.set_label(&format!("{label} (.{ext})"));
+                    let translated = translated_file_type_label(label);
+                    desc.set_label(&format!("{translated} (.{ext})"));
                 }
                 if let Some(sub) = text_box
                     .first_child()
@@ -355,7 +389,9 @@ impl FilterTypesDialog {
             KNOWN_TYPES.iter().copied().collect()
         } else {
             KNOWN_TYPES.iter().copied().filter(|(ext, label, _)| {
-                ext.contains(query) || label.to_lowercase().contains(query)
+                ext.contains(query)
+                    || label.to_lowercase().contains(query)
+                    || translated_file_type_label(label).to_lowercase().contains(query)
             }).collect()
         };
 

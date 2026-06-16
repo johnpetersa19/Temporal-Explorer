@@ -32,6 +32,8 @@ use std::cell::RefCell;
 use std::sync::OnceLock;
 use std::path::PathBuf;
 
+use gettextrs::gettext;
+
 use crate::git_engine::CommitInfo;
 
 // ── BatchOp ────────────────────────────────────────────────────────────────────────────
@@ -276,7 +278,7 @@ impl BatchOperationsDialog {
                 let dir = imp.dest_dir.borrow();
                 let prefix = dir.as_ref()
                     .map(|d| d.display().to_string())
-                    .unwrap_or_else(|| "<dir>".into());
+                    .unwrap_or_else(|| gettext("Choose a directory"));
                 commits.iter().enumerate()
                     .map(|(i, c)| format!("{}/{:04}-{}.patch",
                         prefix, i + 1,
@@ -302,8 +304,8 @@ impl BatchOperationsDialog {
     fn open_export_dir_chooser(&self) {
         // Use GtkFileDialog (GTK 4.10+)
         let chooser = gtk::FileDialog::builder()
-            .title("Choose export directory")
-            .accept_label("Select")
+            .title(gettext("Choose export directory"))
+            .accept_label(gettext("Select"))
             .build();
 
         let dlg = self.clone();

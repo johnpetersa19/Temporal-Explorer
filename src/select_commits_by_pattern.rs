@@ -30,6 +30,8 @@ use gtk::subclass::prelude::*;
 use std::cell::RefCell;
 use std::sync::OnceLock;
 
+use gettextrs::gettext;
+
 use crate::git_engine::CommitInfo;
 
 // ── MatchMode ─────────────────────────────────────────────────────────────────
@@ -280,7 +282,7 @@ impl SelectCommitsByPattern {
 
         if pattern.is_empty() {
             imp.match_count_label
-                .set_label("Enter a pattern to preview matches");
+                .set_label(&gettext("Enter a pattern to preview matches"));
             imp.select_button.set_sensitive(false);
             *imp.match_count.borrow_mut() = -1;
             return;
@@ -296,11 +298,14 @@ impl SelectCommitsByPattern {
 
         let total = commits.len();
         let label = if count == 0 {
-            "No commits match".to_string()
+            gettext("No commits match")
         } else if count == total {
-            format!("All {} commits match", total)
+            gettext("All {count} commits match")
+                .replace("{count}", &total.to_string())
         } else {
-            format!("{} of {} commits match", count, total)
+            gettext("{count} of {total} commits match")
+                .replace("{count}", &count.to_string())
+                .replace("{total}", &total.to_string())
         };
         imp.match_count_label.set_label(&label);
         imp.select_button.set_sensitive(count > 0);

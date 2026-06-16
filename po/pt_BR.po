@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: temporal-explorer 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-16 18:09-0300\n"
+"POT-Creation-Date: 2026-06-16 18:15-0300\n"
 "PO-Revision-Date: 2026-06-12 02:00-0300\n"
 "Last-Translator: John Peter Sá <johnpetersa19@gmail.com>\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -17,9 +17,25 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/application.rs:102
+#: /home/john/Projects/Temporal-Explorer/po/../src/application.rs:99
 msgid "translator-credits"
 msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/batch_operations_dialog.rs:281
+#, fuzzy
+msgid "Choose a directory"
+msgstr "Diretório vazio"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/batch_operations_dialog.rs:307
+#: src/batch-operations-dialog.blp
+#, fuzzy
+msgid "Choose export directory"
+msgstr "Diretório vazio"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/batch_operations_dialog.rs:308
+#, fuzzy
+msgid "Select"
+msgstr "Pesquisar commits…"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/commit_controller.rs:262
 msgid "commits not shown"
@@ -54,9 +70,127 @@ msgstr "Prévia truncada em"
 msgid "Copy content"
 msgstr "Copiar conteúdo"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/git_engine.rs:336
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:56
+msgid "Rust source"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:57
+msgid "TOML config"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:58
+msgid "Blueprint UI"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:59
+msgid "Python script"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:60
+msgid "JavaScript"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:61
+msgid "TypeScript"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:62
+msgid "C source"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:63
+msgid "C++ source"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:64
+msgid "C/C++ header"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:65
+msgid "Go source"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:66
+msgid "Java source"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:67
+msgid "Kotlin source"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:68
+msgid "Swift source"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:69
+msgid "Shell script"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:70
+msgid "Markdown"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:71
+msgid "JSON data"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:72
+msgid "YAML config"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:73
+msgid "XML document"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:74
+msgid "SQL query"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:75
+msgid "HTML document"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:76
+msgid "CSS stylesheet"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:77
+msgid "Plain text"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:78
+msgid "Lock file (Cargo/npm)"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:79
+msgid "PNG image"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:80
+msgid "SVG vector image"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/git_engine.rs:321
 msgid "Unknown"
 msgstr "Desconhecido"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:285
+#: src/select-commits-by-pattern.blp
+msgid "Enter a pattern to preview matches"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:301
+#, fuzzy
+msgid "No commits match"
+msgstr "commits não exibidos"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:303
+msgid "All {count} commits match"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:306
+msgid "{count} of {total} commits match"
+msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:129
 msgid "January"
@@ -240,11 +374,6 @@ msgstr ""
 #: src/batch-operations-dialog.blp
 #, fuzzy
 msgid "Export directory"
-msgstr "Diretório vazio"
-
-#: src/batch-operations-dialog.blp
-#, fuzzy
-msgid "Choose export directory"
 msgstr "Diretório vazio"
 
 #: src/batch-operations-dialog.blp
@@ -817,10 +946,6 @@ msgstr ""
 
 #: src/select-commits-by-pattern.blp
 msgid "Case insensitive"
-msgstr ""
-
-#: src/select-commits-by-pattern.blp
-msgid "Enter a pattern to preview matches"
 msgstr ""
 
 #: src/select-commits-by-pattern.blp
