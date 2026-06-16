@@ -1633,11 +1633,17 @@ impl TemporalExplorerWindow {
         );
         self.update_dir_nav_buttons();
 
+        // Cancellation token for directory loads.
+        //
+        // Each navigation invalidates the previous token before starting a new
+        // worker.  The token is shared with the UI polling closure through Arc so
+        // stale workers cannot update the right panel after the user has already
+        // moved to another directory.
         let cancel = Arc::new(AtomicBool::new(false));
         if let Some(prev) = imp.load_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
         }
-        *imp.load_cancel.borrow_mut() = Some(cancel);
+        *imp.load_cancel.borrow_mut() = Some(cancel.clone());
 
         let dir_clone = dir.clone();
         let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<TreeNode>, String>>(1);
@@ -1939,72 +1945,103 @@ impl TemporalExplorerWindow {
     }
 
     pub fn run_search(&self, query: String) {
-        // Cancel any previous search.
+        // Cancel any previous search before starting a new worker.
         if let Some(prev) = self.imp().search_cancel.borrow_mut().take() {
             prev.store(true, Ordering::Relaxed);
         }
+
         let cancel = Arc::new(AtomicBool::new(false));
         *self.imp().search_cancel.borrow_mut() = Some(cancel.clone());
 
         let all_commits = self.imp().all_commits.borrow().clone();
         let filter = self.imp().filter_state.borrow().clone();
+        let q = query.to_lowercase();
 
-        let win = self.clone();
-        glib::idle_add_local_once(move || {
-            if cancel.load(Ordering::Relaxed) {
-                return;
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Option<Vec<CommitInfo>>>(1);
+        let worker_cancel = cancel.clone();
+
+        std::thread::spawn(move || {
+            let mut results = Vec::new();
+
+            for commit in all_commits {
+                if worker_cancel.load(Ordering::Relaxed) {
+                    let _ = tx.send(None);
+                    return;
+                }
+
+                // ── Author filter ─────────────────────────────────────────
+                if let Some(ref author) = filter.author {
+                    if !commit.author.to_lowercase().contains(author.as_str()) {
+                        continue;
+                    }
+                }
+
+                // ── Branch filter ─────────────────────────────────────────
+                if let Some(ref _branch) = filter.branch {
+                    // Branch filtering requires per-commit branch lookup.
+                    // Kept as a no-op here; implemented separately from the
+                    // cancellation/background search refactor.
+                }
+
+                // ── Date range filter ─────────────────────────────────────
+                if let Some(since) = filter.date.from {
+                    if commit.timestamp < since {
+                        continue;
+                    }
+                }
+
+                if let Some(until) = filter.date.to {
+                    if commit.timestamp > until {
+                        continue;
+                    }
+                }
+
+                // ── File-type / extension filter ──────────────────────────
+                if let Some(ref ext) = filter.files.other_ext {
+                    if !commit.changed_files.iter().any(|file| {
+                        std::path::Path::new(file)
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .map(|e| e.eq_ignore_ascii_case(ext.trim_start_matches('.')))
+                            .unwrap_or(false)
+                    }) {
+                        continue;
+                    }
+                }
+
+                // ── Text query ────────────────────────────────────────────
+                if !q.is_empty()
+                    && !commit.summary.to_lowercase().contains(&q)
+                    && !commit.hash.starts_with(&q)
+                    && !commit.author.to_lowercase().contains(&q)
+                    && !matches_calendar(commit.timestamp, &q)
+                {
+                    continue;
+                }
+
+                results.push(commit);
             }
 
-            let q = query.to_lowercase();
-            let results: Vec<CommitInfo> = all_commits
-                .into_iter()
-                .filter(|c| {
-                    // ── Author filter ─────────────────────────────────────────
-                    if let Some(ref a) = filter.author {
-                        if !c.author.to_lowercase().contains(a.as_str()) {
-                            return false;
-                        }
-                    }
-                    // ── Branch filter ─────────────────────────────────────────
-                    if let Some(ref _b) = filter.branch {
-                        // Branch filtering requires per-commit branch lookup
-                        // which is expensive; skipped for now.
-                    }
-                    // ── Date range filter ─────────────────────────────────────
-                    if let Some(since) = filter.date.from {
-                        if c.timestamp < since {
-                            return false;
-                        }
-                    }
-                    if let Some(until) = filter.date.to {
-                        if c.timestamp > until {
-                            return false;
-                        }
-                    }
-                    // ── File-type / extension filter ──────────────────────────
-                    if let Some(ref ext) = filter.files.other_ext {
-                        if !c.changed_files.iter().any(|f| {
-                            std::path::Path::new(f)
-                                .extension()
-                                .and_then(|e| e.to_str())
-                                .map(|e| e.eq_ignore_ascii_case(ext.trim_start_matches('.')))
-                                .unwrap_or(false)
-                        }) {
-                            return false;
-                        }
-                    }
-                    // ── Text query ────────────────────────────────────────────
-                    if q.is_empty() {
-                        return true;
-                    }
-                    c.summary.to_lowercase().contains(&q)
-                        || c.hash.starts_with(&q)
-                        || c.author.to_lowercase().contains(&q)
-                        || matches_calendar(c.timestamp, &q)
-                })
-                .collect();
+            let _ = tx.send(Some(results));
+        });
 
-            commit_controller::populate_commit_list(&win.imp().commit_list, &results);
+        let win = self.clone();
+        glib::idle_add_local(move || {
+            if cancel.load(Ordering::Relaxed) {
+                return glib::ControlFlow::Break;
+            }
+
+            match rx.try_recv() {
+                Ok(Some(results)) => {
+                    if !cancel.load(Ordering::Relaxed) {
+                        commit_controller::populate_commit_list(&win.imp().commit_list, &results);
+                    }
+                    glib::ControlFlow::Break
+                }
+                Ok(None) => glib::ControlFlow::Break,
+                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => glib::ControlFlow::Break,
+            }
         });
     }
 }
