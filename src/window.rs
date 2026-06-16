@@ -981,6 +981,31 @@ impl TemporalExplorerWindow {
     // ── FilterTypesDialog ─────────────────────────────────────────────────────
 
     pub fn show_filter_types_dialog(&self) {
+        // ── Ensure changed_files is populated for every commit ────────────────
+        //
+        // CommitInfo::changed_files starts empty (lazy loading). Before opening
+        // the dialog we need path data for all commits so FilterTypesDialog can
+        // build its extension list and run_search can actually filter by type.
+        //
+        // Strategy: open a single short-lived Repository handle here on the
+        // main thread and call load_changed_files on every commit that has not
+        // been loaded yet. load_changed_files is idempotent — already-loaded
+        // commits are skipped instantly. For typical histories the number of
+        // unloaded commits is zero (user already clicked through them) or small
+        // (only a handful of commits selected in a session), so the cost is
+        // acceptable on the main thread. If the repository is unavailable the
+        // dialog still opens — it simply shows no extension data.
+        if let Some(repo_path) = self.imp().repo_path.borrow().clone() {
+            if let Ok(repo) = git2::Repository::open(&repo_path) {
+                let mut commits = self.imp().all_commits.borrow_mut();
+                for commit in commits.iter_mut() {
+                    if !commit.has_changed_files_loaded() {
+                        commit.load_changed_files(&repo);
+                    }
+                }
+            }
+        }
+
         let dialog = FilterTypesDialog::new();
 
         let win = self.clone();
@@ -1334,6 +1359,29 @@ impl TemporalExplorerWindow {
             }
         }
 
+        // ── Eagerly load changed_files for the selected commit ─────────────────
+        //
+        // This makes the diff available immediately for any subsequent call that
+        // inspects changed_files (e.g. FilterTypesDialog, future diff panel).
+        // load_changed_files is idempotent — if the diff was already loaded this
+        // is a single is_empty() check and an immediate return.
+        //
+        // The repo_path clone and Repository::open are done outside of the
+        // all_commits borrow so that the two RefCells are never held
+        // simultaneously.
+        let repo_path = imp.repo_path.borrow().clone();
+        if let Some(path) = repo_path {
+            if let Ok(repo) = git2::Repository::open(&path) {
+                if let Some(commit) = imp.all_commits
+                    .borrow_mut()
+                    .iter_mut()
+                    .find(|c| c.hash.starts_with(short_hash(&hash)))
+                {
+                    commit.load_changed_files(&repo);
+                }
+            }
+        }
+
         self.try_show_merge_conflict_dialog(&hash);
         self.navigate_to_dir(PathBuf::new());
     }
@@ -1521,11 +1569,10 @@ impl TemporalExplorerWindow {
             // imp, history_forward borrow_mut, and current_dir borrow are all dropped here
         };
 
-        if let Some(dir) = dir_to_go {
-            // No RefCell is borrowed at this point.
-            self.imp().history_back.borrow_mut().push(cur_dir);
-            self.navigate_to_dir(dir);
-        }
+        let Some(dir) = dir_to_go else { return };
+        // No RefCell is borrowed at this point.
+        self.imp().history_back.borrow_mut().push(cur_dir);
+        self.navigate_to_dir(dir);
     }
 
     /// Update toolbar button sensitivity from the dir-nav back/forward stacks.
