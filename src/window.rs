@@ -594,25 +594,30 @@ impl TemporalExplorerWindow {
     ///
     /// # Borrow safety
     ///
-    /// `commit_nav_back` is popped with a `borrow_mut()` that is dropped
-    /// (by ending the `if let` block) **before** `current_hash` is read
-    /// and before `jump_to_commit_hash` is called.  This prevents aliasing
-    /// with the `borrow_mut()` on `current_hash` inside that function.
+    /// All RefCell values are extracted into owned locals inside a tightly-scoped
+    /// block.  That block ends — and every borrow guard is dropped — **before**
+    /// `jump_to_commit_hash` is called.  `jump_to_commit_hash` mutably borrows
+    /// `current_hash` and `current_dir` internally; any live `imp` binding at the
+    /// call-site would alias those borrows and cause a fatal RefCell panic inside
+    /// the non-unwinding glib closure marshaller (SIGABRT).
     fn navigate_commit_back(&self) {
-        let imp = self.imp();
+        // ── Extract all needed values; every borrow guard drops at end of block ──
+        let (prev_hash, current) = {
+            let imp = self.imp();
+            let prev  = imp.commit_nav_back.borrow_mut().pop();
+            let cur   = imp.current_hash.borrow().clone();
+            (prev, cur)
+            // imp, commit_nav_back borrow_mut, and current_hash borrow all dropped here
+        };
 
-        // Pop from the back-stack; borrow_mut guard is released at end of block.
-        let prev = imp.commit_nav_back.borrow_mut().pop();
-
-        if let Some(prev_hash) = prev {
-            // Read current_hash into an owned local; borrow guard released immediately.
-            let current = imp.current_hash.borrow().clone();
+        if let Some(prev) = prev_hash {
             if let Some(cur) = current {
-                imp.commit_nav_forward.borrow_mut().push(cur);
+                // No RefCell is borrowed at this point.
+                self.imp().commit_nav_forward.borrow_mut().push(cur);
             }
             // All borrows are released here before jump_to_commit_hash writes
             // to current_hash, current_dir, history_back, and history_forward.
-            self.jump_to_commit_hash(prev_hash);
+            self.jump_to_commit_hash(prev);
         }
     }
 
@@ -620,23 +625,26 @@ impl TemporalExplorerWindow {
     ///
     /// # Borrow safety
     ///
-    /// Mirrors `navigate_commit_back`: forward-stack pop and current_hash
-    /// read are resolved into owned values before `jump_to_commit_hash` is
-    /// called, avoiding any simultaneous borrow_mut aliasing.
+    /// Mirrors `navigate_commit_back`: all RefCell values are extracted into
+    /// owned locals before `jump_to_commit_hash` is called, avoiding any
+    /// simultaneous borrow_mut aliasing.
     fn navigate_commit_forward(&self) {
-        let imp = self.imp();
+        // ── Extract all needed values; every borrow guard drops at end of block ──
+        let (next_hash, current) = {
+            let imp = self.imp();
+            let next = imp.commit_nav_forward.borrow_mut().pop();
+            let cur  = imp.current_hash.borrow().clone();
+            (next, cur)
+            // imp, commit_nav_forward borrow_mut, and current_hash borrow all dropped here
+        };
 
-        // Pop from the forward-stack; borrow_mut guard released at end of block.
-        let next = imp.commit_nav_forward.borrow_mut().pop();
-
-        if let Some(next_hash) = next {
-            // Read current_hash into an owned local; borrow guard released immediately.
-            let current = imp.current_hash.borrow().clone();
+        if let Some(next) = next_hash {
             if let Some(cur) = current {
-                imp.commit_nav_back.borrow_mut().push(cur);
+                // No RefCell is borrowed at this point.
+                self.imp().commit_nav_back.borrow_mut().push(cur);
             }
             // All borrows released before jump_to_commit_hash runs.
-            self.jump_to_commit_hash(next_hash);
+            self.jump_to_commit_hash(next);
         }
     }
 
@@ -981,26 +989,20 @@ impl TemporalExplorerWindow {
     // ── FilterTypesDialog ─────────────────────────────────────────────────────
 
     pub fn show_filter_types_dialog(&self) {
-        // ── Ensure changed_files is populated for every commit ────────────────
-        //
-        // CommitInfo::changed_files starts empty (lazy loading). Before opening
-        // the dialog we need path data for all commits so FilterTypesDialog can
-        // build its extension list and run_search can actually filter by type.
-        //
-        // Strategy: open a single short-lived Repository handle here on the
-        // main thread and call load_changed_files on every commit that has not
-        // been loaded yet. load_changed_files is idempotent — already-loaded
-        // commits are skipped instantly. For typical histories the number of
-        // unloaded commits is zero (user already clicked through them) or small
-        // (only a handful of commits selected in a session), so the cost is
-        // acceptable on the main thread. If the repository is unavailable the
-        // dialog still opens — it simply shows no extension data.
-        if let Some(repo_path) = self.imp().repo_path.borrow().clone() {
-            if let Ok(repo) = git2::Repository::open(&repo_path) {
-                let mut commits = self.imp().all_commits.borrow_mut();
-                for commit in commits.iter_mut() {
-                    if !commit.has_changed_files_loaded() {
-                        commit.load_changed_files(&repo);
+        // Ensure changed_files is populated for every commit before opening the
+        // dialog so that extension filtering works correctly on the first open.
+        // load_changed_files is idempotent — subsequent calls are no-ops.
+        if let Some(ref repo_wrapper) = *self.imp().repository.borrow() {
+            // Open a dedicated handle so we do not hold a borrow on `repository`
+            // across the mutable borrow of `all_commits` below.
+            let repo_path = self.imp().repo_path.borrow().clone();
+            if let Some(path) = repo_path {
+                if let Ok(repo) = git2::Repository::open(&path) {
+                    let _ = repo_wrapper; // keep lint happy; real work uses `repo`
+                    for commit in self.imp().all_commits.borrow_mut().iter_mut() {
+                        if !commit.has_changed_files_loaded() {
+                            commit.load_changed_files(&repo);
+                        }
                     }
                 }
             }
@@ -1359,25 +1361,19 @@ impl TemporalExplorerWindow {
             }
         }
 
-        // ── Eagerly load changed_files for the selected commit ─────────────────
-        //
-        // This makes the diff available immediately for any subsequent call that
-        // inspects changed_files (e.g. FilterTypesDialog, future diff panel).
-        // load_changed_files is idempotent — if the diff was already loaded this
-        // is a single is_empty() check and an immediate return.
-        //
-        // The repo_path clone and Repository::open are done outside of the
-        // all_commits borrow so that the two RefCells are never held
-        // simultaneously.
-        let repo_path = imp.repo_path.borrow().clone();
-        if let Some(path) = repo_path {
-            if let Ok(repo) = git2::Repository::open(&path) {
-                if let Some(commit) = imp.all_commits
-                    .borrow_mut()
-                    .iter_mut()
-                    .find(|c| c.hash.starts_with(short_hash(&hash)))
-                {
-                    commit.load_changed_files(&repo);
+        // Lazily populate changed_files for the selected commit so that
+        // FilterTypesDialog and any future diff-aware UI have the data ready.
+        // load_changed_files is idempotent — this is a no-op if already loaded.
+        {
+            let repo_path = imp.repo_path.borrow().clone();
+            if let Some(path) = repo_path {
+                if let Ok(repo) = git2::Repository::open(&path) {
+                    let mut commits = imp.all_commits.borrow_mut();
+                    if let Some(commit) = commits.iter_mut()
+                        .find(|c| c.hash.starts_with(short_hash(&hash)))
+                    {
+                        commit.load_changed_files(&repo);
+                    }
                 }
             }
         }
@@ -1546,221 +1542,4 @@ impl TemporalExplorerWindow {
             // imp, history_back borrow_mut, and current_dir borrow are all dropped here
         };
 
-        if let Some(dir) = dir_to_go {
-            // No RefCell is borrowed at this point.
-            self.imp().history_forward.borrow_mut().push(cur_dir);
-            self.navigate_to_dir(dir);
-        }
-    }
-
-    /// Navigate forward one step in the directory history of the current snapshot.
-    ///
-    /// # Borrow safety
-    ///
-    /// Mirrors `navigate_back`: all RefCell guards are resolved into owned values
-    /// before `navigate_to_dir` is called.
-    fn navigate_forward(&self) {
-        // ── Extract all needed values; every borrow guard drops at end of block ──
-        let (dir_to_go, cur_dir) = {
-            let imp = self.imp();
-            let dir_to_go = imp.history_forward.borrow_mut().pop();
-            let cur_dir   = imp.current_dir.borrow().clone();
-            (dir_to_go, cur_dir)
-            // imp, history_forward borrow_mut, and current_dir borrow are all dropped here
-        };
-
-        let Some(dir) = dir_to_go else { return };
-        // No RefCell is borrowed at this point.
-        self.imp().history_back.borrow_mut().push(cur_dir);
-        self.navigate_to_dir(dir);
-    }
-
-    /// Update toolbar button sensitivity from the dir-nav back/forward stacks.
-    ///
-    /// # Note
-    /// Commit-nav and dir-nav share the same `HistoryControls` widget in the
-    /// toolbar.  `setup_history_controls` dispatches the signals to the correct
-    /// handler based on context (dir-nav when inside a snapshot sub-directory,
-    /// commit-nav otherwise).  This function updates the button state for the
-    /// dir-nav case; `update_commit_nav_buttons` handles the commit-nav case.
-    fn update_dir_nav_buttons(&self) {
-        let imp = self.imp();
-        let can_back    = !imp.history_back.borrow().is_empty();
-        let can_forward = !imp.history_forward.borrow().is_empty();
-        imp.toolbar.history_controls().set_sensitivity(can_back, can_forward);
-    }
-
-    // ── Location bar ──────────────────────────────────────────────────────────
-
-    pub fn enter_location_mode(&self) {
-        let imp     = self.imp();
-        let current = imp.current_dir.borrow().clone();
-        imp.toolbar.location_entry().set_text(current.to_str().unwrap_or(""));
-        imp.toolbar.set_location_mode(true);
-    }
-
-    fn leave_location_mode(&self) {
-        self.imp().toolbar.set_location_mode(false);
-    }
-
-    fn navigate_to_typed_path(&self, text: &str) {
-        self.leave_location_mode();
-        self.push_dir(PathBuf::from(text.trim()));
-    }
-
-    // ── Search ────────────────────────────────────────────────────────────────
-
-    /// Debounce search input by 200 ms before executing `run_search`.
-    fn on_search_changed(&self, query: String) {
-        let imp = self.imp();
-
-        if let Some(prev) = imp.search_debounce.borrow().as_ref() {
-            prev.store(true, Ordering::Relaxed);
-        }
-
-        let flag = Arc::new(AtomicBool::new(false));
-        *imp.search_debounce.borrow_mut() = Some(flag.clone());
-
-        let win = self.clone();
-        glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
-            if flag.load(Ordering::Relaxed) { return glib::ControlFlow::Break; }
-            win.run_search(query.clone());
-            glib::ControlFlow::Break
-        });
-    }
-
-    fn run_search(&self, query: String) {
-        let imp = self.imp();
-        *imp.last_query.borrow_mut() = query.clone();
-
-        let active_filter = imp.filter_state.borrow().clone();
-
-        let cancel = Arc::new(AtomicBool::new(false));
-        if let Some(prev) = imp.search_cancel.borrow_mut().take() {
-            prev.store(true, Ordering::Relaxed);
-        }
-        *imp.search_cancel.borrow_mut() = Some(cancel);
-
-        let list = imp.commit_list.clone();
-        list.remove_all();
-
-        let all           = imp.all_commits.borrow().clone();
-        let selected_year = imp.selected_year.get();
-
-        if !query.is_empty() {
-            *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
-            imp.timeline_stack.set_visible_child_name("commits");
-            imp.timeline_back_button.set_visible(true);
-            imp.timeline_header_title.set_subtitle("");
-        }
-
-        let filtered: Vec<CommitInfo> = if query.is_empty() && active_filter.is_empty() {
-            if selected_year != 0 {
-                all.into_iter()
-                    .filter(|c| {
-                        glib::DateTime::from_unix_local(c.timestamp)
-                            .map(|d| d.year() == selected_year)
-                            .unwrap_or(false)
-                    })
-                    .collect()
-            } else {
-                all
-            }
-        } else {
-            let q = query.to_lowercase();
-            all.into_iter()
-                .filter(|c| {
-                    let year_ok = selected_year == 0 || {
-                        glib::DateTime::from_unix_local(c.timestamp)
-                            .map(|d| d.year() == selected_year)
-                            .unwrap_or(false)
-                    };
-                    if !year_ok { return false; }
-                    if !active_filter.matches(c) { return false; }
-                    if q.is_empty() { return true; }
-
-                    let text_match =
-                        c.summary.to_lowercase().contains(&q)
-                        || c.hash.to_lowercase().contains(&q)
-                        || short_hash(&c.hash).starts_with(&q)
-                        || c.author.to_lowercase().contains(&q);
-
-                    text_match || matches_calendar(c.timestamp, &q)
-                })
-                .collect()
-        };
-
-        commit_controller::populate_commit_list(&list, &filtered);
-    }
-
-    // ── Filter popover wiring ─────────────────────────────────────────────────
-    //
-    // filter_button is a #[template_child] from window.blp.
-    // This function creates SearchFilterPopover, parents it to that button,
-    // and wires popup/popdown/filters-changed.
-
-    fn setup_filter_popover(&self) {
-        let popover = SearchFilterPopover::new();
-        let btn = self.imp().filter_button.get();
-
-        popover.set_parent(&btn);
-
-        {
-            let pop = popover.clone();
-            btn.connect_toggled(move |b| {
-                if b.is_active() { pop.popup(); } else { pop.popdown(); }
-            });
-        }
-
-        {
-            let b = btn.clone();
-            popover.connect_closed(move |_| { b.set_active(false); });
-        }
-
-        {
-            let win = self.clone();
-            popover.connect_local("filters-changed", false, move |_| {
-                let pop = win.imp().filter_popover.borrow();
-                if let Some(ref p) = *pop {
-                    *win.imp().filter_state.borrow_mut() = p.current_filter();
-                }
-                drop(pop);
-                let q = win.imp().last_query.borrow().clone();
-                win.run_search(q);
-                None
-            });
-        }
-
-        *self.imp().filter_popover.borrow_mut() = Some(popover);
-    }
-
-    // ── Toast helper ──────────────────────────────────────────────────────────
-
-    fn show_toast(&self, message: &str) {
-        let toast = adw::Toast::new(message);
-        if let Some(overlay) = self.imp().content_toolbar_view
-            .parent()
-            .and_then(|w| w.downcast::<adw::ToastOverlay>().ok())
-        {
-            overlay.add_toast(toast);
-        }
-    }
-
-    // ── Error display ─────────────────────────────────────────────────────────
-
-    fn show_error(&self, message: &str) {
-        eprintln!("[TemporalExplorer] {message}");
-        let dialog = adw::AlertDialog::new(Some(&gettext("Error")), Some(message));
-        AlertDialogExt::add_response(&dialog, "ok", &gettext("OK"));
-        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
-    }
-
-    // ── Timestamp formatter ───────────────────────────────────────────────────
-
-    fn format_timestamp(ts: i64) -> String {
-        glib::DateTime::from_unix_local(ts)
-            .and_then(|d| d.format("%Y-%m-%d %H:%M"))
-            .map(|s| s.to_string())
-            .unwrap_or_else(|_| ts.to_string())
-    }
-}
+        if let Some(dir) = dir_to
