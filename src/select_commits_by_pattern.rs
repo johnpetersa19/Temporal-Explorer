@@ -290,10 +290,7 @@ impl SelectCommitsByPattern {
         let mode = MatchMode::from_index(imp.match_mode_row.selected());
         let commits = imp.commits.borrow();
 
-        let count = commits
-            .iter()
-            .filter(|c| commit_matches_pattern(c, &pattern, mode, icase))
-            .count();
+        let count = count_matching_commits(&commits, &pattern, mode, icase);
 
         *imp.match_count.borrow_mut() = count as i32;
 

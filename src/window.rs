@@ -1594,10 +1594,18 @@ impl TemporalExplorerWindow {
 
         {
             let commits = imp.all_commits.borrow();
-            if let Some(commit) = commits
-                .iter()
-                .find(|c| c.hash.starts_with(short_hash(&hash)))
-            {
+            let index = imp.commit_index.borrow();
+
+            let commit = index
+                .get(&hash)
+                .and_then(|idx| commits.get(*idx))
+                .or_else(|| {
+                    commits
+                        .iter()
+                        .find(|c| c.hash.starts_with(short_hash(&hash)))
+                });
+
+            if let Some(commit) = commit {
                 imp.commit_hash_label.set_label(display_hash(&commit.hash));
                 imp.commit_message_label.set_label(&commit.summary);
                 imp.commit_date_label
