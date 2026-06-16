@@ -510,17 +510,26 @@ impl TemporalExplorerWindow {
     //   • At the root of a snapshot (current_dir is empty) or when no
     //     commit is selected the signals drive commit-nav.
     //
-    // This keeps navigate_back and navigate_forward reachable from
-    // live code (silencing the dead_code warning) without changing the
-    // existing commit-nav behaviour.
+    // BORROW SAFETY: each borrow() guard is extracted into an owned local
+    // (bool / clone) and dropped before any method that may re-borrow the
+    // same RefCell is called.  This prevents "RefCell already mutably
+    // borrowed" panics when navigate_commit_back / navigate_commit_forward
+    // write to current_hash or current_dir inside jump_to_commit_hash.
 
     fn setup_history_controls(&self) {
         let win = self.clone();
         self.imp().toolbar.history_controls().connect_local("navigate-back", false, move |_| {
             let imp = win.imp();
-            let in_snapshot = imp.current_hash.borrow().is_some()
-                && !imp.current_dir.borrow().as_os_str().is_empty();
-            if in_snapshot {
+
+            // ── Extract both borrow values into owned locals before any call ──
+            // Holding live borrow() guards across navigate_back() /
+            // navigate_commit_back() would alias with the borrow_mut() calls
+            // inside jump_to_commit_hash(), causing a panic at runtime.
+            let has_hash = imp.current_hash.borrow().is_some();
+            let in_subdir = !imp.current_dir.borrow().as_os_str().is_empty();
+            // Both guards are dropped here — no RefCell is borrowed below.
+
+            if has_hash && in_subdir {
                 win.navigate_back();
             } else {
                 win.navigate_commit_back();
@@ -531,9 +540,14 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         self.imp().toolbar.history_controls().connect_local("navigate-forward", false, move |_| {
             let imp = win.imp();
-            let in_snapshot = imp.current_hash.borrow().is_some()
-                && !imp.current_dir.borrow().as_os_str().is_empty();
-            if in_snapshot {
+
+            // Same pattern as "navigate-back": snapshot the condition into
+            // owned bools so all borrows are released before dispatch.
+            let has_hash = imp.current_hash.borrow().is_some();
+            let in_subdir = !imp.current_dir.borrow().as_os_str().is_empty();
+            // Both guards are dropped here.
+
+            if has_hash && in_subdir {
                 win.navigate_forward();
             } else {
                 win.navigate_commit_forward();
@@ -543,10 +557,20 @@ impl TemporalExplorerWindow {
     }
 
     /// Push `hash` onto the commit navigation back-stack and clear the forward stack.
+    ///
+    /// # Borrow safety
+    ///
+    /// `current_hash` is read into an owned `Option<String>` before
+    /// `commit_nav_forward` is mutably borrowed, so the two RefCells are
+    /// never borrowed simultaneously.
     fn push_commit_nav(&self, hash: &str) {
         let imp = self.imp();
+
+        // Read current_hash into an owned value; guard is dropped immediately.
+        let prev_hash = imp.current_hash.borrow().clone();
+
         imp.commit_nav_forward.borrow_mut().clear();
-        if let Some(prev) = imp.current_hash.borrow().clone() {
+        if let Some(prev) = prev_hash {
             if prev != hash {
                 imp.commit_nav_back.borrow_mut().push(prev);
             }
@@ -554,23 +578,53 @@ impl TemporalExplorerWindow {
         self.update_commit_nav_buttons();
     }
 
+    /// Navigate back one step in the commit history.
+    ///
+    /// # Borrow safety
+    ///
+    /// `commit_nav_back` is popped with a `borrow_mut()` that is dropped
+    /// (by ending the `if let` block) **before** `current_hash` is read
+    /// and before `jump_to_commit_hash` is called.  This prevents aliasing
+    /// with the `borrow_mut()` on `current_hash` inside that function.
     fn navigate_commit_back(&self) {
         let imp = self.imp();
-        if let Some(prev) = imp.commit_nav_back.borrow_mut().pop() {
-            if let Some(current) = imp.current_hash.borrow().clone() {
-                imp.commit_nav_forward.borrow_mut().push(current);
+
+        // Pop from the back-stack; borrow_mut guard is released at end of block.
+        let prev = imp.commit_nav_back.borrow_mut().pop();
+
+        if let Some(prev_hash) = prev {
+            // Read current_hash into an owned local; borrow guard released immediately.
+            let current = imp.current_hash.borrow().clone();
+            if let Some(cur) = current {
+                imp.commit_nav_forward.borrow_mut().push(cur);
             }
-            self.jump_to_commit_hash(prev);
+            // All borrows are released here before jump_to_commit_hash writes
+            // to current_hash, current_dir, history_back, and history_forward.
+            self.jump_to_commit_hash(prev_hash);
         }
     }
 
+    /// Navigate forward one step in the commit history.
+    ///
+    /// # Borrow safety
+    ///
+    /// Mirrors `navigate_commit_back`: forward-stack pop and current_hash
+    /// read are resolved into owned values before `jump_to_commit_hash` is
+    /// called, avoiding any simultaneous borrow_mut aliasing.
     fn navigate_commit_forward(&self) {
         let imp = self.imp();
-        if let Some(next) = imp.commit_nav_forward.borrow_mut().pop() {
-            if let Some(current) = imp.current_hash.borrow().clone() {
-                imp.commit_nav_back.borrow_mut().push(current);
+
+        // Pop from the forward-stack; borrow_mut guard released at end of block.
+        let next = imp.commit_nav_forward.borrow_mut().pop();
+
+        if let Some(next_hash) = next {
+            // Read current_hash into an owned local; borrow guard released immediately.
+            let current = imp.current_hash.borrow().clone();
+            if let Some(cur) = current {
+                imp.commit_nav_back.borrow_mut().push(cur);
             }
-            self.jump_to_commit_hash(next);
+            // All borrows released before jump_to_commit_hash runs.
+            self.jump_to_commit_hash(next_hash);
         }
     }
 
