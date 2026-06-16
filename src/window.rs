@@ -58,7 +58,7 @@ use glib::object::ObjectExt;
 use gtk::prelude::*;
 use gtk::{gio, glib};
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -189,6 +189,8 @@ mod imp {
         pub all_commits: RefCell<Vec<CommitInfo>>,
         pub commit_index: RefCell<HashMap<String, usize>>,
         pub year_counts: RefCell<Vec<(i32, usize)>>,
+        pub branch_commit_index: RefCell<HashMap<String, HashSet<String>>>,
+        pub seen_authors: RefCell<HashSet<String>>,
         pub repo_path: RefCell<Option<PathBuf>>,
         pub repository: RefCell<Option<DebugRepository>>,
         pub last_query: RefCell<String>,
@@ -279,6 +281,50 @@ fn bump_year_count(year_counts: &mut Vec<(i32, usize)>, year: i32) {
         year_counts.push((year, 1));
         year_counts.sort_unstable_by(|a, b| b.0.cmp(&a.0));
     }
+}
+
+fn collect_branch_commit_index(
+    repo: &git2::Repository,
+) -> (Vec<String>, HashMap<String, HashSet<String>>) {
+    let mut branch_names = Vec::new();
+    let mut index: HashMap<String, HashSet<String>> = HashMap::new();
+
+    let Ok(branches) = repo.branches(Some(git2::BranchType::Local)) else {
+        return (branch_names, index);
+    };
+
+    for branch_result in branches {
+        let Ok((branch, _)) = branch_result else {
+            continue;
+        };
+
+        let Ok(Some(name)) = branch.name() else {
+            continue;
+        };
+
+        let Some(target) = branch.get().target() else {
+            continue;
+        };
+
+        let name = name.to_string();
+        let mut hashes = HashSet::new();
+
+        if let Ok(mut walk) = repo.revwalk() {
+            if walk.push(target).is_ok() {
+                for oid in walk.flatten() {
+                    hashes.insert(oid.to_string());
+                }
+            }
+        }
+
+        branch_names.push(name.clone());
+        index.insert(name, hashes);
+    }
+
+    branch_names.sort();
+    branch_names.dedup();
+
+    (branch_names, index)
 }
 
 // ── Calendar / date matching ───────────────────────────────────────────────────
@@ -1185,9 +1231,8 @@ impl TemporalExplorerWindow {
             let q = win.imp().last_query.borrow().clone();
             win.run_search(q);
 
-            // Propagate into SearchFilterPopover when set_file_ext is exposed.
             if let Some(ref pop) = *win.imp().filter_popover.borrow() {
-                let _ = pop; // placeholder — call pop.set_file_ext(ext) when exposed
+                pop.set_file_ext_filter(ext);
             }
         });
 
@@ -1255,22 +1300,13 @@ impl TemporalExplorerWindow {
                 imp.window_title.set_subtitle(path.to_str().unwrap_or(""));
                 imp.toolbar.new_branch_button().set_sensitive(true);
 
-                // Populate branch chips in the filter popover.
+                // Populate branch chips and build a branch -> commit-hash index.
+                let (branches, branch_index) =
+                    collect_branch_commit_index(&imp.repository.borrow().as_ref().unwrap().0);
+                *imp.branch_commit_index.borrow_mut() = branch_index;
+
                 if let Some(ref pop) = *imp.filter_popover.borrow() {
-                    if let Some(ref repo_wrapper) = *imp.repository.borrow() {
-                        let branches: Vec<String> = repo_wrapper
-                            .branches(Some(git2::BranchType::Local))
-                            .map(|iter| {
-                                iter.filter_map(|b| {
-                                    b.ok().and_then(|(b, _)| {
-                                        b.name().ok().flatten().map(|n| n.to_string())
-                                    })
-                                })
-                                .collect()
-                            })
-                            .unwrap_or_default();
-                        pop.populate_branch_chips(&branches);
-                    }
+                    pop.populate_branch_chips(&branches);
                 }
 
                 self.load_timeline(cancel);
@@ -1291,22 +1327,26 @@ impl TemporalExplorerWindow {
         let pop_borrow = imp.filter_popover.borrow();
         let Some(ref pop) = *pop_borrow else { return };
 
-        // Build the set of authors already known to avoid duplicate chips.
-        let mut seen: std::collections::HashSet<String> = imp
-            .all_commits
-            .borrow()
-            .iter()
-            .map(|c| c.author.clone())
-            .collect();
+        let mut changed = false;
+        let mut authors = Vec::new();
 
-        let new_authors: Vec<String> = page
-            .iter()
-            .map(|c| c.author.clone())
-            .filter(|a| seen.insert(a.clone()))
-            .collect();
+        {
+            let mut seen = imp.seen_authors.borrow_mut();
 
-        if !new_authors.is_empty() {
-            pop.populate_author_chips(&new_authors);
+            for commit in page {
+                if seen.insert(commit.author.clone()) {
+                    changed = true;
+                }
+            }
+
+            if changed {
+                authors = seen.iter().cloned().collect();
+            }
+        }
+
+        if changed {
+            authors.sort();
+            pop.populate_author_chips(&authors);
         }
     }
 
@@ -1344,6 +1384,7 @@ impl TemporalExplorerWindow {
         self.imp().all_commits.borrow_mut().clear();
         self.imp().commit_index.borrow_mut().clear();
         self.imp().year_counts.borrow_mut().clear();
+        self.imp().seen_authors.borrow_mut().clear();
 
         // Show the empty state *before* the worker starts so the UI never
         // displays stale content from a previous repository during loading.
@@ -1503,18 +1544,9 @@ impl TemporalExplorerWindow {
         let year = imp.selected_year.get();
         imp.commit_list.remove_all();
 
-        // commits_for_month returns Vec<&CommitInfo> (borrows from all_commits).
-        // populate_commit_list expects &[CommitInfo] (owned slice).
-        // We collect the references into an owned Vec<CommitInfo> via .cloned()
-        // so the borrow on all_commits is released before the widget rebuild.
-        let filtered: Vec<CommitInfo> = {
-            let commits = imp.all_commits.borrow();
-            timeline_filter::commits_for_month(&commits, year, month)
-                .into_iter()
-                .cloned()
-                .collect()
-        };
-        commit_controller::populate_commit_list(&imp.commit_list, &filtered);
+        let commits = imp.all_commits.borrow();
+        let filtered = timeline_filter::commits_for_month(&commits, year, month);
+        commit_controller::populate_commit_list_refs(&imp.commit_list, &filtered);
 
         *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
         imp.timeline_stack.set_visible_child_name("commits");
@@ -1672,47 +1704,47 @@ impl TemporalExplorerWindow {
         });
     }
 
-    fn render_dir(&self, mut nodes: Vec<TreeNode>) {
+    fn render_dir(&self, nodes: Vec<TreeNode>) {
         let imp = self.imp();
         let mode = *imp.view_mode.borrow();
         let sort_mode = *imp.sort_mode.borrow();
         let hash = imp.current_hash.borrow().clone().unwrap_or_default();
 
-        let get_node_name = |node: &TreeNode| -> String {
-            node.path()
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("")
-                .to_lowercase()
-        };
+        let mut decorated: Vec<(TreeNode, String, String)> = nodes
+            .into_iter()
+            .map(|node| {
+                let name = node
+                    .path()
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+
+                let ext = std::path::Path::new(&name)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                (node, name, ext)
+            })
+            .collect();
 
         match sort_mode {
             FileSortMode::Name | FileSortMode::Status => {
-                nodes.sort_by(|a, b| {
-                    b.is_dir()
-                        .cmp(&a.is_dir())
-                        .then(get_node_name(a).cmp(&get_node_name(b)))
-                });
+                decorated.sort_by(|a, b| b.0.is_dir().cmp(&a.0.is_dir()).then(a.1.cmp(&b.1)));
             }
             FileSortMode::Extension => {
-                nodes.sort_by(|a, b| {
-                    let name_a = get_node_name(a);
-                    let name_b = get_node_name(b);
-                    let ext_a = std::path::Path::new(&name_a)
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .unwrap_or("");
-                    let ext_b = std::path::Path::new(&name_b)
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .unwrap_or("");
-                    b.is_dir()
-                        .cmp(&a.is_dir())
-                        .then(ext_a.cmp(ext_b))
-                        .then(name_a.cmp(&name_b))
+                decorated.sort_by(|a, b| {
+                    b.0.is_dir()
+                        .cmp(&a.0.is_dir())
+                        .then(a.2.cmp(&b.2))
+                        .then(a.1.cmp(&b.1))
                 });
             }
         }
+
+        let nodes: Vec<TreeNode> = decorated.into_iter().map(|(node, _, _)| node).collect();
 
         let win1 = self.clone();
         let win2 = self.clone();
@@ -1760,11 +1792,33 @@ impl TemporalExplorerWindow {
             Some(p) => p,
             None => return,
         };
+        let file_path = path.to_path_buf();
 
-        match git2::Repository::open(&repo_path) {
-            Ok(repo) => file_preview::show_file_preview(self, &repo, &hash, path),
-            Err(e) => self.show_error(&format!("{}: {e}", gettext("Cannot open repository"))),
-        }
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Result<(String, String), String>>(1);
+        let worker_path = file_path.clone();
+        let worker_hash = hash.clone();
+
+        std::thread::spawn(move || {
+            let result = git2::Repository::open(&repo_path)
+                .map_err(|e| e.to_string())
+                .map(|repo| file_preview::read_file_preview(&repo, &worker_hash, &worker_path));
+
+            let _ = tx.send(result);
+        });
+
+        let win = self.clone();
+        glib::idle_add_local(move || match rx.try_recv() {
+            Ok(Ok((title, body))) => {
+                file_preview::show_file_preview_text(&win, &title, &body, &hash, &file_path);
+                glib::ControlFlow::Break
+            }
+            Ok(Err(e)) => {
+                win.show_error(&format!("{}: {e}", gettext("Cannot open repository")));
+                glib::ControlFlow::Break
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => glib::ControlFlow::Break,
+        });
     }
 
     // ── Navigation helpers ────────────────────────────────────────────────────
@@ -1955,6 +2009,10 @@ impl TemporalExplorerWindow {
 
         let all_commits = self.imp().all_commits.borrow().clone();
         let filter = self.imp().filter_state.borrow().clone();
+        let branch_hashes = filter
+            .branch
+            .as_ref()
+            .and_then(|branch| self.imp().branch_commit_index.borrow().get(branch).cloned());
         let q = query.to_lowercase();
 
         let (tx, rx) = std::sync::mpsc::sync_channel::<Option<Vec<CommitInfo>>>(1);
@@ -1977,10 +2035,10 @@ impl TemporalExplorerWindow {
                 }
 
                 // ── Branch filter ─────────────────────────────────────────
-                if let Some(ref _branch) = filter.branch {
-                    // Branch filtering requires per-commit branch lookup.
-                    // Kept as a no-op here; implemented separately from the
-                    // cancellation/background search refactor.
+                if let Some(ref hashes) = branch_hashes {
+                    if !hashes.contains(&commit.hash) {
+                        continue;
+                    }
                 }
 
                 // ── Date range filter ─────────────────────────────────────

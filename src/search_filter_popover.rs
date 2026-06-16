@@ -34,10 +34,10 @@
 //! struct.  `window.rs` listens to it and re-runs `run_search()` with the
 //! active filter applied on top of the text query.
 
+use adw::prelude::*;
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use adw::prelude::*;
 use std::cell::RefCell;
 use std::sync::OnceLock;
 
@@ -51,7 +51,7 @@ use crate::git_engine::CommitInfo;
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FilterDateRange {
     pub from: Option<i64>,
-    pub to:   Option<i64>,
+    pub to: Option<i64>,
 }
 
 impl FilterDateRange {
@@ -62,8 +62,8 @@ impl FilterDateRange {
 
     /// Returns `true` when `ts` falls inside the range.
     pub fn contains(&self, ts: i64) -> bool {
-        let after  = self.from.map_or(true, |f| ts >= f);
-        let before = self.to.map_or(true,   |t| ts <  t);
+        let after = self.from.map_or(true, |f| ts >= f);
+        let before = self.to.map_or(true, |t| ts < t);
         after && before
     }
 
@@ -73,28 +73,49 @@ impl FilterDateRange {
         let now = glib::DateTime::now_local().unwrap();
         let start = glib::DateTime::new(
             &glib::TimeZone::local(),
-            now.year(), now.month(), now.day_of_month(),
-            0, 0, 0.0,
-        ).unwrap();
+            now.year(),
+            now.month(),
+            now.day_of_month(),
+            0,
+            0,
+            0.0,
+        )
+        .unwrap();
         let end = start.add_days(1).unwrap();
-        Self { from: Some(start.to_unix()), to: Some(end.to_unix()) }
+        Self {
+            from: Some(start.to_unix()),
+            to: Some(end.to_unix()),
+        }
     }
 
     pub fn yesterday() -> Self {
         let now = glib::DateTime::now_local().unwrap();
         let start = glib::DateTime::new(
             &glib::TimeZone::local(),
-            now.year(), now.month(), now.day_of_month(),
-            0, 0, 0.0,
-        ).unwrap().add_days(-1).unwrap();
+            now.year(),
+            now.month(),
+            now.day_of_month(),
+            0,
+            0,
+            0.0,
+        )
+        .unwrap()
+        .add_days(-1)
+        .unwrap();
         let end = start.add_days(1).unwrap();
-        Self { from: Some(start.to_unix()), to: Some(end.to_unix()) }
+        Self {
+            from: Some(start.to_unix()),
+            to: Some(end.to_unix()),
+        }
     }
 
     pub fn last_n_days(n: i32) -> Self {
         let now = glib::DateTime::now_local().unwrap();
         let start = now.add_days(-n).unwrap();
-        Self { from: Some(start.to_unix()), to: None }
+        Self {
+            from: Some(start.to_unix()),
+            to: None,
+        }
     }
 
     /// Build from raw Unix bounds as returned by `DateRangeDialog`.
@@ -102,7 +123,7 @@ impl FilterDateRange {
     pub fn from_unix_bounds(from: i64, to: i64) -> Self {
         Self {
             from: if from == i64::MIN { None } else { Some(from) },
-            to:   if to   == i64::MAX { None } else { Some(to)   },
+            to: if to == i64::MAX { None } else { Some(to) },
         }
     }
 
@@ -110,15 +131,22 @@ impl FilterDateRange {
     pub fn chip_label(&self) -> String {
         let fmt = |ts: i64| -> String {
             glib::DateTime::from_unix_local(ts)
-                .map(|dt| format!("{:04}-{:02}-{:02}", dt.year(), dt.month(), dt.day_of_month()))
+                .map(|dt| {
+                    format!(
+                        "{:04}-{:02}-{:02}",
+                        dt.year(),
+                        dt.month(),
+                        dt.day_of_month()
+                    )
+                })
                 .unwrap_or_else(|_| "?".into())
         };
 
         match (&self.from, &self.to) {
             (Some(f), Some(t)) => format!("{} → {}", fmt(*f), fmt(*t)),
-            (Some(f), None)    => format!("From {}", fmt(*f)),
-            (None,    Some(t)) => format!("Until {}", fmt(*t)),
-            (None,    None)    => String::new(),
+            (Some(f), None) => format!("From {}", fmt(*f)),
+            (None, Some(t)) => format!("Until {}", fmt(*t)),
+            (None, None) => String::new(),
         }
     }
 }
@@ -127,8 +155,8 @@ impl FilterDateRange {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FileTypeFilter {
-    pub rust:      bool,
-    pub toml:      bool,
+    pub rust: bool,
+    pub toml: bool,
     pub blueprint: bool,
     pub other_ext: Option<String>,
 }
@@ -145,10 +173,10 @@ impl FileTypeFilter {
 /// `window.rs` applies this on top of the free-text query in `run_search()`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FilterState {
-    pub date:   FilterDateRange,
+    pub date: FilterDateRange,
     pub author: Option<String>,
     pub branch: Option<String>,
-    pub files:  FileTypeFilter,
+    pub files: FileTypeFilter,
 }
 
 impl FilterState {
@@ -161,7 +189,9 @@ impl FilterState {
     }
 
     /// Alias used by `window.rs`.
-    pub fn is_empty(&self) -> bool { !self.is_active() }
+    pub fn is_empty(&self) -> bool {
+        !self.is_active()
+    }
 
     /// Apply this filter to a slice of commits, returning only matching ones.
     pub fn apply<'a>(&self, commits: &'a [CommitInfo]) -> Vec<&'a CommitInfo> {
@@ -190,10 +220,13 @@ impl FilterState {
                     .and_then(|e| e.to_str())
                     .unwrap_or("")
                     .to_lowercase();
-                (self.files.rust      && ext == "rs")
-                    || (self.files.toml      && ext == "toml")
+                (self.files.rust && ext == "rs")
+                    || (self.files.toml && ext == "toml")
                     || (self.files.blueprint && ext == "blp")
-                    || self.files.other_ext.as_deref()
+                    || self
+                        .files
+                        .other_ext
+                        .as_deref()
                         .map_or(false, |oe| ext == oe.to_lowercase())
             });
             if !has_match {
@@ -217,34 +250,54 @@ mod imp {
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/search-filter-popover.ui")]
     pub struct SearchFilterPopover {
         // ── Date section ──
-        #[template_child] pub clear_date_button:   TemplateChild<gtk::Button>,
-        #[template_child] pub date_chips_box:       TemplateChild<adw::WrapBox>,
-        #[template_child] pub today_button:         TemplateChild<gtk::Button>,
-        #[template_child] pub yesterday_button:     TemplateChild<gtk::Button>,
-        #[template_child] pub last_week_button:     TemplateChild<gtk::Button>,
-        #[template_child] pub last_month_button:    TemplateChild<gtk::Button>,
-        #[template_child] pub last_year_button:     TemplateChild<gtk::Button>,
-        #[template_child] pub custom_range_chip:    TemplateChild<gtk::Button>,
-        #[template_child] pub custom_range_button:  TemplateChild<gtk::Button>,
+        #[template_child]
+        pub clear_date_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub date_chips_box: TemplateChild<adw::WrapBox>,
+        #[template_child]
+        pub today_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub yesterday_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub last_week_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub last_month_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub last_year_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub custom_range_chip: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub custom_range_button: TemplateChild<gtk::Button>,
 
         // ── Author section ──
-        #[template_child] pub clear_author_button:  TemplateChild<gtk::Button>,
-        #[template_child] pub author_entry:         TemplateChild<gtk::SearchEntry>,
-        #[template_child] pub author_chips_box:     TemplateChild<adw::WrapBox>,
+        #[template_child]
+        pub clear_author_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub author_entry: TemplateChild<gtk::SearchEntry>,
+        #[template_child]
+        pub author_chips_box: TemplateChild<adw::WrapBox>,
 
         // ── Branch section ──
-        #[template_child] pub clear_branch_button:  TemplateChild<gtk::Button>,
-        #[template_child] pub branch_chips_box:     TemplateChild<adw::WrapBox>,
+        #[template_child]
+        pub clear_branch_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub branch_chips_box: TemplateChild<adw::WrapBox>,
 
         // ── File types section ──
-        #[template_child] pub file_type_rust_button:      TemplateChild<gtk::Button>,
-        #[template_child] pub file_type_toml_button:      TemplateChild<gtk::Button>,
-        #[template_child] pub file_type_blueprint_button: TemplateChild<gtk::Button>,
-        #[template_child] pub file_type_other_button:     TemplateChild<gtk::Button>,
-        #[template_child] pub file_type_chips_box:        TemplateChild<adw::WrapBox>,
+        #[template_child]
+        pub file_type_rust_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub file_type_toml_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub file_type_blueprint_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub file_type_other_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub file_type_chips_box: TemplateChild<adw::WrapBox>,
 
         // ── Footer ──
-        #[template_child] pub reset_all_button:  TemplateChild<gtk::Button>,
+        #[template_child]
+        pub reset_all_button: TemplateChild<gtk::Button>,
 
         // ── Internal state ──
         pub filter_state: RefCell<FilterState>,
@@ -276,16 +329,11 @@ mod imp {
 
         fn signals() -> &'static [glib::subclass::Signal] {
             static SIGNALS: OnceLock<Vec<glib::subclass::Signal>> = OnceLock::new();
-            SIGNALS.get_or_init(|| {
-                vec![
-                    glib::subclass::Signal::builder("filters-changed")
-                        .build(),
-                ]
-            })
+            SIGNALS.get_or_init(|| vec![glib::subclass::Signal::builder("filters-changed").build()])
         }
     }
 
-    impl WidgetImpl  for SearchFilterPopover {}
+    impl WidgetImpl for SearchFilterPopover {}
     impl PopoverImpl for SearchFilterPopover {}
 
     #[gtk::template_callbacks]
@@ -302,7 +350,9 @@ glib::wrapper! {
 }
 
 impl Default for SearchFilterPopover {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SearchFilterPopover {
@@ -405,6 +455,14 @@ impl SearchFilterPopover {
                     btn.remove_css_class("suggested-action");
                     imp.clear_branch_button.set_visible(false);
                 } else {
+                    let mut sibling = imp.branch_chips_box.first_child();
+                    while let Some(w) = sibling {
+                        if let Some(b) = w.downcast_ref::<gtk::Button>() {
+                            b.remove_css_class("suggested-action");
+                        }
+                        sibling = w.next_sibling();
+                    }
+
                     state.branch = Some(branch_clone.clone());
                     btn.add_css_class("suggested-action");
                     imp.clear_branch_button.set_visible(true);
@@ -417,17 +475,56 @@ impl SearchFilterPopover {
         }
     }
 
+    /// Synchronize file-extension selection coming from FilterTypesDialog.
+    pub fn set_file_ext_filter(&self, ext: &str) {
+        let imp = self.imp();
+        let normalized = ext.trim().trim_start_matches('.').to_lowercase();
+
+        for btn in [
+            imp.file_type_rust_button.get(),
+            imp.file_type_toml_button.get(),
+            imp.file_type_blueprint_button.get(),
+            imp.file_type_other_button.get(),
+        ] {
+            btn.remove_css_class("suggested-action");
+        }
+
+        let mut state = imp.filter_state.borrow_mut();
+        state.files = FileTypeFilter::default();
+
+        match normalized.as_str() {
+            "" => {}
+            "rs" => {
+                state.files.rust = true;
+                imp.file_type_rust_button.add_css_class("suggested-action");
+            }
+            "toml" => {
+                state.files.toml = true;
+                imp.file_type_toml_button.add_css_class("suggested-action");
+            }
+            "blp" => {
+                state.files.blueprint = true;
+                imp.file_type_blueprint_button
+                    .add_css_class("suggested-action");
+            }
+            other => {
+                state.files.other_ext = Some(other.to_string());
+                imp.file_type_other_button.add_css_class("suggested-action");
+            }
+        }
+    }
+
     // ── Internal setup ─────────────────────────────────────────────────────
 
     fn setup_callbacks(&self) {
         let imp = self.imp();
 
         // ── Date preset chips ──────────────────────────────────────────────
-        self.connect_date_chip(&imp.today_button,      || FilterDateRange::today());
-        self.connect_date_chip(&imp.yesterday_button,  || FilterDateRange::yesterday());
-        self.connect_date_chip(&imp.last_week_button,  || FilterDateRange::last_n_days(7));
+        self.connect_date_chip(&imp.today_button, || FilterDateRange::today());
+        self.connect_date_chip(&imp.yesterday_button, || FilterDateRange::yesterday());
+        self.connect_date_chip(&imp.last_week_button, || FilterDateRange::last_n_days(7));
         self.connect_date_chip(&imp.last_month_button, || FilterDateRange::last_n_days(30));
-        self.connect_date_chip(&imp.last_year_button,  || FilterDateRange::last_n_days(365));
+        self.connect_date_chip(&imp.last_year_button, || FilterDateRange::last_n_days(365));
 
         // ── Custom range button ────────────────────────────────────────────
         {
@@ -495,8 +592,8 @@ impl SearchFilterPopover {
         }
 
         // ── File type chips ───────────────────────────────────────────────
-        self.connect_file_type_chip(&imp.file_type_rust_button,      |f| &mut f.rust);
-        self.connect_file_type_chip(&imp.file_type_toml_button,      |f| &mut f.toml);
+        self.connect_file_type_chip(&imp.file_type_rust_button, |f| &mut f.rust);
+        self.connect_file_type_chip(&imp.file_type_toml_button, |f| &mut f.toml);
         self.connect_file_type_chip(&imp.file_type_blueprint_button, |f| &mut f.blueprint);
 
         // ── Reset all ─────────────────────────────────────────────────────

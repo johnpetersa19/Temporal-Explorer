@@ -27,25 +27,24 @@
 //! Binary files are detected heuristically (null-byte scan) and an
 //! informative message is shown instead of garbled text.
 
-use gettextrs::gettext;
-use gtk::prelude::*;
-use gtk::glib;
-use std::path::Path;
 use crate::git_engine::SnapshotMaterializer;
+use gettextrs::gettext;
+use gtk::glib;
+use gtk::prelude::*;
+use std::path::Path;
 
 /// Maximum number of bytes read for preview (64 KiB).
 const MAX_PREVIEW_BYTES: usize = 64 * 1024;
 
-/// Shows a modal dialog previewing the content of `file_path` at `revision`.
-pub fn show_file_preview(
-    parent: &impl IsA<gtk::Window>,
+/// Reads and formats preview data without touching GTK widgets.
+pub fn read_file_preview(
     repo: &git2::Repository,
     revision: &str,
     file_path: &Path,
-) {
+) -> (String, String) {
     let materializer = SnapshotMaterializer::new(repo);
 
-    let (title, body_text) = match materializer.read_file(revision, file_path) {
+    match materializer.read_file(revision, file_path) {
         Err(e) => (
             file_path
                 .file_name()
@@ -77,9 +76,29 @@ pub fn show_file_preview(
                 (name, text)
             }
         }
-    };
+    }
+}
 
-    build_preview_dialog(parent, &title, &body_text, revision, file_path);
+/// Shows a modal dialog previewing already-read file content.
+pub fn show_file_preview_text(
+    parent: &impl IsA<gtk::Window>,
+    title: &str,
+    body_text: &str,
+    revision: &str,
+    file_path: &Path,
+) {
+    build_preview_dialog(parent, title, body_text, revision, file_path);
+}
+
+/// Shows a modal dialog previewing the content of `file_path` at `revision`.
+pub fn show_file_preview(
+    parent: &impl IsA<gtk::Window>,
+    repo: &git2::Repository,
+    revision: &str,
+    file_path: &Path,
+) {
+    let (title, body_text) = read_file_preview(repo, revision, file_path);
+    show_file_preview_text(parent, &title, &body_text, revision, file_path);
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────
@@ -152,9 +171,7 @@ fn build_preview_dialog(
 
     // 2. Assemble ToolbarView — content set via builder so `scrolled` has no
     //    parent yet when passed in, avoiding the gtk_widget_get_parent assertion.
-    let toolbar_view = adw::ToolbarView::builder()
-        .content(&scrolled)
-        .build();
+    let toolbar_view = adw::ToolbarView::builder().content(&scrolled).build();
     toolbar_view.add_top_bar(&header);
     toolbar_view.add_bottom_bar(&action_bar);
 
