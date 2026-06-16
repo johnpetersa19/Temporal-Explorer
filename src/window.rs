@@ -1304,8 +1304,17 @@ impl TemporalExplorerWindow {
         let year = imp.selected_year.get();
         imp.commit_list.remove_all();
 
-        let commits  = imp.all_commits.borrow().clone();
-        let filtered = timeline_filter::commits_for_month(&commits, year, month);
+        // commits_for_month returns Vec<&CommitInfo> (borrows from all_commits).
+        // populate_commit_list expects &[CommitInfo] (owned slice).
+        // We collect the references into an owned Vec<CommitInfo> via .cloned()
+        // so the borrow on all_commits is released before the widget rebuild.
+        let filtered: Vec<CommitInfo> = {
+            let commits = imp.all_commits.borrow();
+            timeline_filter::commits_for_month(&commits, year, month)
+                .into_iter()
+                .cloned()
+                .collect()
+        };
         commit_controller::populate_commit_list(&imp.commit_list, &filtered);
 
         *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
@@ -1542,4 +1551,197 @@ impl TemporalExplorerWindow {
             // imp, history_back borrow_mut, and current_dir borrow are all dropped here
         };
 
-        if let Some(dir) = dir_to
+        if let Some(dir) = dir_to_go {
+            self.imp().history_forward.borrow_mut().push(cur_dir);
+            self.navigate_to_dir(dir);
+        }
+    }
+
+    /// Navigate forward one step in the directory history of the current snapshot.
+    ///
+    /// # Borrow safety
+    ///
+    /// Mirrors `navigate_back`: all guards are resolved into owned locals before
+    /// `navigate_to_dir` is called, preventing any live borrow aliasing.
+    fn navigate_forward(&self) {
+        // ── Extract all needed values; every borrow guard drops at end of block ──
+        let (dir_to_go, cur_dir) = {
+            let imp = self.imp();
+            let dir_to_go = imp.history_forward.borrow_mut().pop();
+            let cur_dir   = imp.current_dir.borrow().clone();
+            (dir_to_go, cur_dir)
+            // imp, history_forward borrow_mut, and current_dir borrow are all dropped here
+        };
+
+        if let Some(dir) = dir_to_go {
+            self.imp().history_back.borrow_mut().push(cur_dir);
+            self.navigate_to_dir(dir);
+        }
+    }
+
+    fn update_dir_nav_buttons(&self) {
+        let imp = self.imp();
+        let can_back    = !imp.history_back.borrow().is_empty();
+        let can_forward = !imp.history_forward.borrow().is_empty();
+        imp.toolbar.history_controls().set_sensitivity(can_back, can_forward);
+    }
+
+    // ── Location bar ─────────────────────────────────────────────────────────
+
+    fn enter_location_mode(&self) {
+        let imp = self.imp();
+        let path_str = imp.current_dir.borrow().to_string_lossy().to_string();
+        imp.toolbar.location_entry().set_text(&path_str);
+        imp.toolbar.set_location_mode(true);
+        imp.toolbar.location_entry().grab_focus();
+    }
+
+    fn leave_location_mode(&self) {
+        self.imp().toolbar.set_location_mode(false);
+    }
+
+    fn navigate_to_typed_path(&self, text: &str) {
+        self.imp().toolbar.set_location_mode(false);
+        let path = PathBuf::from(text);
+        self.push_dir(path);
+    }
+
+    // ── Timestamp formatting ──────────────────────────────────────────────────
+
+    fn format_timestamp(ts: i64) -> String {
+        glib::DateTime::from_unix_local(ts)
+            .and_then(|dt| dt.format("%Y-%m-%d %H:%M"))
+            .map(|s| s.to_string())
+            .unwrap_or_else(|_| ts.to_string())
+    }
+
+    // ── Toast / error helpers ─────────────────────────────────────────────────
+
+    pub fn show_toast(&self, msg: &str) {
+        let toast = adw::Toast::new(msg);
+        if let Some(overlay) = self.imp().content_toolbar_view
+            .parent()
+            .and_then(|w| w.downcast::<adw::ToastOverlay>().ok())
+        {
+            overlay.add_toast(toast);
+        }
+    }
+
+    pub fn show_error(&self, msg: &str) {
+        let dialog = adw::AlertDialog::builder()
+            .heading(gettext("Error"))
+            .body(msg)
+            .build();
+        dialog.add_response("ok", &gettext("OK"));
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
+    }
+
+    // ── Search / filter ───────────────────────────────────────────────────────
+
+    fn setup_filter_popover(&self) {
+        let imp = self.imp();
+        let popover = SearchFilterPopover::new();
+        popover.set_parent(&imp.filter_button.get());
+
+        imp.filter_button.connect_toggled({
+            let pop = popover.clone();
+            move |btn| {
+                if btn.is_active() { pop.popup(); } else { pop.popdown(); }
+            }
+        });
+
+        popover.connect_closed({
+            let btn = imp.filter_button.downgrade();
+            move |_| {
+                if let Some(b) = btn.upgrade() { b.set_active(false); }
+            }
+        });
+
+        let win = self.clone();
+        popover.connect_filter_changed(move |_, state| {
+            *win.imp().filter_state.borrow_mut() = state;
+            let q = win.imp().last_query.borrow().clone();
+            win.run_search(q);
+        });
+
+        *imp.filter_popover.borrow_mut() = Some(popover);
+    }
+
+    fn on_search_changed(&self, query: String) {
+        *self.imp().last_query.borrow_mut() = query.clone();
+
+        // Cancel any in-flight debounce.
+        if let Some(prev) = self.imp().search_debounce.borrow_mut().take() {
+            prev.store(true, Ordering::Relaxed);
+        }
+
+        let token = Arc::new(AtomicBool::new(false));
+        *self.imp().search_debounce.borrow_mut() = Some(token.clone());
+
+        let win = self.clone();
+        glib::timeout_add_local_once(std::time::Duration::from_millis(200), move || {
+            if token.load(Ordering::Relaxed) { return; }
+            win.run_search(query);
+        });
+    }
+
+    pub fn run_search(&self, query: String) {
+        // Cancel any previous search.
+        if let Some(prev) = self.imp().search_cancel.borrow_mut().take() {
+            prev.store(true, Ordering::Relaxed);
+        }
+        let cancel = Arc::new(AtomicBool::new(false));
+        *self.imp().search_cancel.borrow_mut() = Some(cancel.clone());
+
+        let all_commits = self.imp().all_commits.borrow().clone();
+        let filter      = self.imp().filter_state.borrow().clone();
+
+        let win = self.clone();
+        glib::idle_add_local_once(move || {
+            if cancel.load(Ordering::Relaxed) { return; }
+
+            let q = query.to_lowercase();
+            let results: Vec<CommitInfo> = all_commits
+                .into_iter()
+                .filter(|c| {
+                    // ── Author filter ─────────────────────────────────────────
+                    if let Some(ref a) = filter.author {
+                        if !c.author.to_lowercase().contains(a.as_str()) { return false; }
+                    }
+                    // ── Branch filter ─────────────────────────────────────────
+                    if let Some(ref _b) = filter.branch {
+                        // Branch filtering requires per-commit branch lookup
+                        // which is expensive; skipped for now.
+                    }
+                    // ── Date range filter ─────────────────────────────────────
+                    if let Some(since) = filter.date_range.since {
+                        if c.timestamp < since { return false; }
+                    }
+                    if let Some(until) = filter.date_range.until {
+                        if c.timestamp > until { return false; }
+                    }
+                    // ── File-type / extension filter ──────────────────────────
+                    if let Some(ref ext) = filter.files.other_ext {
+                        if !c.changed_files.iter().any(|f| {
+                            std::path::Path::new(f)
+                                .extension()
+                                .and_then(|e| e.to_str())
+                                .map(|e| e.eq_ignore_ascii_case(ext.trim_start_matches('.')))
+                                .unwrap_or(false)
+                        }) {
+                            return false;
+                        }
+                    }
+                    // ── Text query ────────────────────────────────────────────
+                    if q.is_empty() { return true; }
+                    c.summary.to_lowercase().contains(&q)
+                        || c.hash.starts_with(&q)
+                        || c.author.to_lowercase().contains(&q)
+                        || matches_calendar(c.timestamp, &q)
+                })
+                .collect();
+
+            commit_controller::populate_commit_list(&win.imp().commit_list, &results);
+        });
+    }
+}
