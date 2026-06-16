@@ -849,10 +849,15 @@ impl TemporalExplorerWindow {
                 std::thread::spawn(move || {
                     if let Some(repo_path) = repo_path {
                         let _ = std::fs::create_dir_all(&dest_dir);
-                        for (i, sha) in shas_clone.iter().enumerate() {
-                            let patch_path =
-                                dest_dir.join(format!("{:04}-{}.patch", i + 1, short_hash(sha)));
-                            if let Ok(repo) = git2::Repository::open(&repo_path) {
+
+                        if let Ok(repo) = git2::Repository::open(&repo_path) {
+                            for (i, sha) in shas_clone.iter().enumerate() {
+                                let patch_path = dest_dir.join(format!(
+                                    "{:04}-{}.patch",
+                                    i + 1,
+                                    short_hash(sha)
+                                ));
+
                                 if let Ok(oid) = git2::Oid::from_str(sha) {
                                     if let Ok(commit) = repo.find_commit(oid) {
                                         if let Ok(tree) = commit.tree() {
