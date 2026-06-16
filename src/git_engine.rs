@@ -81,7 +81,10 @@
 //! The field starts as an empty `Vec`.  Call [`CommitInfo::load_changed_files`]
 //! with an open `Repository` handle when the diff is actually needed — for
 //! example, when the user selects a commit in the sidebar or opens the
-//! `FilterTypesDialog`.  The method is idempotent: subsequent calls are no-ops.
+//! `FilterTypesDialog`.  The method is idempotent: it sets an internal
+//! `files_loaded` flag on completion, so subsequent calls are no-ops even
+//! for root commits that touched zero files (where `changed_files` stays
+//! empty and the old `!is_empty()` check would have been incorrect).
 //!
 //! # Performance — raw OID in `CommitInfo`
 //!
@@ -287,6 +290,13 @@ pub struct CommitInfo {
     /// Populated lazily on first call to [`load_changed_files`].
     /// Empty until that call is made.
     pub changed_files: Vec<String>,
+    /// Whether [`load_changed_files`] has been called and completed.
+    ///
+    /// Using an explicit flag instead of `!changed_files.is_empty()` is
+    /// necessary for root commits that modify zero files: their diff is empty
+    /// by definition, so `is_empty()` would be `true` even after the diff has
+    /// been computed — causing spurious re-diffs on every subsequent call.
+    files_loaded: bool,
 }
 
 impl CommitInfo {
@@ -312,6 +322,7 @@ impl CommitInfo {
             author_email: commit.author().email().unwrap_or("").to_owned(),
             timestamp:    commit.time().seconds(),
             changed_files: Vec::new(),
+            files_loaded:  false,
         }
     }
 
@@ -329,8 +340,10 @@ impl CommitInfo {
 
     /// Computes and caches the list of files changed by this commit.
     ///
-    /// This method is **idempotent**: if `changed_files` is already populated
-    /// (non-empty), it returns immediately without opening any git objects.
+    /// This method is **idempotent**: once called, it sets an internal
+    /// `files_loaded` flag and returns immediately on all subsequent calls
+    /// without opening any git objects — even for root commits whose diff
+    /// is empty (where `changed_files` stays empty).
     ///
     /// Call this lazily — only when the diff is actually needed, for example:
     /// - when the user clicks a commit row to inspect it, or
@@ -340,8 +353,10 @@ impl CommitInfo {
     /// matching the behaviour of `git show` / `git log -p` and avoiding the
     /// false-positive duplicates that arise from diffing all N parents.
     pub fn load_changed_files(&mut self, repo: &git2::Repository) {
-        // Idempotent — skip if already populated.
-        if !self.changed_files.is_empty() {
+        // Idempotent — skip if the diff has already been computed.
+        // Using a dedicated flag instead of `!changed_files.is_empty()` is
+        // necessary for root commits that touch zero files.
+        if self.files_loaded {
             return;
         }
 
@@ -394,15 +409,22 @@ impl CommitInfo {
         files.sort();
         files.dedup();
         self.changed_files = files;
+        // Mark as loaded *after* assigning so that a panic inside the diff
+        // loop leaves the flag false (allowing a retry on next call).
+        self.files_loaded = true;
     }
 
     /// Returns `true` if `changed_files` has already been loaded.
+    ///
+    /// Uses the dedicated `files_loaded` flag — not `!changed_files.is_empty()` —
+    /// so that root commits with an empty diff also return `true` after
+    /// [`load_changed_files`] has been called.
     ///
     /// Useful for UI code that wants to show a spinner or placeholder until
     /// the diff is available, without triggering the load itself.
     #[inline]
     pub fn has_changed_files_loaded(&self) -> bool {
-        !self.changed_files.is_empty()
+        self.files_loaded
     }
 }
 
@@ -624,11 +646,19 @@ impl HistoryReader {
     }
 
     /// Collects all reachable OIDs from HEAD, newest-first.
+    ///
+    /// A conservative `with_capacity(4_096)` hint reduces reallocations on
+    /// repos with thousands of commits without over-allocating on small ones
+    /// (the Vec grows geometrically beyond 4 096 if needed).
     fn collect_all_oids(&self) -> Result<Vec<git2::Oid>, git2::Error> {
         let mut walk = self.repo.revwalk()?;
         push_head_safe(&mut walk, &self.repo)?;
         walk.set_sorting(git2::Sort::TIME)?;
-        walk.collect::<Result<Vec<_>, _>>()
+        let mut oids = Vec::with_capacity(4_096);
+        for oid in walk {
+            oids.push(oid?);
+        }
+        Ok(oids)
     }
 
     /// Parallel paginated commit walk.
@@ -752,7 +782,10 @@ impl HistoryReader {
         walk.set_sorting(git2::Sort::TIME)?;
 
         if query.is_empty() {
-            let mut results = Vec::with_capacity(SEARCH_COMMITS_MAX);
+            // Do not pre-allocate SEARCH_COMMITS_MAX slots unconditionally:
+            // for small repositories the Vec would be over-sized by orders of
+            // magnitude.  Start with a modest hint and let it grow if needed.
+            let mut results = Vec::with_capacity(256);
             for oid in walk {
                 let oid = oid?;
                 let commit = self.repo.find_commit(oid)?;
@@ -840,6 +873,11 @@ impl DirCache {
             .entries
             .iter()
             .position(|((h, d), _)| h == hash && d == dir)?;
+        // Skip the remove+push_front dance when the entry is already at the
+        // front (most-recently-used) — avoids a VecDeque shift for free hits.
+        if pos == 0 {
+            return Some(Arc::clone(&self.entries[0].1));
+        }
         let entry = self.entries.remove(pos)?;
         let arc = Arc::clone(&entry.1);
         self.entries.push_front(entry);
@@ -1010,8 +1048,7 @@ impl<'repo> SnapshotMaterializer<'repo> {
                 return Ok(MaterializeOutcome::Truncated(
                     nodes,
                     format!(
-                        "{} entries reached limit {limit} — use resolve_dir for interactive browsing",
-                        limit,
+                        "entry limit ({limit}) reached — use resolve_dir for interactive browsing",
                     ),
                 ));
             }
