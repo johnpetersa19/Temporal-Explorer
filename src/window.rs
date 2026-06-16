@@ -58,6 +58,7 @@ use glib::object::ObjectExt;
 use gtk::prelude::*;
 use gtk::{gio, glib};
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -186,6 +187,8 @@ mod imp {
 
         // ── Runtime state ────────────────────────────────────────────────────
         pub all_commits: RefCell<Vec<CommitInfo>>,
+        pub commit_index: RefCell<HashMap<String, usize>>,
+        pub year_counts: RefCell<Vec<(i32, usize)>>,
         pub repo_path: RefCell<Option<PathBuf>>,
         pub repository: RefCell<Option<DebugRepository>>,
         pub last_query: RefCell<String>,
@@ -261,6 +264,20 @@ gtk::Native, gtk::Root, gtk::ShortcutManager;
 fn clear_box(container: &gtk::Box) {
     while let Some(child) = container.first_child() {
         container.remove(&child);
+    }
+}
+
+#[inline]
+fn year_from_timestamp(ts: i64) -> Option<i32> {
+    glib::DateTime::from_unix_local(ts).ok().map(|dt| dt.year())
+}
+
+fn bump_year_count(year_counts: &mut Vec<(i32, usize)>, year: i32) {
+    if let Some((_, count)) = year_counts.iter_mut().find(|(y, _)| *y == year) {
+        *count += 1;
+    } else {
+        year_counts.push((year, 1));
+        year_counts.sort_unstable_by(|a, b| b.0.cmp(&a.0));
     }
 }
 
@@ -731,10 +748,18 @@ impl TemporalExplorerWindow {
 
         {
             let commits = imp.all_commits.borrow();
-            if let Some(commit) = commits
-                .iter()
-                .find(|c| c.hash.starts_with(short_hash(&hash)))
-            {
+            let index = imp.commit_index.borrow();
+
+            let commit = index
+                .get(&hash)
+                .and_then(|idx| commits.get(*idx))
+                .or_else(|| {
+                    commits
+                        .iter()
+                        .find(|c| c.hash.starts_with(short_hash(&hash)))
+                });
+
+            if let Some(commit) = commit {
                 imp.commit_hash_label.set_label(display_hash(&commit.hash));
                 imp.commit_message_label.set_label(&commit.summary);
                 imp.commit_date_label
@@ -1303,6 +1328,8 @@ impl TemporalExplorerWindow {
 
         self.imp().loading_commits.set(true);
         self.imp().all_commits.borrow_mut().clear();
+        self.imp().commit_index.borrow_mut().clear();
+        self.imp().year_counts.borrow_mut().clear();
 
         // Show the empty state *before* the worker starts so the UI never
         // displays stale content from a previous repository during loading.
@@ -1373,7 +1400,26 @@ impl TemporalExplorerWindow {
                     // all_commits so the dedup set reflects the current state.
                     win.update_author_chips_for_page(&page);
 
-                    win.imp().all_commits.borrow_mut().extend(page);
+                    {
+                        let imp = win.imp();
+                        let base = imp.all_commits.borrow().len();
+
+                        {
+                            let mut index = imp.commit_index.borrow_mut();
+                            let mut year_counts = imp.year_counts.borrow_mut();
+
+                            for (offset, commit) in page.iter().enumerate() {
+                                index.insert(commit.hash.clone(), base + offset);
+
+                                if let Some(year) = year_from_timestamp(commit.timestamp) {
+                                    bump_year_count(&mut year_counts, year);
+                                }
+                            }
+                        }
+
+                        imp.all_commits.borrow_mut().extend(page);
+                    }
+
                     win.populate_year_list();
                     win.imp().split_view.set_show_sidebar(true);
                     glib::ControlFlow::Continue
@@ -1404,8 +1450,7 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         imp.year_list.remove_all();
 
-        let commits = imp.all_commits.borrow();
-        for (year, count) in &timeline_filter::years_in_range(&commits) {
+        for (year, count) in imp.year_counts.borrow().iter() {
             imp.year_list
                 .append(&commit_controller::build_year_row(*year, *count));
         }
@@ -1523,7 +1568,13 @@ impl TemporalExplorerWindow {
             if let Some(path) = repo_path {
                 if let Ok(repo) = git2::Repository::open(&path) {
                     let mut commits = imp.all_commits.borrow_mut();
-                    if let Some(commit) = commits
+                    let index = imp.commit_index.borrow();
+
+                    let commit = index.get(&hash).and_then(|idx| commits.get_mut(*idx));
+
+                    if let Some(commit) = commit {
+                        commit.load_changed_files(&repo);
+                    } else if let Some(commit) = commits
                         .iter_mut()
                         .find(|c| c.hash.starts_with(short_hash(&hash)))
                     {
