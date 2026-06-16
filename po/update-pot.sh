@@ -70,17 +70,44 @@ mapfile -t BLP_FILES < <(
 )
 echo "   → ${#BLP_FILES[@]} .blp files found"
 
-{
-    for blp in "${BLP_FILES[@]}"; do
-        rel="${blp#"$ROOT/"}"
-        grep -oP '(?<=_\(")[^"]+(?=")' "$blp" 2>/dev/null \
-        | while IFS= read -r str; do
-            printf '#: %s\n' "$rel"
-            printf 'msgid "%s"\n' "$str"
-            printf 'msgstr ""\n\n'
-        done
-    done
-} > "$TMP/blp.entries"
+python3 - "$ROOT" "${BLP_FILES[@]}" > "$TMP/blp.entries" << 'PYEOF'
+import re
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+files = [Path(p) for p in sys.argv[2:]]
+
+def po_escape(s: str) -> str:
+    return (
+        s.replace("\\", "\\\\")
+         .replace('"', '\\"')
+         .replace("\t", "\\t")
+         .replace("\r", "\\r")
+         .replace("\n", "\\n")
+    )
+
+# Match Blueprint _("...") strings, including escaped quotes/backslashes.
+pattern = re.compile(r'_\("((?:\\.|[^"\\])*)"\)')
+
+for blp in files:
+    rel = blp.relative_to(root).as_posix()
+    content = blp.read_text(encoding="utf-8", errors="replace")
+
+    for match in pattern.finditer(content):
+        raw = match.group(1)
+
+        # Decode Blueprint-style escapes, then re-escape for PO syntax.
+        try:
+            decoded = bytes(raw, "utf-8").decode("unicode_escape")
+        except UnicodeDecodeError:
+            decoded = raw
+
+        print(f"#: {rel}")
+        print(f'msgid "{po_escape(decoded)}"')
+        print('msgstr ""')
+        print()
+PYEOF
 BLP_COUNT=$(grep -c '^msgid ' "$TMP/blp.entries" 2>/dev/null || echo 0)
 echo "   → blp.entries: $BLP_COUNT entries"
 
@@ -134,6 +161,15 @@ def extract_entries(path):
         entries.append((refs, msgid))
     return entries
 
+def po_escape(s):
+    return (
+        s.replace("\\", "\\\\")
+         .replace('"', '\\"')
+         .replace("\t", "\\t")
+         .replace("\r", "\\r")
+         .replace("\n", "\\n")
+    )
+
 seen = {}
 ordered = []
 
@@ -162,7 +198,7 @@ with open(out_path, 'w', encoding='utf-8') as f:
         refs = seen[msgid]
         for r in refs:
             f.write(f'{r}\n')
-        f.write(f'msgid "{msgid}"\n')
+        f.write(f'msgid "{po_escape(msgid)}"\n')
         f.write('msgstr ""\n')
         f.write('\n')
 print(f'   → {out_path} written ({len(ordered)} total entries)')
