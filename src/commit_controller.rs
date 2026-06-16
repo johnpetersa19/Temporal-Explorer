@@ -43,14 +43,17 @@
 //! Every idle frame checks that its captured generation still matches the counter
 //! before touching any widget.
 
+use crate::git_engine::CommitInfo;
+use crate::timeline_filter;
 use gettextrs::gettext;
 use gtk::glib;
 use gtk::prelude::*;
-use crate::git_engine::CommitInfo;
-use crate::timeline_filter;
-use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
-use std::collections::HashMap;
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
 
 // ── Tuning constants ────────────────────────────────────────────────────────────────────────
 
@@ -64,6 +67,9 @@ const APPEND_BATCH: usize = 100;
 
 /// Maximum number of widget rows [`populate_commit_list`] will render.
 const MAX_RENDERED_ROWS: usize = 5_000;
+
+/// Canonical short commit hash length used across the UI.
+const SHORT_HASH_LEN: usize = 8;
 
 /// Hard cap on the total number of widget rows during live appending.
 /// Reserved for the future `gtk::ListView` migration.
@@ -89,7 +95,9 @@ fn get_or_create_generation(list_box: &gtk::ListBox) -> Arc<AtomicU64> {
 
         list_box.connect_destroy(move |lb| {
             let dead_key = lb.as_ptr() as usize;
-            GENERATIONS.with(|m| { m.borrow_mut().remove(&dead_key); });
+            GENERATIONS.with(|m| {
+                m.borrow_mut().remove(&dead_key);
+            });
         });
 
         arc
@@ -137,7 +145,11 @@ pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
         .build();
 
     let meta = gtk::Label::builder()
-        .label(&format!("{} · {}", &commit.hash[..commit.hash.len().min(8)], commit.author))
+        .label(&format!(
+            "{} · {}",
+            &commit.hash[..commit.hash.len().min(SHORT_HASH_LEN)],
+            commit.author
+        ))
         .xalign(0.0)
         .build();
     meta.add_css_class("caption");
@@ -150,9 +162,6 @@ pub fn build_commit_row(commit: &CommitInfo) -> gtk::ListBoxRow {
         .name(&commit.hash)
         .child(&vbox)
         .build();
-
-    // Store hash so connect_row_activated can retrieve it
-    unsafe { row.set_data("hash", commit.hash.clone()); }
 
     row
 }
@@ -195,9 +204,6 @@ pub fn build_year_row(year: i32, count: usize) -> gtk::ListBoxRow {
         .name(&year.to_string())
         .child(&hbox)
         .build();
-
-    // Store the year value so connect_row_activated can retrieve it reliably
-    unsafe { row.set_data("year", year); }
 
     row
 }
@@ -242,9 +248,6 @@ pub fn build_month_row(month: u32, count: usize) -> gtk::ListBoxRow {
         .child(&hbox)
         .build();
 
-    // Store the month value so connect_row_activated can retrieve it reliably
-    unsafe { row.set_data("month", month); }
-
     row
 }
 
@@ -285,7 +288,9 @@ pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
 
     clear_listbox(list_box);
 
-    if commits.is_empty() { return; }
+    if commits.is_empty() {
+        return;
+    }
 
     let total = commits.len();
     let render_count = total.min(MAX_RENDERED_ROWS);
@@ -296,7 +301,9 @@ pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
             .iter()
             .map(build_commit_row)
             .collect();
-        for row in &rows { list_box.append(row); }
+        for row in &rows {
+            list_box.append(row);
+        }
         if truncated {
             list_box.append(&build_truncation_hint_row(total, render_count));
         }
@@ -313,7 +320,9 @@ pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
 /// Reserved for the future `gtk::ListView` migration.
 #[allow(dead_code)]
 pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
-    if commits.is_empty() { return; }
+    if commits.is_empty() {
+        return;
+    }
 
     let current_count = {
         let mut n = 0usize;
@@ -325,15 +334,21 @@ pub fn append_commit_batch(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
         n
     };
 
-    if current_count >= HARD_APPEND_CAP { return; }
+    if current_count >= HARD_APPEND_CAP {
+        return;
+    }
 
     let headroom = HARD_APPEND_CAP.saturating_sub(current_count);
     let to_append: Vec<CommitInfo> = commits.iter().take(headroom).cloned().collect();
 
-    if to_append.is_empty() { return; }
+    if to_append.is_empty() {
+        return;
+    }
 
     if to_append.len() <= APPEND_BATCH {
-        for commit in &to_append { list_box.append(&build_commit_row(commit)); }
+        for commit in &to_append {
+            list_box.append(&build_commit_row(commit));
+        }
         return;
     }
 
@@ -353,25 +368,37 @@ fn schedule_batch_populate(
     gen_counter: Arc<AtomicU64>,
 ) {
     glib::idle_add_local_once(move || {
-        if gen_counter.load(Ordering::Relaxed) != gen { return; }
+        if gen_counter.load(Ordering::Relaxed) != gen {
+            return;
+        }
 
-        let Some(list_box) = list_weak.upgrade() else { return };
+        let Some(list_box) = list_weak.upgrade() else {
+            return;
+        };
 
         let mut rem = remaining.borrow_mut();
         let end = POPULATE_BATCH.min(rem.len());
-        let batch: Vec<gtk::ListBoxRow> = rem
-            .drain(..end)
-            .map(|c| build_commit_row(&c))
-            .collect();
+        let batch: Vec<gtk::ListBoxRow> = rem.drain(..end).map(|c| build_commit_row(&c)).collect();
         let still_pending = !rem.is_empty();
         drop(rem);
 
-        if gen_counter.load(Ordering::Relaxed) != gen { return; }
+        if gen_counter.load(Ordering::Relaxed) != gen {
+            return;
+        }
 
-        for row in &batch { list_box.append(row); }
+        for row in &batch {
+            list_box.append(row);
+        }
 
         if still_pending {
-            schedule_batch_populate(list_weak, remaining.clone(), total, truncated, gen, gen_counter);
+            schedule_batch_populate(
+                list_weak,
+                remaining.clone(),
+                total,
+                truncated,
+                gen,
+                gen_counter,
+            );
         } else if truncated {
             list_box.append(&build_truncation_hint_row(total, MAX_RENDERED_ROWS));
         }
@@ -385,16 +412,17 @@ fn schedule_batch_append(
     remaining: std::rc::Rc<std::cell::RefCell<Vec<CommitInfo>>>,
 ) {
     glib::idle_add_local_once(move || {
-        let Some(list_box) = list_weak.upgrade() else { return };
+        let Some(list_box) = list_weak.upgrade() else {
+            return;
+        };
         let mut rem = remaining.borrow_mut();
         let end = APPEND_BATCH.min(rem.len());
-        let batch: Vec<gtk::ListBoxRow> = rem
-            .drain(..end)
-            .map(|c| build_commit_row(&c))
-            .collect();
+        let batch: Vec<gtk::ListBoxRow> = rem.drain(..end).map(|c| build_commit_row(&c)).collect();
         let still_pending = !rem.is_empty();
         drop(rem);
-        for row in &batch { list_box.append(row); }
+        for row in &batch {
+            list_box.append(row);
+        }
         if still_pending {
             schedule_batch_append(list_weak, remaining.clone());
         }
@@ -405,7 +433,9 @@ fn schedule_batch_append(
 
 #[allow(dead_code)]
 pub fn filter_commits<'a>(commits: &'a [CommitInfo], query: &str) -> Vec<&'a CommitInfo> {
-    if query.is_empty() { return commits.iter().collect(); }
+    if query.is_empty() {
+        return commits.iter().collect();
+    }
     let q = query.to_lowercase();
     commits
         .iter()
