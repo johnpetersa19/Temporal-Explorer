@@ -1,7 +1,8 @@
-// view-controls.blp — grid/list toggle + sort selector for file panel
+// view-controls.blp — Nautilus-like view controls for file panel
 // Copyright 2026 John Peter Sá  SPDX-License-Identifier: GPL-3.0-or-later
 
 using Gtk 4.0;
+using Adw 1;
 
 template $ViewControls : Gtk.Box {
   orientation: horizontal;
@@ -31,46 +32,140 @@ template $ViewControls : Gtk.Box {
     margin-end: 2;
   }
 
-  DropDown sort_dropdown {
-    tooltip-text: _("Sort files by");
-    model: StringList {
-      strings [
-        _("Name"),
-        _("Status"),
-        _("Size"),
-        _("Extension"),
-      ]
-    };
-    notify::selected => $on_sort_changed() swapped;
-  }
-
-  Box {
-    orientation: horizontal;
-    spacing: 0;
-    styles ["linked"]
-
-    Button zoom_out_button {
-      icon-name: "zoom-out-symbolic";
-      tooltip-text: _("Zoom Out");
-      clicked => $on_zoom_out_clicked() swapped;
-
-      styles ["flat"]
-    }
-
-    Button zoom_in_button {
-      icon-name: "zoom-in-symbolic";
-      tooltip-text: _("Zoom In");
-      clicked => $on_zoom_in_clicked() swapped;
-
-      styles ["flat"]
-    }
-  }
-
-  Button captions_button {
-    icon-name: "view-more-horizontal-symbolic";
-    tooltip-text: _("Grid Captions");
-    clicked => $on_captions_clicked() swapped;
+  MenuButton view_options_button {
+    tooltip-text: _("View Options");
 
     styles ["flat"]
+
+    child: Box {
+      orientation: horizontal;
+      spacing: 6;
+
+      Label view_options_label {
+        label: _("Name");
+        valign: center;
+      }
+
+      Image {
+        icon-name: "pan-down-symbolic";
+        valign: center;
+      }
+    };
+
+    popover: Popover {
+      child: Box {
+        orientation: vertical;
+        spacing: 10;
+        margin-top: 10;
+        margin-bottom: 10;
+        margin-start: 10;
+        margin-end: 10;
+        width-request: 280;
+
+        Box {
+          orientation: horizontal;
+          spacing: 12;
+
+          Label {
+            label: _("Icon Size");
+            hexpand: true;
+            xalign: 0;
+            valign: center;
+          }
+
+          Box {
+            orientation: horizontal;
+            spacing: 0;
+
+            styles ["linked"]
+
+            Button zoom_out_button {
+              icon-name: "zoom-out-symbolic";
+              tooltip-text: _("Zoom Out");
+              clicked => $on_zoom_out_clicked() swapped;
+
+              styles ["flat"]
+            }
+
+            Button zoom_in_button {
+              icon-name: "zoom-in-symbolic";
+              tooltip-text: _("Zoom In");
+              clicked => $on_zoom_in_clicked() swapped;
+
+              styles ["flat"]
+            }
+          }
+        }
+
+        Separator {
+          orientation: horizontal;
+        }
+
+        Label {
+          label: _("Sort");
+          xalign: 0;
+
+          styles ["heading"]
+        }
+
+        CheckButton sort_name_button {
+          label: _("A-Z");
+          active: true;
+          toggled => $on_sort_name_toggled() swapped;
+        }
+
+        CheckButton sort_name_desc_button {
+          label: _("Z-A");
+          group: sort_name_button;
+          toggled => $on_sort_name_desc_toggled() swapped;
+        }
+
+        CheckButton sort_last_modified_button {
+          label: _("Last Modified");
+          group: sort_name_button;
+          sensitive: false;
+        }
+
+        CheckButton sort_first_modified_button {
+          label: _("First Modified");
+          group: sort_name_button;
+          sensitive: false;
+        }
+
+        CheckButton sort_size_button {
+          label: _("Size");
+          group: sort_name_button;
+          sensitive: false;
+        }
+
+        CheckButton sort_type_button {
+          label: _("Type");
+          group: sort_name_button;
+          toggled => $on_sort_type_toggled() swapped;
+        }
+
+        Separator {
+          orientation: horizontal;
+        }
+
+        Button show_hidden_files_button {
+          label: _("Show Hidden Files");
+          sensitive: false;
+
+          styles ["flat"]
+        }
+
+        Separator {
+          orientation: horizontal;
+        }
+
+        Button captions_button {
+          label: _("Captions…");
+          clicked => $on_captions_clicked() swapped;
+
+          styles ["flat"]
+        }
+      };
+    };
   }
 }

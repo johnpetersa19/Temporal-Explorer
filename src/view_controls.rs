@@ -18,8 +18,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+use gettextrs::gettext;
 use gtk::glib;
-use gtk::prelude::{ObjectExt, StaticType, ToggleButtonExt, WidgetExt};
+use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use std::cell::Cell;
 use std::sync::OnceLock;
@@ -28,7 +29,9 @@ use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum FileSortMode {
-    #[default] Name,
+    #[default]
+    Name,
+    NameDescending,
     Status,
     Extension,
 }
@@ -41,12 +44,15 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/view-controls.ui")]
     pub struct ViewControls {
-        #[template_child] pub grid_view_button: TemplateChild<gtk::ToggleButton>,
-        #[template_child] pub list_view_button: TemplateChild<gtk::ToggleButton>,
-        #[template_child] pub sort_dropdown:    TemplateChild<gtk::DropDown>,
-        #[template_child] pub zoom_out_button:  TemplateChild<gtk::Button>,
-        #[template_child] pub zoom_in_button:   TemplateChild<gtk::Button>,
-        #[template_child] pub captions_button:  TemplateChild<gtk::Button>,
+        #[template_child] pub grid_view_button:       TemplateChild<gtk::ToggleButton>,
+        #[template_child] pub list_view_button:       TemplateChild<gtk::ToggleButton>,
+        #[template_child] pub view_options_label:     TemplateChild<gtk::Label>,
+        #[template_child] pub zoom_out_button:        TemplateChild<gtk::Button>,
+        #[template_child] pub zoom_in_button:         TemplateChild<gtk::Button>,
+        #[template_child] pub captions_button:        TemplateChild<gtk::Button>,
+        #[template_child] pub sort_name_button:       TemplateChild<gtk::CheckButton>,
+        #[template_child] pub sort_name_desc_button:  TemplateChild<gtk::CheckButton>,
+        #[template_child] pub sort_type_button:       TemplateChild<gtk::CheckButton>,
 
         pub zoom_level: Cell<u32>,
     }
@@ -115,9 +121,27 @@ mod imp {
         }
 
         #[template_callback]
-        fn on_sort_changed(&self, _pspec: &glib::ParamSpec) {
-            let selected = self.sort_dropdown.get().selected();
-            self.obj().emit_by_name::<()>("sort-changed", &[&selected]);
+        fn on_sort_name_toggled(&self) {
+            if self.sort_name_button.get().is_active() {
+                self.view_options_label.get().set_label(&gettext("Name"));
+                self.obj().emit_by_name::<()>("sort-changed", &[&0u32]);
+            }
+        }
+
+        #[template_callback]
+        fn on_sort_name_desc_toggled(&self) {
+            if self.sort_name_desc_button.get().is_active() {
+                self.view_options_label.get().set_label(&gettext("Z-A"));
+                self.obj().emit_by_name::<()>("sort-changed", &[&1u32]);
+            }
+        }
+
+        #[template_callback]
+        fn on_sort_type_toggled(&self) {
+            if self.sort_type_button.get().is_active() {
+                self.view_options_label.get().set_label(&gettext("Type"));
+                self.obj().emit_by_name::<()>("sort-changed", &[&2u32]);
+            }
         }
 
         #[template_callback]

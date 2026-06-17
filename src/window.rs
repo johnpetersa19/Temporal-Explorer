@@ -873,7 +873,7 @@ impl TemporalExplorerWindow {
             .connect_local("sort-changed", false, move |args| {
                 let raw = args[1].get::<u32>().unwrap_or(0);
                 let mode = match raw {
-                    1 => FileSortMode::Status,
+                    1 => FileSortMode::NameDescending,
                     2 => FileSortMode::Extension,
                     _ => FileSortMode::Name,
                 };
@@ -1901,6 +1901,9 @@ impl TemporalExplorerWindow {
         match sort_mode {
             FileSortMode::Name | FileSortMode::Status => {
                 decorated.sort_by(|a, b| b.0.is_dir().cmp(&a.0.is_dir()).then(a.1.cmp(&b.1)));
+            }
+            FileSortMode::NameDescending => {
+                decorated.sort_by(|a, b| b.0.is_dir().cmp(&a.0.is_dir()).then(b.1.cmp(&a.1)));
             }
             FileSortMode::Extension => {
                 decorated.sort_by(|a, b| {
