@@ -191,6 +191,7 @@ mod imp {
         pub year_counts: RefCell<Vec<(i32, usize)>>,
         pub branch_commit_index: RefCell<HashMap<String, HashSet<String>>>,
         pub seen_authors: RefCell<HashSet<String>>,
+        pub changed_files_cache: RefCell<HashMap<String, Vec<String>>>,
         pub repo_path: RefCell<Option<PathBuf>>,
         pub repository: RefCell<Option<DebugRepository>>,
         pub last_query: RefCell<String>,
@@ -1405,6 +1406,7 @@ impl TemporalExplorerWindow {
         self.imp().commit_index.borrow_mut().clear();
         self.imp().year_counts.borrow_mut().clear();
         self.imp().seen_authors.borrow_mut().clear();
+        self.imp().changed_files_cache.borrow_mut().clear();
 
         // Show the empty state *before* the worker starts so the UI never
         // displays stale content from a previous repository during loading.
@@ -2154,22 +2156,23 @@ impl TemporalExplorerWindow {
         let all_commits = self.imp().all_commits.borrow().clone();
         let filter = self.imp().filter_state.borrow().clone();
         let repo_path = self.imp().repo_path.borrow().clone();
+        let changed_files_cache_snapshot = self.imp().changed_files_cache.borrow().clone();
         let branch_hashes = filter
             .branch
             .as_ref()
             .and_then(|branch| self.imp().branch_commit_index.borrow().get(branch).cloned());
         let q = query.to_lowercase();
 
-        let (tx, rx) = std::sync::mpsc::sync_channel::<Option<Vec<CommitInfo>>>(1);
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Option<(Vec<CommitInfo>, Vec<(String, Vec<String>)>)>>(1);
         let worker_cancel = cancel.clone();
 
         std::thread::spawn(move || {
             let mut results = Vec::new();
+            let mut changed_files_cache = changed_files_cache_snapshot;
+            let mut newly_cached_changed_files: Vec<(String, Vec<String>)> = Vec::new();
 
             // For file-type filters, open the repository only once in this worker.
-            // Without this, every commit with empty changed_files could reopen the
-            // repository, which makes filtering/clearing feel like the project is
-            // reading the repo again and again.
+            // Changed files are cached by commit hash for the lifetime of the app.
             let repo_for_file_filter = if filter.files.is_active() {
                 repo_path
                     .as_ref()
@@ -2218,8 +2221,16 @@ impl TemporalExplorerWindow {
                     // changed_files is loaded lazily in the UI. For file filters,
                     // load it inside the worker so the filter has real data.
                     if commit.changed_files.is_empty() {
-                        if let Some(ref repo) = repo_for_file_filter {
+                        if let Some(cached_files) = changed_files_cache.get(&commit.hash) {
+                            commit.changed_files = cached_files.clone();
+                        } else if let Some(ref repo) = repo_for_file_filter {
                             commit.load_changed_files(repo);
+
+                            changed_files_cache
+                                .insert(commit.hash.clone(), commit.changed_files.clone());
+
+                            newly_cached_changed_files
+                                .push((commit.hash.clone(), commit.changed_files.clone()));
                         }
                     }
 
@@ -2262,7 +2273,7 @@ impl TemporalExplorerWindow {
                 results.push(commit);
             }
 
-            let _ = tx.send(Some(results));
+            let _ = tx.send(Some((results, newly_cached_changed_files)));
         });
 
         let win = self.clone();
@@ -2272,8 +2283,35 @@ impl TemporalExplorerWindow {
             }
 
             match rx.try_recv() {
-                Ok(Some(results)) => {
+                Ok(Some((results, newly_cached_changed_files))) => {
                     if !cancel.load(Ordering::Relaxed) {
+                        if !newly_cached_changed_files.is_empty() {
+                            let imp = win.imp();
+
+                            {
+                                let mut cache = imp.changed_files_cache.borrow_mut();
+                                for (hash, files) in newly_cached_changed_files {
+                                    cache.insert(hash.clone(), files.clone());
+                                }
+                            }
+
+                            {
+                                let cache = imp.changed_files_cache.borrow();
+                                let mut commits = imp.all_commits.borrow_mut();
+                                let index = imp.commit_index.borrow();
+
+                                for (hash, files) in cache.iter() {
+                                    if let Some(idx) = index.get(hash) {
+                                        if let Some(commit) = commits.get_mut(*idx) {
+                                            if commit.changed_files.is_empty() {
+                                                commit.changed_files = files.clone();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         commit_controller::populate_commit_list(&win.imp().commit_list, &results);
                     }
                     glib::ControlFlow::Break
