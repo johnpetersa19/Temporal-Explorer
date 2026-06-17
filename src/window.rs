@@ -2024,6 +2024,39 @@ impl TemporalExplorerWindow {
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
+    fn refresh_timeline_after_filter_change(&self) {
+        let imp = self.imp();
+        let level = *imp.timeline_level.borrow();
+        let selected_year = imp.selected_year.get();
+
+        match level {
+            TimelineLevel::Years => {
+                self.populate_year_list();
+            }
+            TimelineLevel::Months | TimelineLevel::Commits => {
+                if selected_year > 0 {
+                    let commits = imp.all_commits.borrow();
+                    let visible = self.visible_timeline_commits(&commits);
+                    let visible_owned: Vec<CommitInfo> =
+                        visible.iter().map(|c| (*c).clone()).collect();
+
+                    let year_has_commits =
+                        !timeline_filter::commits_for_year(&visible_owned, selected_year).is_empty();
+
+                    drop(commits);
+
+                    if year_has_commits {
+                        self.on_year_selected(selected_year);
+                    } else {
+                        self.populate_year_list();
+                    }
+                } else {
+                    self.populate_year_list();
+                }
+            }
+        }
+    }
+
     // ── Search / filter ───────────────────────────────────────────────────────
 
     fn setup_filter_popover(&self) {
@@ -2055,6 +2088,12 @@ impl TemporalExplorerWindow {
         popover.connect_filters_changed(move |popover_ref| {
             let state = popover_ref.filter_state();
             *win.imp().filter_state.borrow_mut() = state;
+
+            // Rebuild the timeline sidebar from the active FilterState.
+            // Without this, changing Author/Date only updated the commit search
+            // result list and left Years/Months stale.
+            win.refresh_timeline_after_filter_change();
+
             let q = win.imp().last_query.borrow().clone();
             win.run_search(q);
         });
