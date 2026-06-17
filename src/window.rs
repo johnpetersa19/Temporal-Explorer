@@ -527,6 +527,31 @@ impl TemporalExplorerWindow {
         });
 
         let win = self.clone();
+        imp.toolbar.search_button().connect_toggled(move |button| {
+            if button.is_active() {
+                win.enter_search_mode();
+            } else if win.imp().toolbar.is_search_mode() {
+                win.leave_search_mode();
+            }
+        });
+
+        let win = self.clone();
+        imp.toolbar.search_close_btn().connect_clicked(move |_| {
+            win.leave_search_mode();
+        });
+
+        let win = self.clone();
+        imp.toolbar.search_entry().connect_search_changed(move |entry| {
+            let query = entry.text().to_string();
+
+            if win.imp().commit_search_entry.text().as_str() != query {
+                win.imp().commit_search_entry.set_text(&query);
+            }
+
+            win.on_search_changed(query);
+        });
+
+        let win = self.clone();
         imp.timeline_back_button.connect_clicked(move |_| {
             win.timeline_pop();
         });
@@ -560,7 +585,13 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         imp.commit_search_entry
             .connect_search_changed(move |entry| {
-                win.on_search_changed(entry.text().to_string());
+                let query = entry.text().to_string();
+
+                if win.imp().toolbar.search_entry().text().as_str() != query {
+                    win.imp().toolbar.set_search_text(&query);
+                }
+
+                win.on_search_changed(query);
             });
 
         self.setup_filter_popover();
@@ -1499,6 +1530,24 @@ impl TemporalExplorerWindow {
             }
             Err(e) => self.show_error(&format!("{}: {e}", gettext("Failed to open repository"))),
         }
+    }
+
+    // ── Search mode ────────────────────────────────────────────────────────────
+
+    fn enter_search_mode(&self) {
+        self.imp().toolbar.set_search_mode(true);
+
+        let sidebar_query = self.imp().commit_search_entry.text().to_string();
+        if self.imp().toolbar.search_entry().text().as_str() != sidebar_query {
+            self.imp().toolbar.set_search_text(&sidebar_query);
+        }
+
+        self.imp().toolbar.search_entry().grab_focus();
+    }
+
+    fn leave_search_mode(&self) {
+        self.imp().toolbar.set_search_mode(false);
+        self.imp().toolbar.search_button().set_active(false);
     }
 
     // ── Timeline loading ───────────────────────────────────────────────────────

@@ -170,3 +170,17 @@ flowboxchild:selected:focus .nautilus-grid-cell {
     border-radius: 9999px;
     padding: 2px;
 }
+
+/* ── Toolbar search mode, Nautilus-like ─────────────────────────────── */
+
+.toolbar-search-bar {
+    min-width: 360px;
+}
+
+.toolbar-search-bar searchentry {
+    border-radius: 9999px 0 0 9999px;
+}
+
+.toolbar-search-bar button {
+    border-radius: 0 9999px 9999px 0;
+}

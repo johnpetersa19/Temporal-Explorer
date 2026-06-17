@@ -74,7 +74,32 @@ template $TemporalToolbar : Adw.Bin {
             }
           };
         }
+
+        StackPage {
+          name: "search";
+          child: Box {
+            orientation: horizontal;
+            styles ["linked", "toolbar-search-bar"]
+
+            SearchEntry search_entry {
+              hexpand: true;
+              placeholder-text: _("Search commits, hash, date…");
+            }
+
+            Button search_close_btn {
+              icon-name: "window-close-symbolic";
+              tooltip-text: _("Close Search");
+            }
+          };
+        }
       }
+    }
+
+    [end]
+    ToggleButton search_button {
+      icon-name: "system-search-symbolic";
+      tooltip-text: _("Search");
+      styles ["flat"]
     }
 
     [end]

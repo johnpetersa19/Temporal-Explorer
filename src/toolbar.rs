@@ -73,8 +73,14 @@ mod imp {
         pub location_entry: TemplateChild<gtk::Entry>,
         #[template_child]
         pub location_cancel_btn: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub search_entry: TemplateChild<gtk::SearchEntry>,
+        #[template_child]
+        pub search_close_btn: TemplateChild<gtk::Button>,
 
         // ── End-slot widgets ──────────────────────────────────────────────────
+        #[template_child]
+        pub search_button: TemplateChild<gtk::ToggleButton>,
         #[template_child]
         pub view_controls: TemplateChild<ViewControls>,
         #[template_child]
@@ -154,6 +160,18 @@ impl TemporalToolbar {
         &self.imp().location_cancel_btn
     }
 
+    pub fn search_entry(&self) -> &gtk::SearchEntry {
+        &self.imp().search_entry
+    }
+
+    pub fn search_close_btn(&self) -> &gtk::Button {
+        &self.imp().search_close_btn
+    }
+
+    pub fn search_button(&self) -> &gtk::ToggleButton {
+        &self.imp().search_button
+    }
+
     pub fn view_controls(&self) -> &ViewControls {
         &self.imp().view_controls
     }
@@ -162,7 +180,9 @@ impl TemporalToolbar {
     pub fn set_location_mode(&self, location_mode: bool) {
         let page = if location_mode { "location" } else { "pathbar" };
         self.imp().toolbar_switcher.set_visible_child_name(page);
+
         if location_mode {
+            self.imp().search_button.set_active(false);
             self.imp().location_entry.grab_focus();
         }
     }
@@ -173,6 +193,29 @@ impl TemporalToolbar {
             .visible_child_name()
             .as_deref()
             == Some("location")
+    }
+
+    /// Switch from pathbar/location to the inline search-entry, or back.
+    pub fn set_search_mode(&self, search_mode: bool) {
+        let page = if search_mode { "search" } else { "pathbar" };
+        self.imp().toolbar_switcher.set_visible_child_name(page);
+        self.imp().search_button.set_active(search_mode);
+
+        if search_mode {
+            self.imp().search_entry.grab_focus();
+        }
+    }
+
+    pub fn is_search_mode(&self) -> bool {
+        self.imp()
+            .toolbar_switcher
+            .visible_child_name()
+            .as_deref()
+            == Some("search")
+    }
+
+    pub fn set_search_text(&self, text: &str) {
+        self.imp().search_entry.set_text(text);
     }
 }
 
