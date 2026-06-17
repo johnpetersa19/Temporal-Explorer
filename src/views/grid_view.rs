@@ -109,7 +109,7 @@ pub fn build_grid_view(
     on_context_menu: OnContextMenu,
 ) -> gtk::Widget {
     let metrics = zoom.metrics();
-    let on_context_menu = Rc::from(on_context_menu);
+    let on_context_menu: Rc<dyn Fn(&TreeNode, &gtk::Widget)> = Rc::from(on_context_menu);
 
     let scrolled = gtk::ScrolledWindow::builder()
         .vexpand(true)
