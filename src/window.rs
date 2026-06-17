@@ -2189,7 +2189,8 @@ impl TemporalExplorerWindow {
 
                 // ── Author filter ─────────────────────────────────────────
                 if let Some(ref author) = filter.author {
-                    if !commit.author.to_lowercase().contains(author.as_str()) {
+                    let wanted_author = author.to_lowercase();
+                    if !commit.author.to_lowercase().contains(&wanted_author) {
                         continue;
                     }
                 }
