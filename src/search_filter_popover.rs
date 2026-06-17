@@ -302,6 +302,8 @@ mod imp {
 
         // ── Internal state ──
         pub filter_state: RefCell<FilterState>,
+        /// Full author list used by the author SearchEntry to filter visible rows.
+        pub all_authors: RefCell<Vec<String>>,
         /// The `DateRangeDialog` instance; kept alive so signals don't disconnect.
         pub date_range_dialog: RefCell<Option<DateRangeDialog>>,
     }
@@ -373,27 +375,60 @@ impl SearchFilterPopover {
         self.filter_state()
     }
 
-    /// Populate author chip buttons from a commit list.
-    /// Existing chips are removed first, then rebuilt from unique authors.
-    /// Called by `window.rs` after a repo is loaded.
+    /// Populate the complete author list.
+    /// The SearchEntry filters this stored list visually; clicking a row applies
+    /// the actual author filter to the repository/timeline.
     pub fn populate_author_chips(&self, authors: &[String]) {
+        let imp = self.imp();
+
+        let mut normalized: Vec<String> = authors
+            .iter()
+            .map(|author| author.trim().to_string())
+            .filter(|author| !author.is_empty())
+            .collect();
+
+        normalized.sort_by_key(|author| author.to_lowercase());
+        normalized.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+
+        *imp.all_authors.borrow_mut() = normalized;
+
+        let query = imp.author_entry.text().to_string();
+        self.rebuild_author_rows(&query);
+    }
+
+    fn rebuild_author_rows(&self, query: &str) {
         let imp = self.imp();
         let chips_box = imp.author_chips_box.get();
 
-        // Clear existing dynamic chips
         while let Some(child) = chips_box.first_child() {
             chips_box.remove(&child);
         }
 
+        let query = query.trim().to_lowercase();
+        let selected_author = imp.filter_state.borrow().author.clone();
+        let authors = imp.all_authors.borrow().clone();
+
         for author in authors {
+            if !query.is_empty() && !author.to_lowercase().contains(&query) {
+                continue;
+            }
+
             let chip = gtk::Button::builder()
-                .label(author)
+                .label(&author)
                 .hexpand(true)
                 .halign(gtk::Align::Fill)
                 .css_classes(["chip"])
                 .build();
 
-            chip.set_tooltip_text(Some(author));
+            chip.set_tooltip_text(Some(&author));
+
+            if selected_author
+                .as_deref()
+                .map(|selected| selected.eq_ignore_ascii_case(&author))
+                .unwrap_or(false)
+            {
+                chip.add_css_class("suggested-action");
+            }
 
             if let Some(label) = chip.child().and_then(|w| w.downcast::<gtk::Label>().ok()) {
                 label.set_xalign(0.0);
@@ -402,35 +437,28 @@ impl SearchFilterPopover {
 
             let popover = self.clone();
             let author_clone = author.clone();
-            let chips_box_clone = chips_box.clone();
             chip.connect_clicked(move |btn| {
                 let imp = popover.imp();
                 let mut state = imp.filter_state.borrow_mut();
 
-                if state.author.as_deref() == Some(&author_clone) {
-                    // Deselect
+                if state
+                    .author
+                    .as_deref()
+                    .map(|selected| selected.eq_ignore_ascii_case(&author_clone))
+                    .unwrap_or(false)
+                {
                     state.author = None;
                     btn.remove_css_class("suggested-action");
                     imp.clear_author_button.set_visible(false);
                 } else {
-                    // Deselect previous chip if any
-                    if let Some(ref prev) = state.author {
-                        let prev_label = prev.clone();
-                        let mut sibling = chips_box_clone.first_child();
-                        while let Some(w) = sibling {
-                            if let Some(b) = w.downcast_ref::<gtk::Button>() {
-                                if b.label().as_deref() == Some(&prev_label) {
-                                    b.remove_css_class("suggested-action");
-                                }
-                            }
-                            sibling = w.next_sibling();
-                        }
-                    }
                     state.author = Some(author_clone.clone());
-                    btn.add_css_class("suggested-action");
                     imp.clear_author_button.set_visible(true);
                 }
+
                 drop(state);
+
+                let query = popover.imp().author_entry.text().to_string();
+                popover.rebuild_author_rows(&query);
                 popover.emit_filters_changed();
             });
 
@@ -556,18 +584,9 @@ impl SearchFilterPopover {
         {
             let popover = self.clone();
             imp.author_entry.connect_search_changed(move |entry| {
-                let text = entry.text();
-                let imp = popover.imp();
-                let mut state = imp.filter_state.borrow_mut();
-                if text.is_empty() {
-                    state.author = None;
-                    imp.clear_author_button.set_visible(false);
-                } else {
-                    state.author = Some(text.to_string());
-                    imp.clear_author_button.set_visible(true);
-                }
-                drop(state);
-                popover.emit_filters_changed();
+                // This entry filters only the visible author rows.
+                // The repository filter is applied when the user clicks an author.
+                popover.rebuild_author_rows(&entry.text());
             });
         }
 
@@ -579,6 +598,7 @@ impl SearchFilterPopover {
                 imp.author_entry.set_text("");
                 imp.filter_state.borrow_mut().author = None;
                 imp.clear_author_button.set_visible(false);
+                popover.rebuild_author_rows("");
                 popover.emit_filters_changed();
             });
         }
