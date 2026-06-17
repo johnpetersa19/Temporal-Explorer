@@ -19,7 +19,7 @@
  */
 
 use gtk::glib;
-use gtk::prelude::{ObjectExt, StaticType, ToggleButtonExt};
+use gtk::prelude::{ObjectExt, StaticType, ToggleButtonExt, WidgetExt};
 use gtk::subclass::prelude::*;
 use std::cell::Cell;
 use std::sync::OnceLock;
