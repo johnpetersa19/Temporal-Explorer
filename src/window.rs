@@ -81,6 +81,7 @@ use crate::timeline_filter;
 use crate::toolbar::TemporalToolbar;
 use crate::view_controls::FileSortMode;
 use crate::views::grid_view::{FileGridMetadata, GridZoom};
+use crate::views::grid_view::OnContextMenu;
 use crate::views::list_view::{OnEnterDir, OnOpenFile};
 use crate::views::{grid_view, list_view};
 
@@ -2073,11 +2074,15 @@ impl TemporalExplorerWindow {
 
         let win1 = self.clone();
         let win2 = self.clone();
+        let win3 = self.clone();
         let on_enter_dir: OnEnterDir = Box::new(move |path: PathBuf| {
             win1.push_dir(path);
         });
         let on_open_file: OnOpenFile = Box::new(move |path: &std::path::Path, _h: &str| {
             win2.preview_file(path);
+        });
+        let on_context_menu: OnContextMenu = Box::new(move |node: &TreeNode, anchor: &gtk::Widget| {
+            win3.show_file_context_menu(node.clone(), anchor);
         });
 
         let widget: gtk::Widget = match mode {
@@ -2085,7 +2090,7 @@ impl TemporalExplorerWindow {
                 list_view::build_list_view(&nodes, &hash, on_enter_dir, on_open_file).upcast()
             }
             ViewMode::Grid => {
-                grid_view::build_grid_view(&nodes, &hash, grid_zoom, grid_caption_flags, &metadata, on_enter_dir, on_open_file).upcast()
+                grid_view::build_grid_view(&nodes, &hash, grid_zoom, grid_caption_flags, &metadata, on_enter_dir, on_open_file, on_context_menu).upcast()
             }
         };
         self.replace_right_panel(widget);
@@ -2236,6 +2241,279 @@ impl TemporalExplorerWindow {
                 }
             }
         }
+    }
+
+    // ── File context menu ─────────────────────────────────────────────────────
+
+    fn show_file_context_menu(&self, node: TreeNode, anchor: &gtk::Widget) {
+        let popover = gtk::Popover::builder()
+            .has_arrow(false)
+            .autohide(true)
+            .build();
+
+        let box_ = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(0)
+            .margin_top(6)
+            .margin_bottom(6)
+            .margin_start(6)
+            .margin_end(6)
+            .width_request(280)
+            .build();
+
+        let open_btn = self.context_button(&gettext("Open"));
+        let open_with_btn = self.context_button(&gettext("Open With…"));
+        let export_btn = self.context_button(&gettext("Export File…"));
+        let copy_path_btn = self.context_button(&gettext("Copy Repository Path"));
+        let copy_content_btn = self.context_button(&gettext("Copy Content"));
+        let show_system_btn = self.context_button(&gettext("Show in System"));
+        let properties_btn = self.context_button(&gettext("Properties"));
+
+        box_.append(&open_btn);
+        box_.append(&open_with_btn);
+        box_.append(&self.context_separator());
+        box_.append(&export_btn);
+        box_.append(&copy_path_btn);
+        box_.append(&copy_content_btn);
+        box_.append(&self.context_separator());
+        box_.append(&show_system_btn);
+        box_.append(&properties_btn);
+
+        let win = self.clone();
+        let node_open = node.clone();
+        open_btn.connect_clicked(move |_| {
+            win.open_snapshot_node_with_default_app(&node_open);
+        });
+
+        let win = self.clone();
+        let node_open_with = node.clone();
+        open_with_btn.connect_clicked(move |_| {
+            win.open_snapshot_node_with_default_app(&node_open_with);
+        });
+
+        let win = self.clone();
+        let node_export = node.clone();
+        export_btn.connect_clicked(move |_| {
+            win.export_snapshot_node(&node_export);
+        });
+
+        let win = self.clone();
+        let node_path = node.clone();
+        copy_path_btn.connect_clicked(move |_| {
+            win.copy_repository_path(&node_path);
+        });
+
+        let win = self.clone();
+        let node_content = node.clone();
+        copy_content_btn.connect_clicked(move |_| {
+            win.copy_snapshot_node_content(&node_content);
+        });
+
+        let win = self.clone();
+        let node_show = node.clone();
+        show_system_btn.connect_clicked(move |_| {
+            win.show_node_in_system(&node_show);
+        });
+
+        let win = self.clone();
+        properties_btn.connect_clicked(move |_| {
+            win.show_node_properties(&node);
+        });
+
+        popover.set_child(Some(&box_));
+        popover.set_parent(anchor);
+        popover.connect_closed(|p| p.unparent());
+        popover.popup();
+    }
+
+    fn context_button(&self, label: &str) -> gtk::Button {
+        let btn = gtk::Button::builder()
+            .label(label)
+            .halign(gtk::Align::Fill)
+            .build();
+        btn.add_css_class("flat");
+        btn
+    }
+
+    fn context_separator(&self) -> gtk::Separator {
+        gtk::Separator::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .margin_top(4)
+            .margin_bottom(4)
+            .build()
+    }
+
+    fn materialize_snapshot_node_to_temp(&self, node: &TreeNode) -> Option<PathBuf> {
+        if node.is_dir() || node.is_submodule() {
+            self.show_toast(&gettext("Only files can be opened or exported from a snapshot"));
+            return None;
+        }
+
+        let hash = self.imp().current_hash.borrow().clone()?;
+        let repo_ref = self.imp().repository.borrow();
+        let repo = &repo_ref.as_ref()?.0;
+
+        let obj = repo.revparse_single(&hash).ok()?;
+        let commit = obj.peel_to_commit().ok()?;
+        let tree = commit.tree().ok()?;
+        let entry = tree.get_path(node.path()).ok()?;
+        let blob = repo.find_blob(entry.id()).ok()?;
+
+        let file_name = node
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("snapshot-file");
+
+        let short = short_hash(&hash);
+        let target_dir = std::env::temp_dir()
+            .join("temporal-explorer")
+            .join(short);
+
+        std::fs::create_dir_all(&target_dir).ok()?;
+
+        let target = target_dir.join(file_name);
+        std::fs::write(&target, blob.content()).ok()?;
+
+        Some(target)
+    }
+
+    fn open_snapshot_node_with_default_app(&self, node: &TreeNode) {
+        let Some(path) = self.materialize_snapshot_node_to_temp(node) else {
+            return;
+        };
+
+        let uri = format!("file://{}", path.to_string_lossy());
+        if gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>).is_err() {
+            self.show_error(&gettext("Could not open file with the default application"));
+        }
+    }
+
+    fn export_snapshot_node(&self, node: &TreeNode) {
+        let Some(temp_path) = self.materialize_snapshot_node_to_temp(node) else {
+            return;
+        };
+
+        let Some(file_name) = node.path().file_name() else {
+            return;
+        };
+
+        let export_dir = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(std::env::temp_dir)
+            .join("Downloads")
+            .join("Temporal Explorer Export");
+
+        if std::fs::create_dir_all(&export_dir).is_err() {
+            self.show_error(&gettext("Could not create export directory"));
+            return;
+        }
+
+        let target = export_dir.join(file_name);
+
+        if std::fs::copy(&temp_path, &target).is_ok() {
+            self.show_toast(&format!("{}: {}", gettext("Exported"), target.display()));
+        } else {
+            self.show_error(&gettext("Could not export file"));
+        }
+    }
+
+    fn copy_repository_path(&self, node: &TreeNode) {
+        let text = node.path().to_string_lossy().to_string();
+
+        if let Some(display) = gtk::gdk::Display::default() {
+            display.clipboard().set_text(&text);
+            self.show_toast(&gettext("Repository path copied"));
+        }
+    }
+
+    fn copy_snapshot_node_content(&self, node: &TreeNode) {
+        if node.is_dir() || node.is_submodule() {
+            self.show_toast(&gettext("Only file content can be copied"));
+            return;
+        }
+
+        let Some(hash) = self.imp().current_hash.borrow().clone() else {
+            return;
+        };
+
+        let repo_ref = self.imp().repository.borrow();
+        let Some(repo_wrapper) = repo_ref.as_ref() else {
+            return;
+        };
+        let repo = &repo_wrapper.0;
+
+        let content = repo
+            .revparse_single(&hash)
+            .ok()
+            .and_then(|obj| obj.peel_to_commit().ok())
+            .and_then(|commit| commit.tree().ok())
+            .and_then(|tree| tree.get_path(node.path()).ok())
+            .and_then(|entry| repo.find_blob(entry.id()).ok())
+            .and_then(|blob| std::str::from_utf8(blob.content()).ok().map(ToOwned::to_owned));
+
+        if let Some(text) = content {
+            if let Some(display) = gtk::gdk::Display::default() {
+                display.clipboard().set_text(&text);
+                self.show_toast(&gettext("File content copied"));
+            }
+        } else {
+            self.show_toast(&gettext("This file is binary or could not be copied as text"));
+        }
+    }
+
+    fn show_node_in_system(&self, node: &TreeNode) {
+        let Some(repo_path) = self.imp().repo_path.borrow().clone() else {
+            return;
+        };
+
+        let working_path = repo_path.join(node.path());
+
+        if !working_path.exists() {
+            self.show_toast(&gettext("This file does not exist in the current working tree"));
+            return;
+        }
+
+        let uri = format!("file://{}", working_path.to_string_lossy());
+        if gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>).is_err() {
+            self.show_error(&gettext("Could not show file in the system"));
+        }
+    }
+
+    fn show_node_properties(&self, node: &TreeNode) {
+        let hash = self.imp().current_hash.borrow().clone().unwrap_or_default();
+
+        let kind = if node.is_dir() {
+            gettext("Folder")
+        } else if node.is_submodule() {
+            gettext("Submodule")
+        } else {
+            gettext("File")
+        };
+
+        let body = format!(
+            "{}: {}\n{}: {}\n{}: {}\n{}: {}",
+            gettext("Name"),
+            node.path()
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(""),
+            gettext("Repository path"),
+            node.path().display(),
+            gettext("Type"),
+            kind,
+            gettext("Commit"),
+            short_hash(&hash),
+        );
+
+        let dialog = adw::AlertDialog::builder()
+            .heading(&gettext("Properties"))
+            .body(&body)
+            .build();
+
+        dialog.add_response("close", &gettext("Close"));
+        dialog.set_default_response(Some("close"));
+        dialog.present(Some(self));
     }
 
     // ── Right-panel management ────────────────────────────────────────────────

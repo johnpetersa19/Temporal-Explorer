@@ -45,6 +45,9 @@ pub type OnEnterDir = Box<dyn Fn(PathBuf) + 'static>;
 /// Callback type invoked when the user activates a file cell.
 pub type OnOpenFile = Box<dyn Fn(&std::path::Path, &str) + 'static>;
 
+/// Callback type invoked when the user opens the context menu for a file cell.
+pub type OnContextMenu = Box<dyn Fn(&TreeNode, &gtk::Widget) + 'static>;
+
 #[derive(Debug, Clone, Default)]
 pub struct FileGridMetadata {
     pub size: Option<u64>,
@@ -102,6 +105,7 @@ pub fn build_grid_view(
     metadata: &HashMap<PathBuf, FileGridMetadata>,
     on_enter_dir: OnEnterDir,
     on_open_file: OnOpenFile,
+    on_context_menu: OnContextMenu,
 ) -> gtk::Widget {
     let metrics = zoom.metrics();
     let scrolled = gtk::ScrolledWindow::builder()
@@ -147,6 +151,21 @@ pub fn build_grid_view(
                 .halign(gtk::Align::Start)
                 .hexpand(false)
                 .build();
+
+            let node_for_menu = node.clone();
+            let gesture = gtk::GestureClick::builder()
+                .button(3)
+                .build();
+
+            gesture.connect_pressed(glib::clone!(
+                #[strong] child,
+                move |_, _, _, _| {
+                    on_context_menu(&node_for_menu, child.upcast_ref::<gtk::Widget>());
+                }
+            ));
+
+            child.add_controller(gesture);
+
             flow.insert(&child, -1);
         }
     }
