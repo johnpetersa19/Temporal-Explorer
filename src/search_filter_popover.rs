@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU General Public License/home/john/Projects/Temporal-Explorer/src
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -42,6 +42,7 @@ use std::cell::RefCell;
 use std::sync::OnceLock;
 
 use crate::date_range_dialog::DateRangeDialog;
+use crate::filter_types_dialog::FilterTypesDialog;
 use crate::git_engine::CommitInfo;
 
 // ── FilterDateRange ────────────────────────────────────────────────────────────
@@ -596,6 +597,13 @@ impl SearchFilterPopover {
         self.connect_file_type_chip(&imp.file_type_toml_button, |f| &mut f.toml);
         self.connect_file_type_chip(&imp.file_type_blueprint_button, |f| &mut f.blueprint);
 
+        {
+            let popover = self.clone();
+            imp.file_type_other_button.connect_clicked(move |_| {
+                popover.open_file_type_dialog();
+            });
+        }
+
         // ── Reset all ─────────────────────────────────────────────────────
         {
             let popover = self.clone();
@@ -657,6 +665,22 @@ impl SearchFilterPopover {
             drop(state);
             popover.emit_filters_changed();
         });
+    }
+
+    fn open_file_type_dialog(&self) {
+        let dialog = FilterTypesDialog::new();
+
+        let popover = self.clone();
+        dialog.connect_file_type_selected(move |_dialog, ext| {
+            popover.set_file_ext_filter(ext);
+            popover.emit_filters_changed();
+        });
+
+        if let Some(root) = self.root() {
+            dialog.present(Some(&root));
+        } else {
+            dialog.present(gtk::Window::NONE);
+        }
     }
 
     fn open_date_range_dialog(&self) {

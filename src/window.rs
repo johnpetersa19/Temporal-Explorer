@@ -2017,6 +2017,7 @@ impl TemporalExplorerWindow {
 
         let all_commits = self.imp().all_commits.borrow().clone();
         let filter = self.imp().filter_state.borrow().clone();
+        let repo_path = self.imp().repo_path.borrow().clone();
         let branch_hashes = filter
             .branch
             .as_ref()
@@ -2063,16 +2064,43 @@ impl TemporalExplorerWindow {
                 }
 
                 // ── File-type / extension filter ──────────────────────────
-                if let Some(ref ext) = filter.files.other_ext {
-                    if !commit.changed_files.iter().any(|file| {
-                        std::path::Path::new(file)
+                if filter.files.is_active() {
+                    let mut commit = commit;
+
+                    // changed_files is loaded lazily in the UI. For file filters,
+                    // load it inside the worker so the filter has real data.
+                    if commit.changed_files.is_empty() {
+                        if let Some(ref path) = repo_path {
+                            if let Ok(repo) = git2::Repository::open(path) {
+                                commit.load_changed_files(&repo);
+                            }
+                        }
+                    }
+
+                    let has_file_match = commit.changed_files.iter().any(|file| {
+                        let ext = std::path::Path::new(file)
                             .extension()
                             .and_then(|e| e.to_str())
-                            .map(|e| e.eq_ignore_ascii_case(ext.trim_start_matches('.')))
-                            .unwrap_or(false)
-                    }) {
+                            .unwrap_or("")
+                            .to_lowercase();
+
+                        (filter.files.rust && ext == "rs")
+                            || (filter.files.toml && ext == "toml")
+                            || (filter.files.blueprint && ext == "blp")
+                            || filter
+                                .files
+                                .other_ext
+                                .as_deref()
+                                .map(|wanted| ext == wanted.trim_start_matches('.').to_lowercase())
+                                .unwrap_or(false)
+                    });
+
+                    if !has_file_match {
                         continue;
                     }
+
+                    results.push(commit);
+                    continue;
                 }
 
                 // ── Text query ────────────────────────────────────────────

@@ -1,14 +1,13 @@
 {
-    "id" : "io.github.johnpetersa19.TemporalExplorer",
-    "runtime" : "org.gnome.Platform",
-    "runtime-version" : "50",
-    "sdk" : "org.gnome.Sdk",
-    "sdk-extensions" : [
+    "id": "io.github.johnpetersa19.TemporalExplorer",
+    "runtime": "org.gnome.Platform",
+    "runtime-version": "50",
+    "sdk": "org.gnome.Sdk",
+    "sdk-extensions": [
         "org.freedesktop.Sdk.Extension.rust-stable"
     ],
-    "base-sdk-version" : "25.08",
-    "command" : "temporal-explorer",
-    "finish-args" : [
+    "command": "temporal-explorer",
+    "finish-args": [
         "--share=network",
         "--share=ipc",
         "--socket=fallback-x11",
@@ -16,17 +15,17 @@
         "--socket=wayland",
         "--filesystem=host:ro"
     ],
-    "build-options" : {
-        "append-path" : "/usr/lib/sdk/rust-stable/bin",
-        "build-args" : [
+    "build-options": {
+        "append-path": "/usr/lib/sdk/rust-stable/bin",
+        "build-args": [
             "--share=network"
         ],
-        "env" : {
-            "RUST_BACKTRACE" : "1",
-            "RUST_LOG" : "temporal-explorer=debug"
+        "env": {
+            "RUST_BACKTRACE": "1",
+            "RUST_LOG": "temporal-explorer=debug"
         }
     },
-    "cleanup" : [
+    "cleanup": [
         "/include",
         "/lib/pkgconfig",
         "/man",
@@ -37,26 +36,26 @@
         "*.la",
         "*.a"
     ],
-    "modules" : [
+    "modules": [
         {
-            "name" : "blueprint-compiler",
-            "buildsystem" : "meson",
-            "sources" : [
+            "name": "blueprint-compiler",
+            "buildsystem": "meson",
+            "sources": [
                 {
-                    "type" : "git",
-                    "url" : "https://gitlab.gnome.org/jwestman/blueprint-compiler",
-                    "tag" : "v0.16.0"
+                    "type": "git",
+                    "url": "https://gitlab.gnome.org/jwestman/blueprint-compiler",
+                    "tag": "v0.16.0"
                 }
             ]
         },
         {
-            "name" : "temporal-explorer",
-            "builddir" : true,
-            "buildsystem" : "meson",
-            "sources" : [
+            "name": "temporal-explorer",
+            "builddir": true,
+            "buildsystem": "meson",
+            "sources": [
                 {
-                    "type" : "dir",
-                    "path" : "."
+                    "type": "dir",
+                    "path": "."
                 }
             ]
         }
