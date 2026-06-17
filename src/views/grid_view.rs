@@ -66,7 +66,13 @@ pub fn build_grid_view(
 
     let flow = gtk::FlowBox::builder()
         .selection_mode(gtk::SelectionMode::Single)
-        // Nautilus-like compact grid: do not stretch cells across the row.
+        // Nautilus-like compact grid: keep the whole flow aligned to the start.
+        // The previous version changed only the children, but the FlowBox itself
+        // was still expanding to the full viewport width, leaving huge gaps.
+        .halign(gtk::Align::Start)
+        .valign(gtk::Align::Start)
+        .hexpand(false)
+        .vexpand(false)
         .homogeneous(false)
         .column_spacing(12)
         .row_spacing(12)
@@ -74,7 +80,7 @@ pub fn build_grid_view(
         .margin_bottom(16)
         .margin_start(16)
         .margin_end(16)
-        .max_children_per_line(12)
+        .max_children_per_line(64)
         .min_children_per_line(1)
         .build();
 
@@ -93,6 +99,7 @@ pub fn build_grid_view(
                 .child(&cell)
                 .valign(gtk::Align::Start)
                 .halign(gtk::Align::Start)
+                .hexpand(false)
                 .build();
             flow.insert(&child, -1);
         }
