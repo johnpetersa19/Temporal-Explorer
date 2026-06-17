@@ -1663,9 +1663,17 @@ impl TemporalExplorerWindow {
         let level = *imp.timeline_level.borrow();
         match level {
             TimelineLevel::Commits => {
-                *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
-                imp.timeline_stack.set_visible_child_name("months");
-                imp.timeline_header_title.set_subtitle("");
+                if imp.selected_year.get() > 0 {
+                    *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
+                    imp.timeline_stack.set_visible_child_name("months");
+                    imp.timeline_header_title.set_subtitle("");
+                } else {
+                    *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
+                    imp.timeline_stack.set_visible_child_name("years");
+                    imp.timeline_back_button.set_visible(false);
+                    imp.timeline_header_title.set_title(&gettext("Timeline"));
+                    imp.timeline_header_title.set_subtitle("");
+                }
             }
             TimelineLevel::Months => {
                 *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
@@ -2126,6 +2134,29 @@ impl TemporalExplorerWindow {
 
     fn on_search_changed(&self, query: String) {
         *self.imp().last_query.borrow_mut() = query.clone();
+
+        let trimmed = query.trim().to_string();
+
+        if trimmed.is_empty() {
+            // Search cleared: restore the normal timeline view using the already
+            // loaded in-memory commit history. Do not reload the repository.
+            if let Some(prev) = self.imp().search_debounce.borrow_mut().take() {
+                prev.store(true, Ordering::Relaxed);
+            }
+
+            self.refresh_timeline_after_filter_change();
+            return;
+        }
+
+        {
+            let imp = self.imp();
+            *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
+            imp.selected_year.set(0);
+            imp.timeline_stack.set_visible_child_name("commits");
+            imp.timeline_back_button.set_visible(true);
+            imp.timeline_header_title.set_title(&gettext("Search Results"));
+            imp.timeline_header_title.set_subtitle("");
+        }
 
         // Cancel any in-flight debounce.
         if let Some(prev) = self.imp().search_debounce.borrow_mut().take() {
