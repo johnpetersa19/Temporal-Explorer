@@ -2478,7 +2478,7 @@ impl TemporalExplorerWindow {
             content_type.as_str(),
         );
 
-        dialog.set_heading(Some(&gettext("Open With…")));
+        dialog.set_heading(&gettext("Open With…"));
 
         let win = self.clone();
         dialog.connect_response(move |dialog, response| {
