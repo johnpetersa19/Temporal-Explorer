@@ -80,7 +80,7 @@ use crate::select_commits_by_pattern::{commit_matches_pattern, SelectCommitsByPa
 use crate::timeline_filter;
 use crate::toolbar::TemporalToolbar;
 use crate::view_controls::FileSortMode;
-use crate::views::grid_view::GridZoom;
+use crate::views::grid_view::{FileGridMetadata, GridZoom};
 use crate::views::list_view::{OnEnterDir, OnOpenFile};
 use crate::views::{grid_view, list_view};
 
@@ -268,6 +268,64 @@ gtk::Native, gtk::Root, gtk::ShortcutManager;
 // ── Free helpers ───────────────────────────────────────────────────────────────
 
 /// Remove all children from a `gtk::Box`.
+fn commit_touches_path(
+    repo: &git2::Repository,
+    commit: &git2::Commit<'_>,
+    path: &std::path::Path,
+    is_dir: bool,
+) -> bool {
+    let Ok(tree) = commit.tree() else {
+        return false;
+    };
+
+    let parent_tree = commit.parent(0).ok().and_then(|parent| parent.tree().ok());
+
+    let Ok(diff) = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None) else {
+        return false;
+    };
+
+    for delta in diff.deltas() {
+        let old_path = delta.old_file().path();
+        let new_path = delta.new_file().path();
+
+        let matches = |candidate: Option<&std::path::Path>| -> bool {
+            let Some(candidate) = candidate else {
+                return false;
+            };
+
+            if is_dir {
+                candidate == path || candidate.starts_with(path)
+            } else {
+                candidate == path
+            }
+        };
+
+        if matches(old_path) || matches(new_path) {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn format_file_size(size: u64) -> String {
+    const KIB: f64 = 1024.0;
+    const MIB: f64 = 1024.0 * 1024.0;
+    const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
+
+    let size_f = size as f64;
+
+    if size_f >= GIB {
+        format!("{:.1} GB", size_f / GIB)
+    } else if size_f >= MIB {
+        format!("{:.1} MB", size_f / MIB)
+    } else if size_f >= KIB {
+        format!("{:.1} KB", size_f / KIB)
+    } else {
+        format!("{size} B")
+    }
+}
+
 fn clear_box(container: &gtk::Box) {
     while let Some(child) = container.first_child() {
         container.remove(&child);
@@ -874,7 +932,10 @@ impl TemporalExplorerWindow {
                 let raw = args[1].get::<u32>().unwrap_or(0);
                 let mode = match raw {
                     1 => FileSortMode::NameDescending,
-                    2 => FileSortMode::Extension,
+                    2 => FileSortMode::LastModified,
+                    3 => FileSortMode::FirstModified,
+                    4 => FileSortMode::Size,
+                    5 => FileSortMode::Extension,
                     _ => FileSortMode::Name,
                 };
                 *win.imp().sort_mode.borrow_mut() = mode;
@@ -1877,6 +1938,7 @@ impl TemporalExplorerWindow {
         let grid_zoom = *imp.grid_zoom.borrow();
         let grid_caption_flags = *imp.grid_caption_flags.borrow();
         let hash = imp.current_hash.borrow().clone().unwrap_or_default();
+        let metadata = self.build_file_grid_metadata(&nodes, &hash);
 
         let mut decorated: Vec<(TreeNode, String, String)> = nodes
             .into_iter()
@@ -1905,6 +1967,27 @@ impl TemporalExplorerWindow {
             FileSortMode::NameDescending => {
                 decorated.sort_by(|a, b| b.0.is_dir().cmp(&a.0.is_dir()).then(b.1.cmp(&a.1)));
             }
+            FileSortMode::LastModified => {
+                decorated.sort_by(|a, b| {
+                    let ma = metadata.get(a.0.path()).and_then(|m| m.last_modified).unwrap_or(i64::MIN);
+                    let mb = metadata.get(b.0.path()).and_then(|m| m.last_modified).unwrap_or(i64::MIN);
+                    b.0.is_dir().cmp(&a.0.is_dir()).then(mb.cmp(&ma)).then(a.1.cmp(&b.1))
+                });
+            }
+            FileSortMode::FirstModified => {
+                decorated.sort_by(|a, b| {
+                    let ma = metadata.get(a.0.path()).and_then(|m| m.first_modified).unwrap_or(i64::MAX);
+                    let mb = metadata.get(b.0.path()).and_then(|m| m.first_modified).unwrap_or(i64::MAX);
+                    b.0.is_dir().cmp(&a.0.is_dir()).then(ma.cmp(&mb)).then(a.1.cmp(&b.1))
+                });
+            }
+            FileSortMode::Size => {
+                decorated.sort_by(|a, b| {
+                    let sa = metadata.get(a.0.path()).and_then(|m| m.size).unwrap_or(0);
+                    let sb = metadata.get(b.0.path()).and_then(|m| m.size).unwrap_or(0);
+                    b.0.is_dir().cmp(&a.0.is_dir()).then(sb.cmp(&sa)).then(a.1.cmp(&b.1))
+                });
+            }
             FileSortMode::Extension => {
                 decorated.sort_by(|a, b| {
                     b.0.is_dir()
@@ -1931,10 +2014,97 @@ impl TemporalExplorerWindow {
                 list_view::build_list_view(&nodes, &hash, on_enter_dir, on_open_file).upcast()
             }
             ViewMode::Grid => {
-                grid_view::build_grid_view(&nodes, &hash, grid_zoom, grid_caption_flags, on_enter_dir, on_open_file).upcast()
+                grid_view::build_grid_view(&nodes, &hash, grid_zoom, grid_caption_flags, &metadata, on_enter_dir, on_open_file).upcast()
             }
         };
         self.replace_right_panel(widget);
+    }
+
+    // ── File grid metadata ────────────────────────────────────────────────────
+
+    fn build_file_grid_metadata(
+        &self,
+        nodes: &[TreeNode],
+        hash: &str,
+    ) -> HashMap<PathBuf, FileGridMetadata> {
+        let mut out = HashMap::new();
+
+        let imp = self.imp();
+        let repo_ref = imp.repository.borrow();
+        let Some(repo_wrapper) = repo_ref.as_ref() else {
+            return out;
+        };
+        let repo: &git2::Repository = &repo_wrapper.0;
+
+        let tree = repo
+            .revparse_single(hash)
+            .ok()
+            .and_then(|obj| obj.peel_to_commit().ok())
+            .and_then(|commit| commit.tree().ok());
+
+        for node in nodes {
+            let mut meta = FileGridMetadata::default();
+            let path = node.path().to_path_buf();
+
+            if let Some(ref tree) = tree {
+                meta.size = self.git_blob_size(repo, tree, node);
+                meta.size_label = meta.size.map(format_file_size);
+            }
+
+            let (first, last) = self.git_path_first_last_modified(repo, node);
+            meta.first_modified = first;
+            meta.last_modified = last;
+            meta.first_modified_label = first.map(Self::format_timestamp);
+            meta.last_modified_label = last.map(Self::format_timestamp);
+
+            out.insert(path, meta);
+        }
+
+        out
+    }
+
+    fn git_blob_size(
+        &self,
+        repo: &git2::Repository,
+        tree: &git2::Tree<'_>,
+        node: &TreeNode,
+    ) -> Option<u64> {
+        if !matches!(node, TreeNode::File(_)) {
+            return None;
+        }
+
+        let entry = tree.get_path(node.path()).ok()?;
+        let blob = repo.find_blob(entry.id()).ok()?;
+        Some(blob.size() as u64)
+    }
+
+    fn git_path_first_last_modified(
+        &self,
+        repo: &git2::Repository,
+        node: &TreeNode,
+    ) -> (Option<i64>, Option<i64>) {
+        let path = node.path().to_path_buf();
+        let is_dir = node.is_dir();
+
+        let commits = self.imp().all_commits.borrow();
+
+        let mut first = None;
+        let mut last = None;
+
+        for commit_info in commits.iter() {
+            let Ok(commit) = repo.find_commit(commit_info.oid()) else {
+                continue;
+            };
+
+            if commit_touches_path(repo, &commit, &path, is_dir) {
+                if last.is_none() {
+                    last = Some(commit_info.timestamp);
+                }
+                first = Some(commit_info.timestamp);
+            }
+        }
+
+        (first, last)
     }
 
     // ── Right-panel management ────────────────────────────────────────────────

@@ -33,6 +33,7 @@
 use gettextrs::gettext;
 use gtk::glib;
 use gtk::prelude::*;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::file_grid_captions_dialog::CaptionFlags;
@@ -43,6 +44,17 @@ use crate::icon_helpers::{folder_icon, mime_icon_full};
 pub type OnEnterDir = Box<dyn Fn(PathBuf) + 'static>;
 /// Callback type invoked when the user activates a file cell.
 pub type OnOpenFile = Box<dyn Fn(&std::path::Path, &str) + 'static>;
+
+#[derive(Debug, Clone, Default)]
+pub struct FileGridMetadata {
+    pub size: Option<u64>,
+    pub size_label: Option<String>,
+    pub last_modified: Option<i64>,
+    pub last_modified_label: Option<String>,
+    pub first_modified: Option<i64>,
+    pub first_modified_label: Option<String>,
+}
+
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum GridZoom {
@@ -87,6 +99,7 @@ pub fn build_grid_view(
     hash: &str,
     zoom: GridZoom,
     caption_flags: CaptionFlags,
+    metadata: &HashMap<PathBuf, FileGridMetadata>,
     on_enter_dir: OnEnterDir,
     on_open_file: OnOpenFile,
 ) -> gtk::Widget {
@@ -127,7 +140,7 @@ pub fn build_grid_view(
         flow.insert(&placeholder, -1);
     } else {
         for node in children {
-            let cell = build_grid_cell(node, metrics, caption_flags);
+            let cell = build_grid_cell(node, metrics, caption_flags, metadata.get(node.path()));
             let child = gtk::FlowBoxChild::builder()
                 .child(&cell)
                 .valign(gtk::Align::Start)
@@ -191,7 +204,12 @@ pub fn build_grid_view(
 /// | `Dir` | `folder-*` (64 px) |
 /// | `Submodule` | `folder-remote` (64 px) |
 /// | `File` | full mime icon (64 px) |
-fn build_grid_cell(node: &TreeNode, metrics: GridMetrics, caption_flags: CaptionFlags) -> gtk::Box {
+fn build_grid_cell(
+    node: &TreeNode,
+    metrics: GridMetrics,
+    caption_flags: CaptionFlags,
+    metadata: Option<&FileGridMetadata>,
+) -> gtk::Box {
     let vbox = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .spacing(6)
@@ -235,7 +253,7 @@ fn build_grid_cell(node: &TreeNode, metrics: GridMetrics, caption_flags: Caption
     label.add_css_class("caption");
     vbox.append(&label);
 
-    for caption in build_caption_lines(node, caption_flags) {
+    for caption in build_caption_lines(node, caption_flags, metadata) {
         let caption_label = gtk::Label::builder()
             .label(&caption)
             .halign(gtk::Align::Center)
@@ -251,7 +269,11 @@ fn build_grid_cell(node: &TreeNode, metrics: GridMetrics, caption_flags: Caption
     vbox
 }
 
-fn build_caption_lines(node: &TreeNode, flags: CaptionFlags) -> Vec<String> {
+fn build_caption_lines(
+    node: &TreeNode,
+    flags: CaptionFlags,
+    metadata: Option<&FileGridMetadata>,
+) -> Vec<String> {
     if flags.is_empty() {
         return Vec::new();
     }
@@ -286,15 +308,18 @@ fn build_caption_lines(node: &TreeNode, flags: CaptionFlags) -> Vec<String> {
     }
 
     if flags.contains(CaptionFlags::SIZE) {
-        // Snapshot tree nodes currently do not carry blob size.
-        // Keep the caption visible so the option has immediate UI feedback.
-        lines.push(gettext("Size unavailable"));
+        let size = metadata
+            .and_then(|m| m.size_label.clone())
+            .unwrap_or_else(|| gettext("Unknown size"));
+        lines.push(size);
     }
 
     if flags.contains(CaptionFlags::DATE) {
-        // Per-file modification time is not stored in a Git tree object.
-        // The real timestamp belongs to the selected commit/snapshot.
-        lines.push(gettext("Snapshot date"));
+        if let Some(label) = metadata.and_then(|m| m.last_modified_label.clone()) {
+            lines.push(label);
+        } else {
+            lines.push(gettext("Unknown date"));
+        }
     }
 
     lines

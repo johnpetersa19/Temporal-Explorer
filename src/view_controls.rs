@@ -32,6 +32,9 @@ pub enum FileSortMode {
     #[default]
     Name,
     NameDescending,
+    LastModified,
+    FirstModified,
+    Size,
     Status,
     Extension,
 }
@@ -50,9 +53,12 @@ mod imp {
         #[template_child] pub zoom_out_button:        TemplateChild<gtk::Button>,
         #[template_child] pub zoom_in_button:         TemplateChild<gtk::Button>,
         #[template_child] pub captions_button:        TemplateChild<gtk::Button>,
-        #[template_child] pub sort_name_button:       TemplateChild<gtk::CheckButton>,
-        #[template_child] pub sort_name_desc_button:  TemplateChild<gtk::CheckButton>,
-        #[template_child] pub sort_type_button:       TemplateChild<gtk::CheckButton>,
+        #[template_child] pub sort_name_button:           TemplateChild<gtk::CheckButton>,
+        #[template_child] pub sort_name_desc_button:      TemplateChild<gtk::CheckButton>,
+        #[template_child] pub sort_last_modified_button:  TemplateChild<gtk::CheckButton>,
+        #[template_child] pub sort_first_modified_button: TemplateChild<gtk::CheckButton>,
+        #[template_child] pub sort_size_button:           TemplateChild<gtk::CheckButton>,
+        #[template_child] pub sort_type_button:           TemplateChild<gtk::CheckButton>,
 
         pub zoom_level: Cell<u32>,
     }
@@ -137,10 +143,34 @@ mod imp {
         }
 
         #[template_callback]
+        fn on_sort_last_modified_toggled(&self) {
+            if self.sort_last_modified_button.get().is_active() {
+                self.view_options_label.get().set_label(&gettext("Last Modified"));
+                self.obj().emit_by_name::<()>("sort-changed", &[&2u32]);
+            }
+        }
+
+        #[template_callback]
+        fn on_sort_first_modified_toggled(&self) {
+            if self.sort_first_modified_button.get().is_active() {
+                self.view_options_label.get().set_label(&gettext("First Modified"));
+                self.obj().emit_by_name::<()>("sort-changed", &[&3u32]);
+            }
+        }
+
+        #[template_callback]
+        fn on_sort_size_toggled(&self) {
+            if self.sort_size_button.get().is_active() {
+                self.view_options_label.get().set_label(&gettext("Size"));
+                self.obj().emit_by_name::<()>("sort-changed", &[&4u32]);
+            }
+        }
+
+        #[template_callback]
         fn on_sort_type_toggled(&self) {
             if self.sort_type_button.get().is_active() {
                 self.view_options_label.get().set_label(&gettext("Type"));
-                self.obj().emit_by_name::<()>("sort-changed", &[&2u32]);
+                self.obj().emit_by_name::<()>("sort-changed", &[&5u32]);
             }
         }
 
