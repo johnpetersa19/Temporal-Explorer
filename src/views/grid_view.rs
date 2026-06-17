@@ -66,14 +66,15 @@ pub fn build_grid_view(
 
     let flow = gtk::FlowBox::builder()
         .selection_mode(gtk::SelectionMode::Single)
-        .homogeneous(true)
-        .column_spacing(6)
-        .row_spacing(6)
+        // Nautilus-like compact grid: do not stretch cells across the row.
+        .homogeneous(false)
+        .column_spacing(12)
+        .row_spacing(12)
         .margin_top(16)
         .margin_bottom(16)
         .margin_start(16)
         .margin_end(16)
-        .max_children_per_line(64)
+        .max_children_per_line(12)
         .min_children_per_line(1)
         .build();
 
@@ -91,7 +92,7 @@ pub fn build_grid_view(
             let child = gtk::FlowBoxChild::builder()
                 .child(&cell)
                 .valign(gtk::Align::Start)
-                .halign(gtk::Align::Center)
+                .halign(gtk::Align::Start)
                 .build();
             flow.insert(&child, -1);
         }
@@ -158,7 +159,7 @@ pub fn build_grid_cell(node: &TreeNode) -> gtk::Box {
         .margin_bottom(6)
         .margin_start(6)
         .margin_end(6)
-        .width_request(96)
+        .width_request(104)
         .build();
     vbox.add_css_class("nautilus-view-cell");
 
@@ -188,7 +189,8 @@ pub fn build_grid_cell(node: &TreeNode) -> gtk::Box {
         .wrap_mode(gtk::pango::WrapMode::WordChar)
         .max_width_chars(12)
         .lines(3)
-        .ellipsize(gtk::pango::EllipsizeMode::End)
+        // Nautilus uses middle ellipsize for long filenames.
+        .ellipsize(gtk::pango::EllipsizeMode::Middle)
         .build();
     label.add_css_class("caption");
     vbox.append(&label);
