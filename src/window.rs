@@ -1317,6 +1317,25 @@ impl TemporalExplorerWindow {
 
     // ── Timeline loading ───────────────────────────────────────────────────────
 
+    fn rebuild_author_chips_from_all_commits(&self) {
+        let imp = self.imp();
+        let pop_borrow = imp.filter_popover.borrow();
+        let Some(ref pop) = *pop_borrow else { return };
+
+        let commits = imp.all_commits.borrow();
+
+        let mut authors: Vec<String> = commits
+            .iter()
+            .map(|commit| commit.author.trim().to_string())
+            .filter(|author| !author.is_empty())
+            .collect();
+
+        authors.sort_by_key(|author| author.to_lowercase());
+        authors.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+
+        pop.populate_author_chips(&authors);
+    }
+
     /// Feeds new author names into the filter popover, deduplicating against
     /// authors already seen in previous pages.
     ///
@@ -1334,7 +1353,8 @@ impl TemporalExplorerWindow {
             let mut seen = imp.seen_authors.borrow_mut();
 
             for commit in page {
-                if seen.insert(commit.author.clone()) {
+                let author = commit.author.trim();
+                if !author.is_empty() && seen.insert(author.to_string()) {
                     changed = true;
                 }
             }
@@ -1442,6 +1462,7 @@ impl TemporalExplorerWindow {
                     if win.imp().all_commits.borrow().is_empty() {
                         win.show_empty_repository_state();
                     } else {
+                        win.rebuild_author_chips_from_all_commits();
                         win.imp().split_view.set_show_sidebar(true);
                         win.populate_year_list();
                     }
