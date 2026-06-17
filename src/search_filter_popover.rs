@@ -409,7 +409,7 @@ impl SearchFilterPopover {
         let authors = imp.all_authors.borrow().clone();
 
         for author in authors {
-            if !query.is_empty() && !author.to_lowercase().contains(&query) {
+            if !query.is_empty() && !author.to_lowercase().starts_with(&query) {
                 continue;
             }
 
