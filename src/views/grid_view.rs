@@ -35,6 +35,7 @@ use gtk::glib;
 use gtk::prelude::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use crate::file_grid_captions_dialog::CaptionFlags;
 use crate::git_engine::TreeNode;
@@ -108,6 +109,8 @@ pub fn build_grid_view(
     on_context_menu: OnContextMenu,
 ) -> gtk::Widget {
     let metrics = zoom.metrics();
+    let on_context_menu = Rc::from(on_context_menu);
+
     let scrolled = gtk::ScrolledWindow::builder()
         .vexpand(true)
         .hexpand(true)
@@ -153,6 +156,8 @@ pub fn build_grid_view(
                 .build();
 
             let node_for_menu = node.clone();
+            let on_context_menu = Rc::clone(&on_context_menu);
+
             let gesture = gtk::GestureClick::builder()
                 .button(3)
                 .build();
