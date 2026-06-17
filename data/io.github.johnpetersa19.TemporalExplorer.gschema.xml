@@ -1,5 +1,108 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="temporal-explorer">
   <schema id="io.github.johnpetersa19.TemporalExplorer" path="/io/github/johnpetersa19/TemporalExplorer/">
+
+    <key name="fetch-on-open" type="b">
+      <default>false</default>
+      <summary>Fetch on open</summary>
+      <description>Run git fetch automatically when a repository is opened.</description>
+    </key>
+
+    <key name="commits-per-page" type="i">
+      <default>500</default>
+      <summary>Commits per page</summary>
+      <description>Number of commits loaded in each batch.</description>
+    </key>
+
+    <key name="default-branch" type="s">
+      <default>'main'</default>
+      <summary>Default branch</summary>
+      <description>Default branch name used by repository operations.</description>
+    </key>
+
+    <key name="clone-depth" type="i">
+      <default>0</default>
+      <summary>Shallow clone depth</summary>
+      <description>Set to 0 to clone the full history.</description>
+    </key>
+
+    <key name="date-format" type="s">
+      <default>'short'</default>
+      <summary>Date format</summary>
+      <description>Commit timestamp display format.</description>
+    </key>
+
+    <key name="default-view" type="s">
+      <default>'grid'</default>
+      <summary>Default view</summary>
+      <description>Default file browser layout.</description>
+    </key>
+
+    <key name="show-avatars" type="b">
+      <default>false</default>
+      <summary>Show author avatars</summary>
+      <description>Display author avatars in the commit list.</description>
+    </key>
+
+    <key name="dense-mode" type="b">
+      <default>false</default>
+      <summary>Dense mode</summary>
+      <description>Reduce row height for more commits on screen.</description>
+    </key>
+
+    <key name="show-graph" type="b">
+      <default>false</default>
+      <summary>Show branch graph</summary>
+      <description>Render commit graph lines in the timeline.</description>
+    </key>
+
+    <key name="syntax-highlight" type="b">
+      <default>true</default>
+      <summary>Syntax highlighting</summary>
+      <description>Highlight diff output using language-specific colours.</description>
+    </key>
+
+    <key name="word-diff" type="b">
+      <default>false</default>
+      <summary>Word-level diff</summary>
+      <description>Highlight individual changed words within lines.</description>
+    </key>
+
+    <key name="context-lines" type="i">
+      <default>3</default>
+      <summary>Context lines</summary>
+      <description>Unchanged lines shown above and below each diff hunk.</description>
+    </key>
+
+    <key name="verify-signatures" type="b">
+      <default>false</default>
+      <summary>Verify commit signatures</summary>
+      <description>Show GPG/SSH signature status in commit details.</description>
+    </key>
+
+    <key name="follow-renames" type="b">
+      <default>true</default>
+      <summary>Follow renames</summary>
+      <description>Track file history across renames when loading diffs.</description>
+    </key>
+
+    <key name="include-submodules" type="b">
+      <default>false</default>
+      <summary>Include submodules</summary>
+      <description>List commits from submodule repositories as well.</description>
+    </key>
+
+    <key name="background-fetch" type="b">
+      <default>false</default>
+      <summary>Background fetch</summary>
+      <description>Periodically refresh remote tracking branches in the background.</description>
+    </key>
+
+    <key name="background-fetch-interval" type="i">
+      <default>30</default>
+      <summary>Background fetch interval</summary>
+      <description>Fetch interval in minutes.</description>
+    </key>
+
   </schema>
 </schemalist>

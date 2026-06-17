@@ -24,6 +24,7 @@ use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 
 use crate::config::VERSION;
+use crate::preferences_dialog::PreferencesDialog;
 use crate::window::TemporalExplorerWindow;
 
 mod imp {
@@ -85,7 +86,17 @@ impl TemporalExplorerApplication {
         let about_action = gio::ActionEntry::builder("about")
             .activate(move |app: &Self, _, _| app.show_about())
             .build();
-        self.add_action_entries([quit_action, about_action]);
+        let preferences_action = gio::ActionEntry::builder("preferences")
+            .activate(move |app: &Self, _, _| app.show_preferences())
+            .build();
+        self.add_action_entries([quit_action, about_action, preferences_action]);
+    }
+
+    fn show_preferences(&self) {
+        let window = self.active_window().unwrap();
+        let settings = gio::Settings::new("io.github.johnpetersa19.TemporalExplorer");
+        let dialog = PreferencesDialog::new(&settings);
+        dialog.present(Some(&window));
     }
 
     fn show_about(&self) {
