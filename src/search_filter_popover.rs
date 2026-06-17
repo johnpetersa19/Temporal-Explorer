@@ -396,6 +396,25 @@ impl SearchFilterPopover {
         self.rebuild_author_rows(&query);
     }
 
+    fn apply_author_row_search(&self, query: &str) {
+        let imp = self.imp();
+        let query = query.trim().to_lowercase();
+        let chips_box = imp.author_chips_box.get();
+
+        let mut child = chips_box.first_child();
+        while let Some(widget) = child {
+            let next = widget.next_sibling();
+
+            if let Some(button) = widget.downcast_ref::<gtk::Button>() {
+                let author = button.widget_name().to_string();
+                let visible = query.is_empty() || author.to_lowercase().starts_with(&query);
+                button.set_visible(visible);
+            }
+
+            child = next;
+        }
+    }
+
     fn rebuild_author_rows(&self, query: &str) {
         let imp = self.imp();
         let chips_box = imp.author_chips_box.get();
@@ -420,6 +439,7 @@ impl SearchFilterPopover {
                 .css_classes(["chip"])
                 .build();
 
+            chip.set_widget_name(&author);
             chip.set_tooltip_text(Some(&author));
 
             if selected_author
@@ -457,8 +477,30 @@ impl SearchFilterPopover {
 
                 drop(state);
 
-                let query = popover.imp().author_entry.text().to_string();
-                popover.rebuild_author_rows(&query);
+                let selected = popover.imp().filter_state.borrow().author.clone();
+                let chips_box = popover.imp().author_chips_box.get();
+
+                let mut child = chips_box.first_child();
+                while let Some(widget) = child {
+                    let next = widget.next_sibling();
+
+                    if let Some(button) = widget.downcast_ref::<gtk::Button>() {
+                        let author = button.widget_name().to_string();
+                        let is_selected = selected
+                            .as_deref()
+                            .map(|selected| selected.eq_ignore_ascii_case(&author))
+                            .unwrap_or(false);
+
+                        if is_selected {
+                            button.add_css_class("suggested-action");
+                        } else {
+                            button.remove_css_class("suggested-action");
+                        }
+                    }
+
+                    child = next;
+                }
+
                 popover.emit_filters_changed();
             });
 
@@ -584,9 +626,10 @@ impl SearchFilterPopover {
         {
             let popover = self.clone();
             imp.author_entry.connect_search_changed(move |entry| {
-                // This entry filters only the visible author rows.
-                // The repository filter is applied when the user clicks an author.
-                popover.rebuild_author_rows(&entry.text());
+                // Filter only the already-created author rows.
+                // This avoids rebuilding/reloading the author list every time
+                // the user types or clears the search entry.
+                popover.apply_author_row_search(&entry.text());
             });
         }
 
@@ -598,7 +641,20 @@ impl SearchFilterPopover {
                 imp.author_entry.set_text("");
                 imp.filter_state.borrow_mut().author = None;
                 imp.clear_author_button.set_visible(false);
-                popover.rebuild_author_rows("");
+
+                let chips_box = imp.author_chips_box.get();
+                let mut child = chips_box.first_child();
+                while let Some(widget) = child {
+                    let next = widget.next_sibling();
+
+                    if let Some(button) = widget.downcast_ref::<gtk::Button>() {
+                        button.set_visible(true);
+                        button.remove_css_class("suggested-action");
+                    }
+
+                    child = next;
+                }
+
                 popover.emit_filters_changed();
             });
         }
