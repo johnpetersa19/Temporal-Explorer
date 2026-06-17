@@ -2,27 +2,14 @@
  *
  * Copyright 2026 John Peter Sá
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 use gettextrs::gettext;
-use gtk::glib;
+use gtk::{gio, glib};
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::sync::OnceLock;
 
 // ── FileSortMode ──────────────────────────────────────────────────────────────
@@ -47,20 +34,14 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/view-controls.ui")]
     pub struct ViewControls {
-        #[template_child] pub grid_view_button:       TemplateChild<gtk::ToggleButton>,
-        #[template_child] pub list_view_button:       TemplateChild<gtk::ToggleButton>,
-        #[template_child] pub view_options_label:     TemplateChild<gtk::Label>,
-        #[template_child] pub zoom_out_button:        TemplateChild<gtk::Button>,
-        #[template_child] pub zoom_in_button:         TemplateChild<gtk::Button>,
-        #[template_child] pub captions_button:        TemplateChild<gtk::Button>,
-        #[template_child] pub sort_name_button:           TemplateChild<gtk::CheckButton>,
-        #[template_child] pub sort_name_desc_button:      TemplateChild<gtk::CheckButton>,
-        #[template_child] pub sort_last_modified_button:  TemplateChild<gtk::CheckButton>,
-        #[template_child] pub sort_first_modified_button: TemplateChild<gtk::CheckButton>,
-        #[template_child] pub sort_size_button:           TemplateChild<gtk::CheckButton>,
-        #[template_child] pub sort_type_button:           TemplateChild<gtk::CheckButton>,
+        #[template_child] pub grid_view_button:   TemplateChild<gtk::ToggleButton>,
+        #[template_child] pub list_view_button:   TemplateChild<gtk::ToggleButton>,
+        #[template_child] pub view_options_label: TemplateChild<gtk::Label>,
+        #[template_child] pub zoom_out_button:    TemplateChild<gtk::Button>,
+        #[template_child] pub zoom_in_button:     TemplateChild<gtk::Button>,
 
         pub zoom_level: Cell<u32>,
+        pub sort_action: RefCell<Option<gio::SimpleAction>>,
     }
 
     #[glib::object_subclass]
@@ -82,9 +63,12 @@ mod imp {
     impl ObjectImpl for ViewControls {
         fn constructed(&self) {
             self.parent_constructed();
+
             // 0 = small, 1 = normal, 2 = large.
             self.zoom_level.set(1);
             self.update_zoom_sensitivity();
+
+            self.obj().setup_menu_actions();
         }
 
         fn signals() -> &'static [glib::subclass::Signal] {
@@ -127,54 +111,6 @@ mod imp {
         }
 
         #[template_callback]
-        fn on_sort_name_toggled(&self) {
-            if self.sort_name_button.get().is_active() {
-                self.view_options_label.get().set_label(&gettext("Name"));
-                self.obj().emit_by_name::<()>("sort-changed", &[&0u32]);
-            }
-        }
-
-        #[template_callback]
-        fn on_sort_name_desc_toggled(&self) {
-            if self.sort_name_desc_button.get().is_active() {
-                self.view_options_label.get().set_label(&gettext("Z-A"));
-                self.obj().emit_by_name::<()>("sort-changed", &[&1u32]);
-            }
-        }
-
-        #[template_callback]
-        fn on_sort_last_modified_toggled(&self) {
-            if self.sort_last_modified_button.get().is_active() {
-                self.view_options_label.get().set_label(&gettext("Last Modified"));
-                self.obj().emit_by_name::<()>("sort-changed", &[&2u32]);
-            }
-        }
-
-        #[template_callback]
-        fn on_sort_first_modified_toggled(&self) {
-            if self.sort_first_modified_button.get().is_active() {
-                self.view_options_label.get().set_label(&gettext("First Modified"));
-                self.obj().emit_by_name::<()>("sort-changed", &[&3u32]);
-            }
-        }
-
-        #[template_callback]
-        fn on_sort_size_toggled(&self) {
-            if self.sort_size_button.get().is_active() {
-                self.view_options_label.get().set_label(&gettext("Size"));
-                self.obj().emit_by_name::<()>("sort-changed", &[&4u32]);
-            }
-        }
-
-        #[template_callback]
-        fn on_sort_type_toggled(&self) {
-            if self.sort_type_button.get().is_active() {
-                self.view_options_label.get().set_label(&gettext("Type"));
-                self.obj().emit_by_name::<()>("sort-changed", &[&5u32]);
-            }
-        }
-
-        #[template_callback]
         fn on_zoom_out_clicked(&self) {
             let current = self.zoom_level.get();
             if current > 0 {
@@ -194,11 +130,6 @@ mod imp {
                 self.update_zoom_sensitivity();
                 self.obj().emit_by_name::<()>("zoom-changed", &[&next]);
             }
-        }
-
-        #[template_callback]
-        fn on_captions_clicked(&self) {
-            self.obj().emit_by_name::<()>("captions-requested", &[]);
         }
 
         fn update_zoom_sensitivity(&self) {
@@ -227,6 +158,59 @@ impl ViewControls {
         glib::Object::new()
     }
 
+    fn setup_menu_actions(&self) {
+        let group = gio::SimpleActionGroup::new();
+
+        let sort_action = gio::SimpleAction::new_stateful(
+            "sort",
+            Some(&String::static_variant_type()),
+            &"name".to_variant(),
+        );
+
+        {
+            let obj = self.clone();
+            sort_action.connect_activate(move |action, param| {
+                let Some(param) = param else {
+                    return;
+                };
+
+                let key: String = param.get().unwrap_or_else(|| "name".to_string());
+
+                action.set_state(&key.to_variant());
+                obj.set_sort_label_for_key(&key);
+
+                let raw = match key.as_str() {
+                    "name-desc" => 1u32,
+                    "last-modified" => 2u32,
+                    "first-modified" => 3u32,
+                    "size" => 4u32,
+                    "type" => 5u32,
+                    _ => 0u32,
+                };
+
+                obj.emit_by_name::<()>("sort-changed", &[&raw]);
+            });
+        }
+
+        group.add_action(&sort_action);
+        self.imp().sort_action.replace(Some(sort_action));
+
+        let captions_action = gio::SimpleAction::new("captions", None);
+        {
+            let obj = self.clone();
+            captions_action.connect_activate(move |_, _| {
+                obj.emit_by_name::<()>("captions-requested", &[]);
+            });
+        }
+        group.add_action(&captions_action);
+
+        let hidden_action = gio::SimpleAction::new("show-hidden-files", None);
+        hidden_action.set_enabled(false);
+        group.add_action(&hidden_action);
+
+        self.insert_action_group("viewctrl", Some(&group));
+    }
+
     /// Sync toggle button states.
     pub fn set_view_mode(&self, is_grid: bool) {
         let imp = self.imp();
@@ -245,33 +229,32 @@ impl ViewControls {
 
     /// Restore the selected sort option from saved settings.
     pub fn set_sort_mode(&self, mode: FileSortMode) {
-        let imp = self.imp();
+        let key = match mode {
+            FileSortMode::Name | FileSortMode::Status => "name",
+            FileSortMode::NameDescending => "name-desc",
+            FileSortMode::LastModified => "last-modified",
+            FileSortMode::FirstModified => "first-modified",
+            FileSortMode::Size => "size",
+            FileSortMode::Extension => "type",
+        };
 
-        match mode {
-            FileSortMode::Name | FileSortMode::Status => {
-                imp.sort_name_button.get().set_active(true);
-                imp.view_options_label.get().set_label(&gettext("Name"));
-            }
-            FileSortMode::NameDescending => {
-                imp.sort_name_desc_button.get().set_active(true);
-                imp.view_options_label.get().set_label(&gettext("Z-A"));
-            }
-            FileSortMode::LastModified => {
-                imp.sort_last_modified_button.get().set_active(true);
-                imp.view_options_label.get().set_label(&gettext("Last Modified"));
-            }
-            FileSortMode::FirstModified => {
-                imp.sort_first_modified_button.get().set_active(true);
-                imp.view_options_label.get().set_label(&gettext("First Modified"));
-            }
-            FileSortMode::Size => {
-                imp.sort_size_button.get().set_active(true);
-                imp.view_options_label.get().set_label(&gettext("Size"));
-            }
-            FileSortMode::Extension => {
-                imp.sort_type_button.get().set_active(true);
-                imp.view_options_label.get().set_label(&gettext("Type"));
-            }
+        self.set_sort_label_for_key(key);
+
+        if let Some(action) = self.imp().sort_action.borrow().as_ref() {
+            action.set_state(&key.to_variant());
         }
+    }
+
+    fn set_sort_label_for_key(&self, key: &str) {
+        let label = match key {
+            "name-desc" => gettext("Z-A"),
+            "last-modified" => gettext("Última modificação"),
+            "first-modified" => gettext("Primeira modificação"),
+            "size" => gettext("Tamanho"),
+            "type" => gettext("Tipo"),
+            _ => gettext("Name"),
+        };
+
+        self.imp().view_options_label.get().set_label(&label);
     }
 }

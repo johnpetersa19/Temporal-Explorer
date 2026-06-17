@@ -4,6 +4,76 @@
 using Gtk 4.0;
 using Adw 1;
 
+menu view_menu {
+  section {
+    label: _("Tamanho do ícone");
+    display-hint: "inline-buttons";
+
+    item {
+      custom: "zoom-out";
+    }
+
+    item {
+      custom: "zoom-in";
+    }
+  }
+
+  section {
+    label: _("Ordena");
+
+    item {
+      label: _("A-Z");
+      action: "viewctrl.sort";
+      target: "name";
+    }
+
+    item {
+      label: _("Z-A");
+      action: "viewctrl.sort";
+      target: "name-desc";
+    }
+
+    item {
+      label: _("Última modificação");
+      action: "viewctrl.sort";
+      target: "last-modified";
+    }
+
+    item {
+      label: _("Primeira modificação");
+      action: "viewctrl.sort";
+      target: "first-modified";
+    }
+
+    item {
+      label: _("Tamanho");
+      action: "viewctrl.sort";
+      target: "size";
+    }
+
+    item {
+      label: _("Tipo");
+      action: "viewctrl.sort";
+      target: "type";
+    }
+  }
+
+  section {
+    item {
+      label: _("Mostrar arquivos ocultos");
+      action: "viewctrl.show-hidden-files";
+      accel: "<control>h";
+    }
+  }
+
+  section {
+    item {
+      label: _("Legendas…");
+      action: "viewctrl.captions";
+    }
+  }
+}
+
 template $ViewControls : Gtk.Box {
   orientation: horizontal;
   spacing: 4;
@@ -52,120 +122,26 @@ template $ViewControls : Gtk.Box {
       }
     };
 
-    popover: Popover {
-      child: Box {
-        orientation: vertical;
-        spacing: 10;
-        margin-top: 10;
-        margin-bottom: 10;
-        margin-start: 10;
-        margin-end: 10;
-        width-request: 280;
+    popover: PopoverMenu {
+      menu-model: view_menu;
 
-        Box {
-          orientation: horizontal;
-          spacing: 12;
+      [zoom-out]
+      Button zoom_out_button {
+        icon-name: "zoom-out-symbolic";
+        tooltip-text: _("Zoom Out");
+        clicked => $on_zoom_out_clicked() swapped;
 
-          Label {
-            label: _("Icon Size");
-            hexpand: true;
-            xalign: 0;
-            valign: center;
-          }
+        styles ["flat"]
+      }
 
-          Box {
-            orientation: horizontal;
-            spacing: 0;
+      [zoom-in]
+      Button zoom_in_button {
+        icon-name: "zoom-in-symbolic";
+        tooltip-text: _("Zoom In");
+        clicked => $on_zoom_in_clicked() swapped;
 
-            styles ["linked"]
-
-            Button zoom_out_button {
-              icon-name: "zoom-out-symbolic";
-              tooltip-text: _("Zoom Out");
-              clicked => $on_zoom_out_clicked() swapped;
-
-              styles ["flat"]
-            }
-
-            Button zoom_in_button {
-              icon-name: "zoom-in-symbolic";
-              tooltip-text: _("Zoom In");
-              clicked => $on_zoom_in_clicked() swapped;
-
-              styles ["flat"]
-            }
-          }
-        }
-
-        Separator {
-          orientation: horizontal;
-        }
-
-        Label {
-          label: _("Sort");
-          xalign: 0;
-
-          styles ["heading"]
-        }
-
-        CheckButton sort_name_button {
-          label: _("A-Z");
-          active: true;
-          toggled => $on_sort_name_toggled() swapped;
-        }
-
-        CheckButton sort_name_desc_button {
-          label: _("Z-A");
-          group: sort_name_button;
-          toggled => $on_sort_name_desc_toggled() swapped;
-        }
-
-        CheckButton sort_last_modified_button {
-          label: _("Last Modified");
-          group: sort_name_button;
-          sensitive: false;
-        }
-
-        CheckButton sort_first_modified_button {
-          label: _("First Modified");
-          group: sort_name_button;
-          sensitive: false;
-        }
-
-        CheckButton sort_size_button {
-          label: _("Size");
-          group: sort_name_button;
-          toggled => $on_sort_size_toggled() swapped;
-        }
-
-        CheckButton sort_type_button {
-          label: _("Type");
-          group: sort_name_button;
-          toggled => $on_sort_type_toggled() swapped;
-        }
-
-        Separator {
-          orientation: horizontal;
-        }
-
-        Button show_hidden_files_button {
-          label: _("Show Hidden Files");
-          sensitive: false;
-
-          styles ["flat"]
-        }
-
-        Separator {
-          orientation: horizontal;
-        }
-
-        Button captions_button {
-          label: _("Captions…");
-          clicked => $on_captions_clicked() swapped;
-
-          styles ["flat"]
-        }
-      };
+        styles ["flat"]
+      }
     };
   }
 }
