@@ -21,6 +21,7 @@
 use gtk::glib;
 use gtk::prelude::{ObjectExt, StaticType, ToggleButtonExt};
 use gtk::subclass::prelude::*;
+use std::cell::Cell;
 use std::sync::OnceLock;
 
 // ── FileSortMode ──────────────────────────────────────────────────────────────
@@ -43,7 +44,10 @@ mod imp {
         #[template_child] pub grid_view_button: TemplateChild<gtk::ToggleButton>,
         #[template_child] pub list_view_button: TemplateChild<gtk::ToggleButton>,
         #[template_child] pub sort_dropdown:    TemplateChild<gtk::DropDown>,
-        #[template_child] pub zoom_dropdown:    TemplateChild<gtk::DropDown>,
+        #[template_child] pub zoom_out_button:  TemplateChild<gtk::Button>,
+        #[template_child] pub zoom_in_button:   TemplateChild<gtk::Button>,
+
+        pub zoom_level: Cell<u32>,
     }
 
     #[glib::object_subclass]
@@ -65,6 +69,9 @@ mod imp {
     impl ObjectImpl for ViewControls {
         fn constructed(&self) {
             self.parent_constructed();
+            // 0 = small, 1 = normal, 2 = large.
+            self.zoom_level.set(1);
+            self.update_zoom_sensitivity();
         }
 
         fn signals() -> &'static [glib::subclass::Signal] {
@@ -111,9 +118,31 @@ mod imp {
         }
 
         #[template_callback]
-        fn on_zoom_changed(&self, _pspec: &glib::ParamSpec) {
-            let selected = self.zoom_dropdown.get().selected();
-            self.obj().emit_by_name::<()>("zoom-changed", &[&selected]);
+        fn on_zoom_out_clicked(&self) {
+            let current = self.zoom_level.get();
+            if current > 0 {
+                let next = current - 1;
+                self.zoom_level.set(next);
+                self.update_zoom_sensitivity();
+                self.obj().emit_by_name::<()>("zoom-changed", &[&next]);
+            }
+        }
+
+        #[template_callback]
+        fn on_zoom_in_clicked(&self) {
+            let current = self.zoom_level.get();
+            if current < 2 {
+                let next = current + 1;
+                self.zoom_level.set(next);
+                self.update_zoom_sensitivity();
+                self.obj().emit_by_name::<()>("zoom-changed", &[&next]);
+            }
+        }
+
+        fn update_zoom_sensitivity(&self) {
+            let current = self.zoom_level.get();
+            self.zoom_out_button.get().set_sensitive(current > 0);
+            self.zoom_in_button.get().set_sensitive(current < 2);
         }
     }
 }

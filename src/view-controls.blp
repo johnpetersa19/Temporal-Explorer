@@ -44,16 +44,25 @@ template $ViewControls : Gtk.Box {
     notify::selected => $on_sort_changed() swapped;
   }
 
-  DropDown zoom_dropdown {
-    tooltip-text: _("Grid icon size");
-    selected: 1;
-    model: StringList {
-      strings [
-        _("Small"),
-        _("Normal"),
-        _("Large"),
-      ]
-    };
-    notify::selected => $on_zoom_changed() swapped;
+  Box {
+    orientation: horizontal;
+    spacing: 0;
+    styles ["linked"]
+
+    Button zoom_out_button {
+      icon-name: "zoom-out-symbolic";
+      tooltip-text: _("Zoom Out");
+      clicked => $on_zoom_out_clicked() swapped;
+
+      styles ["flat"]
+    }
+
+    Button zoom_in_button {
+      icon-name: "zoom-in-symbolic";
+      tooltip-text: _("Zoom In");
+      clicked => $on_zoom_in_clicked() swapped;
+
+      styles ["flat"]
+    }
   }
 }
