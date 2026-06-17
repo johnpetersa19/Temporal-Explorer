@@ -2254,31 +2254,103 @@ impl TemporalExplorerWindow {
     // ── File context menu ─────────────────────────────────────────────────────
 
     fn show_file_context_menu(&self, node: TreeNode, anchor: &gtk::Widget) {
-        *self.imp().context_node.borrow_mut() = Some(node);
-
         let menu = gio::Menu::new();
 
         let open_section = gio::Menu::new();
-        open_section.append(Some(&gettext("Open")), Some("win.context-open"));
-        open_section.append(Some(&gettext("Open With…")), Some("win.context-open-with"));
+        open_section.append(Some(&gettext("Open")), Some("ctx.open"));
+        open_section.append(Some(&gettext("Open With…")), Some("ctx.open-with"));
         menu.append_section(None, &open_section);
 
         let edit_section = gio::Menu::new();
-        edit_section.append(Some(&gettext("Export File…")), Some("win.context-export"));
-        edit_section.append(Some(&gettext("Copy Repository Path")), Some("win.context-copy-path"));
-        edit_section.append(Some(&gettext("Copy Content")), Some("win.context-copy-content"));
+        edit_section.append(Some(&gettext("Export File…")), Some("ctx.export"));
+        edit_section.append(Some(&gettext("Copy Repository Path")), Some("ctx.copy-path"));
+        edit_section.append(Some(&gettext("Copy Content")), Some("ctx.copy-content"));
         menu.append_section(None, &edit_section);
 
         let system_section = gio::Menu::new();
-        system_section.append(Some(&gettext("Show in System")), Some("win.context-show-system"));
+        system_section.append(Some(&gettext("Show in System")), Some("ctx.show-system"));
         menu.append_section(None, &system_section);
 
         let properties_section = gio::Menu::new();
-        properties_section.append(Some(&gettext("Properties")), Some("win.context-properties"));
+        properties_section.append(Some(&gettext("Properties")), Some("ctx.properties"));
         menu.append_section(None, &properties_section);
+
+        let group = gio::SimpleActionGroup::new();
+
+        let open_action = gio::SimpleAction::new("open", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+            open_action.connect_activate(move |_, _| {
+                win.open_snapshot_node_with_default_app(&node);
+            });
+        }
+        group.add_action(&open_action);
+
+        let open_with_action = gio::SimpleAction::new("open-with", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+            open_with_action.connect_activate(move |_, _| {
+                // Temporary behavior: use default app. Later this can open an app chooser.
+                win.open_snapshot_node_with_default_app(&node);
+            });
+        }
+        group.add_action(&open_with_action);
+
+        let export_action = gio::SimpleAction::new("export", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+            export_action.connect_activate(move |_, _| {
+                win.export_snapshot_node(&node);
+            });
+        }
+        group.add_action(&export_action);
+
+        let copy_path_action = gio::SimpleAction::new("copy-path", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+            copy_path_action.connect_activate(move |_, _| {
+                win.copy_repository_path(&node);
+            });
+        }
+        group.add_action(&copy_path_action);
+
+        let copy_content_action = gio::SimpleAction::new("copy-content", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+            copy_content_action.connect_activate(move |_, _| {
+                win.copy_snapshot_node_content(&node);
+            });
+        }
+        group.add_action(&copy_content_action);
+
+        let show_system_action = gio::SimpleAction::new("show-system", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+            show_system_action.connect_activate(move |_, _| {
+                win.show_node_in_system(&node);
+            });
+        }
+        group.add_action(&show_system_action);
+
+        let properties_action = gio::SimpleAction::new("properties", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+            properties_action.connect_activate(move |_, _| {
+                win.show_node_properties(&node);
+            });
+        }
+        group.add_action(&properties_action);
 
         let popover = gtk::PopoverMenu::from_model(Some(&menu));
         popover.set_has_arrow(false);
+        popover.insert_action_group("ctx", Some(&group));
         popover.set_parent(anchor);
         popover.connect_closed(|p| p.unparent());
         popover.popup();
