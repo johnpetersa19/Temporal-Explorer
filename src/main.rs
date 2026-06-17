@@ -8,6 +8,7 @@ mod commit_name_cell;
 mod config;
 mod date_range_dialog;
 mod file_grid_captions_dialog;
+mod file_grid_cell;
 mod file_preview;
 mod filter_types_dialog;
 mod git_engine;

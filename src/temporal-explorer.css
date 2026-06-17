@@ -133,3 +133,40 @@ row:selected .nautilus-list-row {
     opacity: 0.75;
     letter-spacing: 0.04em;
 }
+
+/* ── Nautilus-like file grid cell template ───────────────────────────── */
+
+.nautilus-grid-cell {
+    border-radius: 8px;
+    padding: 8px 6px 6px 6px;
+    transition: background-color 150ms ease;
+}
+
+.nautilus-grid-cell:hover {
+    background-color: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+flowboxchild:selected .nautilus-grid-cell {
+    background-color: color-mix(in srgb, @accent_bg_color 18%, transparent);
+    outline: 1.5px solid color-mix(in srgb, @accent_bg_color 60%, transparent);
+    outline-offset: -1.5px;
+}
+
+flowboxchild:selected:focus .nautilus-grid-cell {
+    background-color: color-mix(in srgb, @accent_bg_color 28%, transparent);
+    outline-color: @accent_bg_color;
+}
+
+.icon-ui-labels-box {
+    padding-top: 2px;
+}
+
+.nautilus-emblems-box {
+    margin: 0 2px 2px 0;
+}
+
+.nautilus-emblem {
+    background-color: color-mix(in srgb, @window_bg_color 85%, transparent);
+    border-radius: 9999px;
+    padding: 2px;
+}

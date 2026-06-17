@@ -1,25 +1,68 @@
 using Gtk 4.0;
 
-template $FileGridCell : Gtk.FlowBoxChild {
-  child: Box {
-    orientation: vertical;
-    margin-top: 8;
-    margin-bottom: 8;
-    margin-start: 8;
-    margin-end: 8;
-    spacing: 6;
+template $FileGridCell : Gtk.Box {
+  orientation: vertical;
+  valign: start;
+  halign: center;
+  spacing: 4;
+  margin-top: 6;
+  margin-bottom: 6;
+  margin-start: 6;
+  margin-end: 6;
 
-    Image grid_cell_icon {
-      pixel-size: 48;
+  styles ["nautilus-grid-cell"]
+
+  Box icon_box {
+    orientation: vertical;
+    halign: center;
+    valign: center;
+
+    Overlay {
       halign: center;
+      valign: center;
+
+      child: Image grid_cell_icon {
+        pixel-size: 64;
+        halign: center;
+        valign: center;
+      };
+
+      [overlay]
+      Box emblems_box {
+        orientation: horizontal;
+        halign: end;
+        valign: end;
+        spacing: 2;
+
+        styles ["nautilus-emblems-box"]
+      }
     }
+  }
+
+  Box labels_box {
+    orientation: vertical;
+    halign: center;
+    spacing: 2;
+
+    styles ["icon-ui-labels-box"]
 
     Label grid_cell_name_label {
+      has-tooltip: true;
       justify: center;
+      lines: 3;
       wrap: true;
       wrap-mode: word_char;
+      ellipsize: middle;
       max-width-chars: 14;
+      xalign: 0.5;
+
       styles ["caption"]
     }
-  };
+
+    Box captions_box {
+      orientation: vertical;
+      halign: center;
+      spacing: 1;
+    }
+  }
 }

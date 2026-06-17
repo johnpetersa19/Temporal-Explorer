@@ -38,6 +38,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::file_grid_captions_dialog::CaptionFlags;
+use crate::file_grid_cell::FileGridCell;
 use crate::git_engine::TreeNode;
 use crate::icon_helpers::{folder_icon, mime_icon_full};
 
@@ -233,64 +234,41 @@ fn build_grid_cell(
     metrics: GridMetrics,
     caption_flags: CaptionFlags,
     metadata: Option<&FileGridMetadata>,
-) -> gtk::Box {
-    let vbox = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(6)
-        .margin_top(6)
-        .margin_bottom(6)
-        .margin_start(6)
-        .margin_end(6)
-        .width_request(metrics.cell_width)
-        .build();
-    vbox.add_css_class("nautilus-view-cell");
+) -> FileGridCell {
+    let cell = FileGridCell::new();
+    cell.set_cell_width(metrics.cell_width);
+    cell.set_icon_size(metrics.icon_size);
+    cell.set_label_width_chars(metrics.label_width_chars);
 
     let icon_name = match node {
         TreeNode::Dir(p) => {
             folder_icon(p.file_name().and_then(|n| n.to_str()).unwrap_or(""))
         }
         TreeNode::File(p) => mime_icon_full(p),
-        // Submodules use the full-colour "folder-remote" icon at grid size.
         TreeNode::Submodule(_) => "folder-remote",
     };
-    let icon = gtk::Image::from_icon_name(icon_name);
-    icon.set_pixel_size(metrics.icon_size);
-    icon.set_halign(gtk::Align::Center);
-    vbox.append(&icon);
+
+    cell.set_icon_name(icon_name);
 
     let name = node
         .path()
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("");
-    let label = gtk::Label::builder()
-        .label(name)
-        .halign(gtk::Align::Center)
-        .justify(gtk::Justification::Center)
-        .wrap(true)
-        .wrap_mode(gtk::pango::WrapMode::WordChar)
-        .max_width_chars(metrics.label_width_chars)
-        .lines(3)
-        // Nautilus uses middle ellipsize for long filenames.
-        .ellipsize(gtk::pango::EllipsizeMode::Middle)
-        .build();
-    label.add_css_class("caption");
-    vbox.append(&label);
 
-    for caption in build_caption_lines(node, caption_flags, metadata) {
-        let caption_label = gtk::Label::builder()
-            .label(&caption)
-            .halign(gtk::Align::Center)
-            .justify(gtk::Justification::Center)
-            .ellipsize(gtk::pango::EllipsizeMode::End)
-            .max_width_chars(metrics.label_width_chars)
-            .build();
-        caption_label.add_css_class("caption");
-        caption_label.add_css_class("dim-label");
-        vbox.append(&caption_label);
+    cell.set_name(name);
+    cell.clear_captions();
+    cell.clear_emblems();
+
+    if node.is_submodule() {
+        cell.add_emblem("emblem-symbolic-link-symbolic");
     }
 
-    vbox
+    for caption in build_caption_lines(node, caption_flags, metadata) {
+        cell.add_caption(&caption);
+    }
+
+    cell
 }
 
 fn build_caption_lines(
