@@ -2062,17 +2062,17 @@ impl TemporalExplorerWindow {
             .and_then(|obj| obj.peel_to_commit().ok())
             .and_then(|commit| commit.tree().ok());
 
+        let needs_size =
+            matches!(sort_mode, FileSortMode::Size)
+            || caption_flags.contains(CaptionFlags::SIZE);
+
+        let needs_dates =
+            matches!(sort_mode, FileSortMode::LastModified | FileSortMode::FirstModified)
+            || caption_flags.contains(CaptionFlags::DATE);
+
         for node in nodes {
             let mut meta = FileGridMetadata::default();
             let path = node.path().to_path_buf();
-
-            let needs_size =
-                matches!(sort_mode, FileSortMode::Size)
-                || caption_flags.contains(CaptionFlags::SIZE);
-
-            let needs_dates =
-                matches!(sort_mode, FileSortMode::LastModified | FileSortMode::FirstModified)
-                || caption_flags.contains(CaptionFlags::DATE);
 
             if needs_size {
                 if let Some(ref tree) = tree {
