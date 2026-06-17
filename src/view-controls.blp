@@ -123,13 +123,13 @@ template $ViewControls : Gtk.Box {
         CheckButton sort_last_modified_button {
           label: _("Last Modified");
           group: sort_name_button;
-          toggled => $on_sort_last_modified_toggled() swapped;
+          sensitive: false;
         }
 
         CheckButton sort_first_modified_button {
           label: _("First Modified");
           group: sort_name_button;
-          toggled => $on_sort_first_modified_toggled() swapped;
+          sensitive: false;
         }
 
         CheckButton sort_size_button {

@@ -2066,9 +2066,10 @@ impl TemporalExplorerWindow {
             matches!(sort_mode, FileSortMode::Size)
             || caption_flags.contains(CaptionFlags::SIZE);
 
-        let needs_dates =
-            matches!(sort_mode, FileSortMode::LastModified | FileSortMode::FirstModified)
-            || caption_flags.contains(CaptionFlags::DATE);
+        // Git trees do not store per-file timestamps.
+        // Date metadata requires history scanning and must be implemented
+        // asynchronously with cache before enabling it in the UI.
+        let needs_dates = false;
 
         for node in nodes {
             let mut meta = FileGridMetadata::default();
