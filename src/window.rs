@@ -2081,15 +2081,11 @@ impl TemporalExplorerWindow {
                 }
             }
 
-            if needs_dates {
-                let (first, last) = self.git_path_first_last_modified(repo, node);
-                meta.first_modified = first;
-                meta.last_modified = last;
-                meta.first_modified_label = first.map(Self::format_timestamp);
-                meta.last_modified_label = last.map(Self::format_timestamp);
-            }
-
             out.insert(path, meta);
+        }
+
+        if needs_dates {
+            self.fill_file_grid_dates(repo, nodes, &mut out);
         }
 
         out
@@ -2110,33 +2106,71 @@ impl TemporalExplorerWindow {
         Some(blob.size() as u64)
     }
 
-    fn git_path_first_last_modified(
+    fn fill_file_grid_dates(
         &self,
         repo: &git2::Repository,
-        node: &TreeNode,
-    ) -> (Option<i64>, Option<i64>) {
-        let path = node.path().to_path_buf();
-        let is_dir = node.is_dir();
-
+        nodes: &[TreeNode],
+        metadata: &mut HashMap<PathBuf, FileGridMetadata>,
+    ) {
+        // This replaces the old O(nodes × commits × diff) path.
+        // We now scan the history once and reuse each commit diff for all
+        // currently visible nodes.
         let commits = self.imp().all_commits.borrow();
 
-        let mut first = None;
-        let mut last = None;
+        let visible_paths: Vec<(PathBuf, bool)> = nodes
+            .iter()
+            .map(|node| (node.path().to_path_buf(), node.is_dir()))
+            .collect();
 
         for commit_info in commits.iter() {
             let Ok(commit) = repo.find_commit(commit_info.oid()) else {
                 continue;
             };
 
-            if commit_touches_path(repo, &commit, &path, is_dir) {
-                if last.is_none() {
-                    last = Some(commit_info.timestamp);
+            let Ok(tree) = commit.tree() else {
+                continue;
+            };
+
+            let parent_tree = commit.parent(0).ok().and_then(|parent| parent.tree().ok());
+
+            let Ok(diff) = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None) else {
+                continue;
+            };
+
+            for delta in diff.deltas() {
+                let old_path = delta.old_file().path();
+                let new_path = delta.new_file().path();
+
+                for (path, is_dir) in &visible_paths {
+                    let matches_path = |candidate: Option<&std::path::Path>| -> bool {
+                        let Some(candidate) = candidate else {
+                            return false;
+                        };
+
+                        if *is_dir {
+                            candidate == path || candidate.starts_with(path)
+                        } else {
+                            candidate == path
+                        }
+                    };
+
+                    if matches_path(old_path) || matches_path(new_path) {
+                        if let Some(meta) = metadata.get_mut(path) {
+                            // all_commits is newest -> oldest.
+                            // First hit is the last modification.
+                            if meta.last_modified.is_none() {
+                                meta.last_modified = Some(commit_info.timestamp);
+                                meta.last_modified_label = Some(Self::format_timestamp(commit_info.timestamp));
+                            }
+
+                            // Keep updating; after the loop, this is the oldest hit.
+                            meta.first_modified = Some(commit_info.timestamp);
+                            meta.first_modified_label = Some(Self::format_timestamp(commit_info.timestamp));
+                        }
+                    }
                 }
-                first = Some(commit_info.timestamp);
             }
         }
-
-        (first, last)
     }
 
     // ── Right-panel management ────────────────────────────────────────────────
