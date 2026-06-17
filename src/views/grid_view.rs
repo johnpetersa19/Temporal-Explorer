@@ -197,8 +197,7 @@ fn build_grid_cell(node: &TreeNode, metrics: GridMetrics) -> gtk::Box {
         .margin_bottom(6)
         .margin_start(6)
         .margin_end(6)
-        // Match the visual size used by the system file manager more closely.
-        .width_request(88)
+        .width_request(metrics.cell_width)
         .build();
     vbox.add_css_class("nautilus-view-cell");
 
@@ -211,7 +210,7 @@ fn build_grid_cell(node: &TreeNode, metrics: GridMetrics) -> gtk::Box {
         TreeNode::Submodule(_) => "folder-remote",
     };
     let icon = gtk::Image::from_icon_name(icon_name);
-    icon.set_pixel_size(48);
+    icon.set_pixel_size(metrics.icon_size);
     icon.set_halign(gtk::Align::Center);
     vbox.append(&icon);
 
@@ -226,7 +225,7 @@ fn build_grid_cell(node: &TreeNode, metrics: GridMetrics) -> gtk::Box {
         .justify(gtk::Justification::Center)
         .wrap(true)
         .wrap_mode(gtk::pango::WrapMode::WordChar)
-        .max_width_chars(11)
+        .max_width_chars(metrics.label_width_chars)
         .lines(3)
         // Nautilus uses middle ellipsize for long filenames.
         .ellipsize(gtk::pango::EllipsizeMode::Middle)
