@@ -1938,7 +1938,14 @@ impl TemporalExplorerWindow {
         let grid_zoom = *imp.grid_zoom.borrow();
         let grid_caption_flags = *imp.grid_caption_flags.borrow();
         let hash = imp.current_hash.borrow().clone().unwrap_or_default();
-        let metadata = self.build_file_grid_metadata(&nodes, &hash);
+
+        // Metadata can be expensive, especially First/Last Modified because it
+        // scans commit history. Only build it when the active sort/captions need it.
+        let metadata = if self.file_grid_metadata_needed(sort_mode, grid_caption_flags) {
+            self.build_file_grid_metadata(&nodes, &hash, sort_mode, grid_caption_flags)
+        } else {
+            HashMap::new()
+        };
 
         let mut decorated: Vec<(TreeNode, String, String)> = nodes
             .into_iter()
@@ -2022,10 +2029,23 @@ impl TemporalExplorerWindow {
 
     // ── File grid metadata ────────────────────────────────────────────────────
 
+    fn file_grid_metadata_needed(
+        &self,
+        sort_mode: FileSortMode,
+        caption_flags: CaptionFlags,
+    ) -> bool {
+        matches!(
+            sort_mode,
+            FileSortMode::Size | FileSortMode::LastModified | FileSortMode::FirstModified
+        ) || caption_flags.intersects(CaptionFlags::SIZE | CaptionFlags::DATE)
+    }
+
     fn build_file_grid_metadata(
         &self,
         nodes: &[TreeNode],
         hash: &str,
+        sort_mode: FileSortMode,
+        caption_flags: CaptionFlags,
     ) -> HashMap<PathBuf, FileGridMetadata> {
         let mut out = HashMap::new();
 
@@ -2046,16 +2066,28 @@ impl TemporalExplorerWindow {
             let mut meta = FileGridMetadata::default();
             let path = node.path().to_path_buf();
 
-            if let Some(ref tree) = tree {
-                meta.size = self.git_blob_size(repo, tree, node);
-                meta.size_label = meta.size.map(format_file_size);
+            let needs_size =
+                matches!(sort_mode, FileSortMode::Size)
+                || caption_flags.contains(CaptionFlags::SIZE);
+
+            let needs_dates =
+                matches!(sort_mode, FileSortMode::LastModified | FileSortMode::FirstModified)
+                || caption_flags.contains(CaptionFlags::DATE);
+
+            if needs_size {
+                if let Some(ref tree) = tree {
+                    meta.size = self.git_blob_size(repo, tree, node);
+                    meta.size_label = meta.size.map(format_file_size);
+                }
             }
 
-            let (first, last) = self.git_path_first_last_modified(repo, node);
-            meta.first_modified = first;
-            meta.last_modified = last;
-            meta.first_modified_label = first.map(Self::format_timestamp);
-            meta.last_modified_label = last.map(Self::format_timestamp);
+            if needs_dates {
+                let (first, last) = self.git_path_first_last_modified(repo, node);
+                meta.first_modified = first;
+                meta.last_modified = last;
+                meta.first_modified_label = first.map(Self::format_timestamp);
+                meta.last_modified_label = last.map(Self::format_timestamp);
+            }
 
             out.insert(path, meta);
         }
