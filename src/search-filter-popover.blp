@@ -129,11 +129,21 @@ template $SearchFilterPopover : Popover {
           hexpand: true;
         }
 
-        /* Author chips — populated dynamically from unique commit authors */
-        Adw.WrapBox author_chips_box {
-          child-spacing: 6;
-          line-spacing: 6;
-          natural-line-length: 280;
+        /* Author list — fixed-height scroll area.
+         * Authors are populated dynamically from unique commit authors.
+         * Each author uses one full-width row so the popover keeps a stable size.
+         */
+        ScrolledWindow {
+          min-content-height: 170;
+          max-content-height: 170;
+          hscrollbar-policy: never;
+          vscrollbar-policy: automatic;
+          propagate-natural-height: false;
+
+          child: Box author_chips_box {
+            orientation: vertical;
+            spacing: 6;
+          };
         }
       }
 

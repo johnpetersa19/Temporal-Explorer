@@ -276,7 +276,7 @@ mod imp {
         #[template_child]
         pub author_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
-        pub author_chips_box: TemplateChild<adw::WrapBox>,
+        pub author_chips_box: TemplateChild<gtk::Box>,
 
         // ── Branch section ──
         #[template_child]
@@ -388,8 +388,17 @@ impl SearchFilterPopover {
         for author in authors {
             let chip = gtk::Button::builder()
                 .label(author)
+                .hexpand(true)
+                .halign(gtk::Align::Fill)
                 .css_classes(["chip"])
                 .build();
+
+            chip.set_tooltip_text(Some(author));
+
+            if let Some(label) = chip.child().and_then(|w| w.downcast::<gtk::Label>().ok()) {
+                label.set_xalign(0.0);
+                label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+            }
 
             let popover = self.clone();
             let author_clone = author.clone();
