@@ -2166,6 +2166,18 @@ impl TemporalExplorerWindow {
         std::thread::spawn(move || {
             let mut results = Vec::new();
 
+            // For file-type filters, open the repository only once in this worker.
+            // Without this, every commit with empty changed_files could reopen the
+            // repository, which makes filtering/clearing feel like the project is
+            // reading the repo again and again.
+            let repo_for_file_filter = if filter.files.is_active() {
+                repo_path
+                    .as_ref()
+                    .and_then(|path| git2::Repository::open(path).ok())
+            } else {
+                None
+            };
+
             for commit in all_commits {
                 if worker_cancel.load(Ordering::Relaxed) {
                     let _ = tx.send(None);
@@ -2206,10 +2218,8 @@ impl TemporalExplorerWindow {
                     // changed_files is loaded lazily in the UI. For file filters,
                     // load it inside the worker so the filter has real data.
                     if commit.changed_files.is_empty() {
-                        if let Some(ref path) = repo_path {
-                            if let Ok(repo) = git2::Repository::open(path) {
-                                commit.load_changed_files(&repo);
-                            }
+                        if let Some(ref repo) = repo_for_file_filter {
+                            commit.load_changed_files(repo);
                         }
                     }
 
