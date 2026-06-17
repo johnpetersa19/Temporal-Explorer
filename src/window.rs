@@ -57,7 +57,7 @@ use gettextrs::gettext;
 use glib::object::ObjectExt;
 use gtk::prelude::*;
 use gtk::{gio, glib};
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{
@@ -188,7 +188,7 @@ mod imp {
         pub commit_date_label: TemplateChild<gtk::Label>,
 
         // ── Runtime state ────────────────────────────────────────────────────
-        pub settings: gio::Settings,
+        pub settings: OnceCell<gio::Settings>,
         pub all_commits: RefCell<Vec<CommitInfo>>,
         pub commit_index: RefCell<HashMap<String, usize>>,
         pub year_counts: RefCell<Vec<(i32, usize)>>,
@@ -244,6 +244,9 @@ mod imp {
     impl ObjectImpl for TemporalExplorerWindow {
         fn constructed(&self) {
             self.parent_constructed();
+            self.settings
+                .set(gio::Settings::new("io.github.johnpetersa19.TemporalExplorer"))
+                .ok();
             self.obj().setup_callbacks();
             self.obj().setup_styles();
         }
@@ -909,7 +912,9 @@ impl TemporalExplorerWindow {
 
     fn setup_saved_view_preferences(&self) {
         let imp = self.imp();
-        let settings = &imp.settings;
+        let Some(settings) = imp.settings.get() else {
+            return;
+        };
 
         let saved_view = settings.string("default-view");
         let is_grid = saved_view.as_str() == "grid";
@@ -953,10 +958,11 @@ impl TemporalExplorerWindow {
                 } else {
                     ViewMode::List
                 };
-                win.imp()
-                    .settings
-                    .set_string("default-view", if is_grid { "grid" } else { "list" })
-                    .ok();
+                if let Some(settings) = win.imp().settings.get() {
+                    settings
+                        .set_string("default-view", if is_grid { "grid" } else { "list" })
+                        .ok();
+                }
                 let dir = win.imp().current_dir.borrow().clone();
                 if win.imp().current_hash.borrow().is_some() {
                     win.navigate_to_dir(dir);
@@ -988,7 +994,9 @@ impl TemporalExplorerWindow {
                     FileSortMode::Status => "status",
                     FileSortMode::Extension => "type",
                 };
-                win.imp().settings.set_string("file-sort-mode", sort_key).ok();
+                if let Some(settings) = win.imp().settings.get() {
+                    settings.set_string("file-sort-mode", sort_key).ok();
+                }
                 let dir = win.imp().current_dir.borrow().clone();
                 if win.imp().current_hash.borrow().is_some() {
                     win.navigate_to_dir(dir);
@@ -1008,7 +1016,9 @@ impl TemporalExplorerWindow {
                     _ => GridZoom::Normal,
                 };
                 *win.imp().grid_zoom.borrow_mut() = zoom;
-                win.imp().settings.set_uint("grid-zoom-level", raw.min(2)).ok();
+                if let Some(settings) = win.imp().settings.get() {
+                    settings.set_uint("grid-zoom-level", raw.min(2)).ok();
+                }
                 let dir = win.imp().current_dir.borrow().clone();
                 if win.imp().current_hash.borrow().is_some() {
                     win.navigate_to_dir(dir);
@@ -1035,7 +1045,9 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         dialog.connect_captions_changed(move |_, flags| {
             *win.imp().grid_caption_flags.borrow_mut() = flags;
-            win.imp().settings.set_uint("grid-caption-flags", flags.bits()).ok();
+            if let Some(settings) = win.imp().settings.get() {
+                settings.set_uint("grid-caption-flags", flags.bits()).ok();
+            }
 
             let dir = win.imp().current_dir.borrow().clone();
             if win.imp().current_hash.borrow().is_some() {

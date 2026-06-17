@@ -239,7 +239,8 @@ impl ViewControls {
         let imp = self.imp();
         let level = level.min(2);
         imp.zoom_level.set(level);
-        imp.update_zoom_sensitivity();
+        imp.zoom_out_button.get().set_sensitive(level > 0);
+        imp.zoom_in_button.get().set_sensitive(level < 2);
     }
 
     /// Restore the selected sort option from saved settings.
