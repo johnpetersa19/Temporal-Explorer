@@ -2257,22 +2257,22 @@ impl TemporalExplorerWindow {
         let menu = gio::Menu::new();
 
         let open_section = gio::Menu::new();
-        open_section.append(Some(&gettext("Open")), Some("ctx.open"));
-        open_section.append(Some(&gettext("Open With…")), Some("ctx.open-with"));
+        open_section.append(Some(&gettext("Open")), Some("action.ctx.open"));
+        open_section.append(Some(&gettext("Open With…")), Some("action.ctx.open-with"));
         menu.append_section(None, &open_section);
 
         let edit_section = gio::Menu::new();
-        edit_section.append(Some(&gettext("Export File…")), Some("ctx.export"));
-        edit_section.append(Some(&gettext("Copy Repository Path")), Some("ctx.copy-path"));
-        edit_section.append(Some(&gettext("Copy Content")), Some("ctx.copy-content"));
+        edit_section.append(Some(&gettext("Export File…")), Some("action.ctx.export"));
+        edit_section.append(Some(&gettext("Copy Repository Path")), Some("action.ctx.copy-path"));
+        edit_section.append(Some(&gettext("Copy Content")), Some("action.ctx.copy-content"));
         menu.append_section(None, &edit_section);
 
         let system_section = gio::Menu::new();
-        system_section.append(Some(&gettext("Show in System")), Some("ctx.show-system"));
+        system_section.append(Some(&gettext("Show in System")), Some("action.ctx.show-system"));
         menu.append_section(None, &system_section);
 
         let properties_section = gio::Menu::new();
-        properties_section.append(Some(&gettext("Properties")), Some("ctx.properties"));
+        properties_section.append(Some(&gettext("Properties")), Some("action.ctx.properties"));
         menu.append_section(None, &properties_section);
 
         let group = gio::SimpleActionGroup::new();
@@ -2375,9 +2375,7 @@ impl TemporalExplorerWindow {
 
     fn context_open_with_selected(&self) {
         self.with_context_node(|win, node| {
-            // Temporary behavior: use the default app.
-            // Later this can open an app chooser dialog.
-            win.open_snapshot_node_with_default_app(&node);
+            win.open_snapshot_node_with_app_chooser(&node);
         });
     }
 
@@ -2457,33 +2455,97 @@ impl TemporalExplorerWindow {
         }
     }
 
+    fn open_snapshot_node_with_app_chooser(&self, node: &TreeNode) {
+        let Some(path) = self.materialize_snapshot_node_to_temp(node) else {
+            return;
+        };
+
+        let file = gio::File::for_path(&path);
+
+        let content_type = file
+            .query_info(
+                "standard::content-type",
+                gio::FileQueryInfoFlags::NONE,
+                None::<&gio::Cancellable>,
+            )
+            .ok()
+            .and_then(|info| info.content_type())
+            .unwrap_or_else(|| "application/octet-stream".into());
+
+        let dialog = gtk::AppChooserDialog::for_content_type(
+            Some(self),
+            gtk::DialogFlags::MODAL,
+            content_type.as_str(),
+        );
+
+        dialog.set_heading(Some(&gettext("Open With…")));
+
+        let win = self.clone();
+        dialog.connect_response(move |dialog, response| {
+            if response == gtk::ResponseType::Ok {
+                if let Some(app) = dialog.app_info() {
+                    let file = gio::File::for_path(&path);
+
+                    if app
+                        .launch(&[file], None::<&gio::AppLaunchContext>)
+                        .is_err()
+                    {
+                        win.show_error(&gettext("Could not open file with the selected application"));
+                    }
+                }
+            }
+
+            dialog.close();
+        });
+
+        dialog.present();
+    }
+
     fn export_snapshot_node(&self, node: &TreeNode) {
         let Some(temp_path) = self.materialize_snapshot_node_to_temp(node) else {
             return;
         };
 
-        let Some(file_name) = node.path().file_name() else {
-            return;
-        };
+        let file_name = node
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("snapshot-file")
+            .to_string();
 
-        let export_dir = std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(std::env::temp_dir)
-            .join("Downloads")
-            .join("Temporal Explorer Export");
+        let dialog = gtk::FileChooserNative::builder()
+            .title(&gettext("Export File"))
+            .transient_for(self)
+            .modal(true)
+            .action(gtk::FileChooserAction::Save)
+            .accept_label(&gettext("Export"))
+            .cancel_label(&gettext("Cancel"))
+            .build();
 
-        if std::fs::create_dir_all(&export_dir).is_err() {
-            self.show_error(&gettext("Could not create export directory"));
-            return;
-        }
+        dialog.set_current_name(&file_name);
 
-        let target = export_dir.join(file_name);
+        let win = self.clone();
+        dialog.connect_response(move |dialog, response| {
+            if response == gtk::ResponseType::Accept {
+                if let Some(file) = dialog.file() {
+                    if let Some(target) = file.path() {
+                        if std::fs::copy(&temp_path, &target).is_ok() {
+                            win.show_toast(&format!(
+                                "{}: {}",
+                                gettext("Exported"),
+                                target.display()
+                            ));
+                        } else {
+                            win.show_error(&gettext("Could not export file"));
+                        }
+                    }
+                }
+            }
 
-        if std::fs::copy(&temp_path, &target).is_ok() {
-            self.show_toast(&format!("{}: {}", gettext("Exported"), target.display()));
-        } else {
-            self.show_error(&gettext("Could not export file"));
-        }
+            dialog.destroy();
+        });
+
+        dialog.show();
     }
 
     fn copy_repository_path(&self, node: &TreeNode) {
@@ -2550,6 +2612,14 @@ impl TemporalExplorerWindow {
 
     fn show_node_properties(&self, node: &TreeNode) {
         let hash = self.imp().current_hash.borrow().clone().unwrap_or_default();
+        let short = short_hash(&hash);
+        let repo_name = self.imp().repo_name.borrow().clone();
+
+        let name = node
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
 
         let kind = if node.is_dir() {
             gettext("Folder")
@@ -2559,19 +2629,67 @@ impl TemporalExplorerWindow {
             gettext("File")
         };
 
+        let mut blob_hash = gettext("Not available");
+        let mut size = gettext("Not available");
+
+        if matches!(node, TreeNode::File(_)) {
+            if let Some(hash) = self.imp().current_hash.borrow().clone() {
+                let repo_ref = self.imp().repository.borrow();
+
+                if let Some(repo_wrapper) = repo_ref.as_ref() {
+                    let repo = &repo_wrapper.0;
+
+                    if let Some((oid, blob_size)) = repo
+                        .revparse_single(&hash)
+                        .ok()
+                        .and_then(|obj| obj.peel_to_commit().ok())
+                        .and_then(|commit| commit.tree().ok())
+                        .and_then(|tree| tree.get_path(node.path()).ok())
+                        .and_then(|entry| {
+                            repo.find_blob(entry.id())
+                                .ok()
+                                .map(|blob| (entry.id(), blob.size() as u64))
+                        })
+                    {
+                        blob_hash = oid.to_string();
+                        size = format_file_size(blob_size);
+                    }
+                }
+            }
+        }
+
+        let working_tree_status = self
+            .imp()
+            .repo_path
+            .borrow()
+            .clone()
+            .map(|repo_path| repo_path.join(node.path()).exists())
+            .unwrap_or(false);
+
+        let working_tree_text = if working_tree_status {
+            gettext("Exists in working tree")
+        } else {
+            gettext("Only available in selected snapshot")
+        };
+
         let body = format!(
-            "{}: {}\n{}: {}\n{}: {}\n{}: {}",
+            "{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}",
             gettext("Name"),
-            node.path()
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or(""),
-            gettext("Repository path"),
-            node.path().display(),
+            name,
             gettext("Type"),
             kind,
-            gettext("Commit"),
-            short_hash(&hash),
+            gettext("Repository"),
+            repo_name,
+            gettext("Repository path"),
+            node.path().display(),
+            gettext("Snapshot commit"),
+            short,
+            gettext("Blob"),
+            blob_hash,
+            gettext("Size"),
+            size,
+            gettext("System status"),
+            working_tree_text,
         );
 
         let dialog = adw::AlertDialog::builder()
@@ -2584,7 +2702,7 @@ impl TemporalExplorerWindow {
         dialog.present(Some(self));
     }
 
-    // ── Right-panel management ────────────────────────────────────────────────
+    // ── Right-panel management    // ── Right-panel management ────────────────────────────────────────────────
 
     pub fn replace_right_panel(&self, widget: gtk::Widget) {
         let imp = self.imp();
