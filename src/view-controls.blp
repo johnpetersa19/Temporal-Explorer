@@ -65,4 +65,12 @@ template $ViewControls : Gtk.Box {
       styles ["flat"]
     }
   }
+
+  Button captions_button {
+    icon-name: "view-more-horizontal-symbolic";
+    tooltip-text: _("Grid Captions");
+    clicked => $on_captions_clicked() swapped;
+
+    styles ["flat"]
+  }
 }

@@ -35,6 +35,7 @@ use gtk::glib;
 use gtk::prelude::*;
 use std::path::PathBuf;
 
+use crate::file_grid_captions_dialog::CaptionFlags;
 use crate::git_engine::TreeNode;
 use crate::icon_helpers::{folder_icon, mime_icon_full};
 
@@ -85,6 +86,7 @@ pub fn build_grid_view(
     children: &[TreeNode],
     hash: &str,
     zoom: GridZoom,
+    caption_flags: CaptionFlags,
     on_enter_dir: OnEnterDir,
     on_open_file: OnOpenFile,
 ) -> gtk::Widget {
@@ -125,7 +127,7 @@ pub fn build_grid_view(
         flow.insert(&placeholder, -1);
     } else {
         for node in children {
-            let cell = build_grid_cell(node, metrics);
+            let cell = build_grid_cell(node, metrics, caption_flags);
             let child = gtk::FlowBoxChild::builder()
                 .child(&cell)
                 .valign(gtk::Align::Start)
@@ -189,7 +191,7 @@ pub fn build_grid_view(
 /// | `Dir` | `folder-*` (64 px) |
 /// | `Submodule` | `folder-remote` (64 px) |
 /// | `File` | full mime icon (64 px) |
-fn build_grid_cell(node: &TreeNode, metrics: GridMetrics) -> gtk::Box {
+fn build_grid_cell(node: &TreeNode, metrics: GridMetrics, caption_flags: CaptionFlags) -> gtk::Box {
     let vbox = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .spacing(6)
@@ -232,5 +234,68 @@ fn build_grid_cell(node: &TreeNode, metrics: GridMetrics) -> gtk::Box {
         .build();
     label.add_css_class("caption");
     vbox.append(&label);
+
+    for caption in build_caption_lines(node, caption_flags) {
+        let caption_label = gtk::Label::builder()
+            .label(&caption)
+            .halign(gtk::Align::Center)
+            .justify(gtk::Justification::Center)
+            .ellipsize(gtk::pango::EllipsizeMode::End)
+            .max_width_chars(metrics.label_width_chars)
+            .build();
+        caption_label.add_css_class("caption");
+        caption_label.add_css_class("dim-label");
+        vbox.append(&caption_label);
+    }
+
     vbox
+}
+
+fn build_caption_lines(node: &TreeNode, flags: CaptionFlags) -> Vec<String> {
+    if flags.is_empty() {
+        return Vec::new();
+    }
+
+    let mut lines = Vec::new();
+    let path = node.path();
+
+    if flags.contains(CaptionFlags::STATUS) {
+        let kind = match node {
+            TreeNode::Dir(_) => gettext("Folder"),
+            TreeNode::File(_) => gettext("File"),
+            TreeNode::Submodule(_) => gettext("Submodule"),
+        };
+        lines.push(kind);
+    }
+
+    if flags.contains(CaptionFlags::EXTENSION) {
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .filter(|e| !e.is_empty())
+            .map(|e| format!(".{e}"))
+            .unwrap_or_else(|| {
+                if node.is_dir() {
+                    gettext("Directory")
+                } else {
+                    gettext("No extension")
+                }
+            });
+
+        lines.push(ext);
+    }
+
+    if flags.contains(CaptionFlags::SIZE) {
+        // Snapshot tree nodes currently do not carry blob size.
+        // Keep the caption visible so the option has immediate UI feedback.
+        lines.push(gettext("Size unavailable"));
+    }
+
+    if flags.contains(CaptionFlags::DATE) {
+        // Per-file modification time is not stored in a Git tree object.
+        // The real timestamp belongs to the selected commit/snapshot.
+        lines.push(gettext("Snapshot date"));
+    }
+
+    lines
 }

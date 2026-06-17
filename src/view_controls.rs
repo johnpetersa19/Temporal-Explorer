@@ -46,6 +46,7 @@ mod imp {
         #[template_child] pub sort_dropdown:    TemplateChild<gtk::DropDown>,
         #[template_child] pub zoom_out_button:  TemplateChild<gtk::Button>,
         #[template_child] pub zoom_in_button:   TemplateChild<gtk::Button>,
+        #[template_child] pub captions_button:  TemplateChild<gtk::Button>,
 
         pub zoom_level: Cell<u32>,
     }
@@ -86,6 +87,8 @@ mod imp {
                         .build(),
                     glib::subclass::Signal::builder("zoom-changed")
                         .param_types([u32::static_type()])
+                        .build(),
+                    glib::subclass::Signal::builder("captions-requested")
                         .build(),
                 ]
             })
@@ -137,6 +140,11 @@ mod imp {
                 self.update_zoom_sensitivity();
                 self.obj().emit_by_name::<()>("zoom-changed", &[&next]);
             }
+        }
+
+        #[template_callback]
+        fn on_captions_clicked(&self) {
+            self.obj().emit_by_name::<()>("captions-requested", &[]);
         }
 
         fn update_zoom_sensitivity(&self) {

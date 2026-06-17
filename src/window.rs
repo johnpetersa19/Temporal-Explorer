@@ -69,6 +69,7 @@ use crate::address_bar;
 use crate::batch_operations_dialog::{BatchOp, BatchOperationsDialog};
 use crate::column_chooser::{ColumnChooser, ColumnVisibility};
 use crate::commit_controller;
+use crate::file_grid_captions_dialog::{CaptionFlags, FileGridCaptionsDialog};
 use crate::file_preview;
 use crate::filter_types_dialog::FilterTypesDialog;
 use crate::git_engine::{CommitInfo, DirCache, HistoryReader, SnapshotResolver, TreeNode};
@@ -209,6 +210,7 @@ mod imp {
 
         pub sort_mode: RefCell<FileSortMode>,
         pub grid_zoom: RefCell<GridZoom>,
+        pub grid_caption_flags: RefCell<CaptionFlags>,
         pub column_visibility: RefCell<ColumnVisibility>,
 
         pub timeline_level: RefCell<TimelineLevel>,
@@ -901,6 +903,34 @@ impl TemporalExplorerWindow {
                 }
                 None
             });
+
+        let win = self.clone();
+        self.imp()
+            .toolbar
+            .view_controls()
+            .connect_local("captions-requested", false, move |_| {
+                win.show_file_grid_captions_dialog();
+                None
+            });
+    }
+
+    // ── FileGridCaptionsDialog ────────────────────────────────────────────────
+
+    pub fn show_file_grid_captions_dialog(&self) {
+        let dialog = FileGridCaptionsDialog::new();
+        dialog.set_flags(*self.imp().grid_caption_flags.borrow());
+
+        let win = self.clone();
+        dialog.connect_captions_changed(move |_, flags| {
+            *win.imp().grid_caption_flags.borrow_mut() = flags;
+
+            let dir = win.imp().current_dir.borrow().clone();
+            if win.imp().current_hash.borrow().is_some() {
+                win.navigate_to_dir(dir);
+            }
+        });
+
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
     // ── ColumnChooser ─────────────────────────────────────────────────────────
@@ -1845,6 +1875,7 @@ impl TemporalExplorerWindow {
         let mode = *imp.view_mode.borrow();
         let sort_mode = *imp.sort_mode.borrow();
         let grid_zoom = *imp.grid_zoom.borrow();
+        let grid_caption_flags = *imp.grid_caption_flags.borrow();
         let hash = imp.current_hash.borrow().clone().unwrap_or_default();
 
         let mut decorated: Vec<(TreeNode, String, String)> = nodes
@@ -1897,7 +1928,7 @@ impl TemporalExplorerWindow {
                 list_view::build_list_view(&nodes, &hash, on_enter_dir, on_open_file).upcast()
             }
             ViewMode::Grid => {
-                grid_view::build_grid_view(&nodes, &hash, grid_zoom, on_enter_dir, on_open_file).upcast()
+                grid_view::build_grid_view(&nodes, &hash, grid_zoom, grid_caption_flags, on_enter_dir, on_open_file).upcast()
             }
         };
         self.replace_right_panel(widget);
