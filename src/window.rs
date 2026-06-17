@@ -1499,13 +1499,68 @@ impl TemporalExplorerWindow {
         });
     }
 
+    fn visible_timeline_commits<'a>(
+        &'a self,
+        commits: &'a [CommitInfo],
+    ) -> Vec<&'a CommitInfo> {
+        let filter = self.imp().filter_state.borrow().clone();
+
+        commits
+            .iter()
+            .filter(|commit| {
+                // Author filter
+                if let Some(ref author) = filter.author {
+                    let wanted_author = author.to_lowercase();
+                    if !commit.author.to_lowercase().contains(&wanted_author) {
+                        return false;
+                    }
+                }
+
+                // Date range filter
+                if let Some(since) = filter.date.from {
+                    if commit.timestamp < since {
+                        return false;
+                    }
+                }
+
+                if let Some(until) = filter.date.to {
+                    if commit.timestamp >= until {
+                        return false;
+                    }
+                }
+
+                // Branch filter is intentionally not handled here because it depends
+                // on branch_commit_index and is already handled in run_search().
+                // The timeline sidebar remains commit-date/author/date driven.
+
+                true
+            })
+            .collect()
+    }
+
+    fn year_counts_for_visible_commits(&self, commits: &[CommitInfo]) -> Vec<(i32, usize)> {
+        let visible = self.visible_timeline_commits(commits);
+        let mut counts: Vec<(i32, usize)> = Vec::new();
+
+        for commit in visible {
+            if let Some(year) = year_from_timestamp(commit.timestamp) {
+                bump_year_count(&mut counts, year);
+            }
+        }
+
+        counts
+    }
+
     // ── Year list ─────────────────────────────────────────────────────────────
 
     fn populate_year_list(&self) {
         let imp = self.imp();
         imp.year_list.remove_all();
 
-        for (year, count) in imp.year_counts.borrow().iter() {
+        let commits = imp.all_commits.borrow();
+        let year_counts = self.year_counts_for_visible_commits(&commits);
+
+        for (year, count) in year_counts.iter() {
             imp.year_list
                 .append(&commit_controller::build_year_row(*year, *count));
         }
@@ -1514,7 +1569,13 @@ impl TemporalExplorerWindow {
         imp.timeline_stack.set_visible_child_name("years");
         imp.timeline_back_button.set_visible(false);
         imp.timeline_header_title.set_title(&gettext("Timeline"));
-        imp.timeline_header_title.set_subtitle("");
+
+        if self.imp().filter_state.borrow().is_active() {
+            imp.timeline_header_title
+                .set_subtitle(&format!("{} year(s)", year_counts.len()));
+        } else {
+            imp.timeline_header_title.set_subtitle("");
+        }
     }
 
     // ── Year selected ─────────────────────────────────────────────────────────
@@ -1523,18 +1584,29 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         imp.selected_year.set(year);
         imp.month_list.remove_all();
+        imp.commit_list.remove_all();
 
         let commits = imp.all_commits.borrow();
-        for (month, count) in &timeline_filter::months_for_year(&commits, year) {
+        let visible = self.visible_timeline_commits(&commits);
+        let visible_owned: Vec<CommitInfo> = visible.iter().map(|c| (*c).clone()).collect();
+
+        // Populate the month drill-down list for the selected year, respecting
+        // the active author/date filters.
+        for (month, count) in &timeline_filter::months_for_year(&visible_owned, year) {
             imp.month_list
                 .append(&commit_controller::build_month_row(*month, *count));
         }
+
+        // Also filter the visible commit list to the whole selected year.
+        let filtered = timeline_filter::commits_for_year(&visible_owned, year);
+        commit_controller::populate_commit_list_refs(&imp.commit_list, &filtered);
 
         *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
         imp.timeline_stack.set_visible_child_name("months");
         imp.timeline_back_button.set_visible(true);
         imp.timeline_header_title.set_title(&year.to_string());
-        imp.timeline_header_title.set_subtitle("");
+        imp.timeline_header_title
+            .set_subtitle(&format!("{} commit(s)", filtered.len()));
     }
 
     // ── Month selected ────────────────────────────────────────────────────────
@@ -1545,15 +1617,19 @@ impl TemporalExplorerWindow {
         imp.commit_list.remove_all();
 
         let commits = imp.all_commits.borrow();
-        let filtered = timeline_filter::commits_for_month(&commits, year, month);
+        let visible = self.visible_timeline_commits(&commits);
+        let visible_owned: Vec<CommitInfo> = visible.iter().map(|c| (*c).clone()).collect();
+
+        let filtered = timeline_filter::commits_for_month(&visible_owned, year, month);
         commit_controller::populate_commit_list_refs(&imp.commit_list, &filtered);
 
         *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
         imp.timeline_stack.set_visible_child_name("commits");
         imp.timeline_header_title.set_subtitle(&format!(
-            "{} {}",
+            "{} {} · {} commit(s)",
             timeline_filter::month_name(month),
             year,
+            filtered.len(),
         ));
     }
 

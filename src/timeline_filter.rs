@@ -102,6 +102,15 @@ pub fn months_for_year(commits: &[CommitInfo], year: i32) -> Vec<(u32, usize)> {
     v
 }
 
+/// Returns references to all commits that fall inside `year`,
+/// preserving the original newest-first order from the git walk.
+pub fn commits_for_year<'a>(commits: &'a [CommitInfo], year: i32) -> Vec<&'a CommitInfo> {
+    commits
+        .iter()
+        .filter(|c| matches!(ts_to_ym(c.timestamp), Some((y, _)) if y == year))
+        .collect()
+}
+
 /// Returns **references** to the commits that fall inside `(year, month)`,
 /// in their original order (newest-first, as delivered by the git walk).
 ///
