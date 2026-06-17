@@ -188,6 +188,7 @@ mod imp {
         pub commit_date_label: TemplateChild<gtk::Label>,
 
         // ── Runtime state ────────────────────────────────────────────────────
+        pub settings: gio::Settings,
         pub all_commits: RefCell<Vec<CommitInfo>>,
         pub commit_index: RefCell<HashMap<String, usize>>,
         pub year_counts: RefCell<Vec<(i32, usize)>>,
@@ -560,6 +561,7 @@ impl TemporalExplorerWindow {
         self.setup_filter_popover();
         self.setup_history_controls();
         self.setup_view_controls();
+        self.setup_saved_view_preferences();
         self.setup_actions();
     }
 
@@ -903,6 +905,40 @@ impl TemporalExplorerWindow {
             .set_sensitivity(can_back, can_forward);
     }
 
+    // ── Saved view preferences ────────────────────────────────────────────────
+
+    fn setup_saved_view_preferences(&self) {
+        let imp = self.imp();
+        let settings = &imp.settings;
+
+        let saved_view = settings.string("default-view");
+        let is_grid = saved_view.as_str() == "grid";
+        *imp.view_mode.borrow_mut() = if is_grid { ViewMode::Grid } else { ViewMode::List };
+        imp.toolbar.view_controls().set_view_mode(is_grid);
+
+        let zoom_level = settings.uint("grid-zoom-level").min(2);
+        *imp.grid_zoom.borrow_mut() = match zoom_level {
+            0 => GridZoom::Small,
+            2 => GridZoom::Large,
+            _ => GridZoom::Normal,
+        };
+        imp.toolbar.view_controls().set_zoom_level(zoom_level);
+
+        let sort_mode = match settings.string("file-sort-mode").as_str() {
+            "name-desc" => FileSortMode::NameDescending,
+            "last-modified" => FileSortMode::LastModified,
+            "first-modified" => FileSortMode::FirstModified,
+            "size" => FileSortMode::Size,
+            "type" => FileSortMode::Extension,
+            _ => FileSortMode::Name,
+        };
+        *imp.sort_mode.borrow_mut() = sort_mode;
+        imp.toolbar.view_controls().set_sort_mode(sort_mode);
+
+        *imp.grid_caption_flags.borrow_mut() =
+            CaptionFlags::from_bits_truncate(settings.uint("grid-caption-flags"));
+    }
+
     // ── ViewControls wiring ───────────────────────────────────────────────────
 
     fn setup_view_controls(&self) {
@@ -917,6 +953,10 @@ impl TemporalExplorerWindow {
                 } else {
                     ViewMode::List
                 };
+                win.imp()
+                    .settings
+                    .set_string("default-view", if is_grid { "grid" } else { "list" })
+                    .ok();
                 let dir = win.imp().current_dir.borrow().clone();
                 if win.imp().current_hash.borrow().is_some() {
                     win.navigate_to_dir(dir);
@@ -939,6 +979,16 @@ impl TemporalExplorerWindow {
                     _ => FileSortMode::Name,
                 };
                 *win.imp().sort_mode.borrow_mut() = mode;
+                let sort_key = match mode {
+                    FileSortMode::Name => "name",
+                    FileSortMode::NameDescending => "name-desc",
+                    FileSortMode::LastModified => "last-modified",
+                    FileSortMode::FirstModified => "first-modified",
+                    FileSortMode::Size => "size",
+                    FileSortMode::Status => "status",
+                    FileSortMode::Extension => "type",
+                };
+                win.imp().settings.set_string("file-sort-mode", sort_key).ok();
                 let dir = win.imp().current_dir.borrow().clone();
                 if win.imp().current_hash.borrow().is_some() {
                     win.navigate_to_dir(dir);
@@ -958,6 +1008,7 @@ impl TemporalExplorerWindow {
                     _ => GridZoom::Normal,
                 };
                 *win.imp().grid_zoom.borrow_mut() = zoom;
+                win.imp().settings.set_uint("grid-zoom-level", raw.min(2)).ok();
                 let dir = win.imp().current_dir.borrow().clone();
                 if win.imp().current_hash.borrow().is_some() {
                     win.navigate_to_dir(dir);
@@ -984,6 +1035,7 @@ impl TemporalExplorerWindow {
         let win = self.clone();
         dialog.connect_captions_changed(move |_, flags| {
             *win.imp().grid_caption_flags.borrow_mut() = flags;
+            win.imp().settings.set_uint("grid-caption-flags", flags.bits()).ok();
 
             let dir = win.imp().current_dir.borrow().clone();
             if win.imp().current_hash.borrow().is_some() {

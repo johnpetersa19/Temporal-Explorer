@@ -227,10 +227,50 @@ impl ViewControls {
         glib::Object::new()
     }
 
-    /// Sync toggle button states without emitting signals.
+    /// Sync toggle button states.
     pub fn set_view_mode(&self, is_grid: bool) {
         let imp = self.imp();
         imp.grid_view_button.get().set_active(is_grid);
         imp.list_view_button.get().set_active(!is_grid);
+    }
+
+    /// Restore zoom button state from saved settings.
+    pub fn set_zoom_level(&self, level: u32) {
+        let imp = self.imp();
+        let level = level.min(2);
+        imp.zoom_level.set(level);
+        imp.update_zoom_sensitivity();
+    }
+
+    /// Restore the selected sort option from saved settings.
+    pub fn set_sort_mode(&self, mode: FileSortMode) {
+        let imp = self.imp();
+
+        match mode {
+            FileSortMode::Name | FileSortMode::Status => {
+                imp.sort_name_button.get().set_active(true);
+                imp.view_options_label.get().set_label(&gettext("Name"));
+            }
+            FileSortMode::NameDescending => {
+                imp.sort_name_desc_button.get().set_active(true);
+                imp.view_options_label.get().set_label(&gettext("Z-A"));
+            }
+            FileSortMode::LastModified => {
+                imp.sort_last_modified_button.get().set_active(true);
+                imp.view_options_label.get().set_label(&gettext("Last Modified"));
+            }
+            FileSortMode::FirstModified => {
+                imp.sort_first_modified_button.get().set_active(true);
+                imp.view_options_label.get().set_label(&gettext("First Modified"));
+            }
+            FileSortMode::Size => {
+                imp.sort_size_button.get().set_active(true);
+                imp.view_options_label.get().set_label(&gettext("Size"));
+            }
+            FileSortMode::Extension => {
+                imp.sort_type_button.get().set_active(true);
+                imp.view_options_label.get().set_label(&gettext("Type"));
+            }
+        }
     }
 }

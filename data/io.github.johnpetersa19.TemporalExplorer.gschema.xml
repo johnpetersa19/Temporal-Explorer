@@ -38,6 +38,24 @@
       <description>Default file browser layout.</description>
     </key>
 
+    <key name="grid-zoom-level" type="u">
+      <default>1</default>
+      <summary>Grid zoom level</summary>
+      <description>Saved grid zoom level: 0 small, 1 normal, 2 large.</description>
+    </key>
+
+    <key name="file-sort-mode" type="s">
+      <default>'name'</default>
+      <summary>File sort mode</summary>
+      <description>Saved file sorting mode.</description>
+    </key>
+
+    <key name="grid-caption-flags" type="u">
+      <default>0</default>
+      <summary>Grid caption flags</summary>
+      <description>Saved grid caption bitmask.</description>
+    </key>
+
     <key name="show-avatars" type="b">
       <default>false</default>
       <summary>Show author avatars</summary>
