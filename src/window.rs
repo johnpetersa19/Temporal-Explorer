@@ -224,6 +224,7 @@ mod imp {
 
         pub filter_state: RefCell<FilterState>,
         pub load_cancel: RefCell<Option<Arc<AtomicBool>>>,
+        pub context_node: RefCell<Option<TreeNode>>,
     }
 
     #[glib::object_subclass]
@@ -578,6 +579,13 @@ impl TemporalExplorerWindow {
             ("filter-file-type", Self::show_filter_types_dialog),
             ("show-column-chooser", Self::show_column_chooser),
             ("new-branch", Self::show_new_branch_dialog),
+            ("context-open", Self::context_open_selected),
+            ("context-open-with", Self::context_open_with_selected),
+            ("context-export", Self::context_export_selected),
+            ("context-copy-path", Self::context_copy_path_selected),
+            ("context-copy-content", Self::context_copy_content_selected),
+            ("context-show-system", Self::context_show_system_selected),
+            ("context-properties", Self::context_properties_selected),
         ];
 
         for (name, handler) in actions {
@@ -2246,101 +2254,89 @@ impl TemporalExplorerWindow {
     // ── File context menu ─────────────────────────────────────────────────────
 
     fn show_file_context_menu(&self, node: TreeNode, anchor: &gtk::Widget) {
-        let popover = gtk::Popover::builder()
-            .has_arrow(false)
-            .autohide(true)
-            .build();
+        *self.imp().context_node.borrow_mut() = Some(node);
 
-        let box_ = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(0)
-            .margin_top(6)
-            .margin_bottom(6)
-            .margin_start(6)
-            .margin_end(6)
-            .width_request(280)
-            .build();
+        let menu = gio::Menu::new();
 
-        let open_btn = self.context_button(&gettext("Open"));
-        let open_with_btn = self.context_button(&gettext("Open With…"));
-        let export_btn = self.context_button(&gettext("Export File…"));
-        let copy_path_btn = self.context_button(&gettext("Copy Repository Path"));
-        let copy_content_btn = self.context_button(&gettext("Copy Content"));
-        let show_system_btn = self.context_button(&gettext("Show in System"));
-        let properties_btn = self.context_button(&gettext("Properties"));
+        let open_section = gio::Menu::new();
+        open_section.append(Some(&gettext("Open")), Some("win.context-open"));
+        open_section.append(Some(&gettext("Open With…")), Some("win.context-open-with"));
+        menu.append_section(None, &open_section);
 
-        box_.append(&open_btn);
-        box_.append(&open_with_btn);
-        box_.append(&self.context_separator());
-        box_.append(&export_btn);
-        box_.append(&copy_path_btn);
-        box_.append(&copy_content_btn);
-        box_.append(&self.context_separator());
-        box_.append(&show_system_btn);
-        box_.append(&properties_btn);
+        let edit_section = gio::Menu::new();
+        edit_section.append(Some(&gettext("Export File…")), Some("win.context-export"));
+        edit_section.append(Some(&gettext("Copy Repository Path")), Some("win.context-copy-path"));
+        edit_section.append(Some(&gettext("Copy Content")), Some("win.context-copy-content"));
+        menu.append_section(None, &edit_section);
 
-        let win = self.clone();
-        let node_open = node.clone();
-        open_btn.connect_clicked(move |_| {
-            win.open_snapshot_node_with_default_app(&node_open);
-        });
+        let system_section = gio::Menu::new();
+        system_section.append(Some(&gettext("Show in System")), Some("win.context-show-system"));
+        menu.append_section(None, &system_section);
 
-        let win = self.clone();
-        let node_open_with = node.clone();
-        open_with_btn.connect_clicked(move |_| {
-            win.open_snapshot_node_with_default_app(&node_open_with);
-        });
+        let properties_section = gio::Menu::new();
+        properties_section.append(Some(&gettext("Properties")), Some("win.context-properties"));
+        menu.append_section(None, &properties_section);
 
-        let win = self.clone();
-        let node_export = node.clone();
-        export_btn.connect_clicked(move |_| {
-            win.export_snapshot_node(&node_export);
-        });
-
-        let win = self.clone();
-        let node_path = node.clone();
-        copy_path_btn.connect_clicked(move |_| {
-            win.copy_repository_path(&node_path);
-        });
-
-        let win = self.clone();
-        let node_content = node.clone();
-        copy_content_btn.connect_clicked(move |_| {
-            win.copy_snapshot_node_content(&node_content);
-        });
-
-        let win = self.clone();
-        let node_show = node.clone();
-        show_system_btn.connect_clicked(move |_| {
-            win.show_node_in_system(&node_show);
-        });
-
-        let win = self.clone();
-        properties_btn.connect_clicked(move |_| {
-            win.show_node_properties(&node);
-        });
-
-        popover.set_child(Some(&box_));
+        let popover = gtk::PopoverMenu::from_model(Some(&menu));
+        popover.set_has_arrow(false);
         popover.set_parent(anchor);
         popover.connect_closed(|p| p.unparent());
         popover.popup();
     }
 
-    fn context_button(&self, label: &str) -> gtk::Button {
-        let btn = gtk::Button::builder()
-            .label(label)
-            .halign(gtk::Align::Fill)
-            .build();
-        btn.add_css_class("flat");
-        btn
+    fn with_context_node<F>(&self, f: F)
+    where
+        F: FnOnce(&Self, TreeNode),
+    {
+        let node = self.imp().context_node.borrow().clone();
+
+        if let Some(node) = node {
+            f(self, node);
+        }
     }
 
-    fn context_separator(&self) -> gtk::Separator {
-        gtk::Separator::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .margin_top(4)
-            .margin_bottom(4)
-            .build()
+    fn context_open_selected(&self) {
+        self.with_context_node(|win, node| {
+            win.open_snapshot_node_with_default_app(&node);
+        });
+    }
+
+    fn context_open_with_selected(&self) {
+        self.with_context_node(|win, node| {
+            // Temporary behavior: use the default app.
+            // Later this can open an app chooser dialog.
+            win.open_snapshot_node_with_default_app(&node);
+        });
+    }
+
+    fn context_export_selected(&self) {
+        self.with_context_node(|win, node| {
+            win.export_snapshot_node(&node);
+        });
+    }
+
+    fn context_copy_path_selected(&self) {
+        self.with_context_node(|win, node| {
+            win.copy_repository_path(&node);
+        });
+    }
+
+    fn context_copy_content_selected(&self) {
+        self.with_context_node(|win, node| {
+            win.copy_snapshot_node_content(&node);
+        });
+    }
+
+    fn context_show_system_selected(&self) {
+        self.with_context_node(|win, node| {
+            win.show_node_in_system(&node);
+        });
+    }
+
+    fn context_properties_selected(&self) {
+        self.with_context_node(|win, node| {
+            win.show_node_properties(&node);
+        });
     }
 
     fn materialize_snapshot_node_to_temp(&self, node: &TreeNode) -> Option<PathBuf> {
