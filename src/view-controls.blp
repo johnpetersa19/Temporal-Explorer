@@ -43,4 +43,17 @@ template $ViewControls : Gtk.Box {
     };
     notify::selected => $on_sort_changed() swapped;
   }
+
+  DropDown zoom_dropdown {
+    tooltip-text: _("Grid icon size");
+    selected: 1;
+    model: StringList {
+      strings [
+        _("Small"),
+        _("Normal"),
+        _("Large"),
+      ]
+    };
+    notify::selected => $on_zoom_changed() swapped;
+  }
 }

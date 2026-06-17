@@ -43,6 +43,7 @@ mod imp {
         #[template_child] pub grid_view_button: TemplateChild<gtk::ToggleButton>,
         #[template_child] pub list_view_button: TemplateChild<gtk::ToggleButton>,
         #[template_child] pub sort_dropdown:    TemplateChild<gtk::DropDown>,
+        #[template_child] pub zoom_dropdown:    TemplateChild<gtk::DropDown>,
     }
 
     #[glib::object_subclass]
@@ -76,6 +77,9 @@ mod imp {
                     glib::subclass::Signal::builder("sort-changed")
                         .param_types([u32::static_type()])
                         .build(),
+                    glib::subclass::Signal::builder("zoom-changed")
+                        .param_types([u32::static_type()])
+                        .build(),
                 ]
             })
         }
@@ -104,6 +108,12 @@ mod imp {
         fn on_sort_changed(&self, _pspec: &glib::ParamSpec) {
             let selected = self.sort_dropdown.get().selected();
             self.obj().emit_by_name::<()>("sort-changed", &[&selected]);
+        }
+
+        #[template_callback]
+        fn on_zoom_changed(&self, _pspec: &glib::ParamSpec) {
+            let selected = self.zoom_dropdown.get().selected();
+            self.obj().emit_by_name::<()>("zoom-changed", &[&selected]);
         }
     }
 }

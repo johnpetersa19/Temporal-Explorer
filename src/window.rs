@@ -79,6 +79,7 @@ use crate::select_commits_by_pattern::{commit_matches_pattern, SelectCommitsByPa
 use crate::timeline_filter;
 use crate::toolbar::TemporalToolbar;
 use crate::view_controls::FileSortMode;
+use crate::views::grid_view::GridZoom;
 use crate::views::list_view::{OnEnterDir, OnOpenFile};
 use crate::views::{grid_view, list_view};
 
@@ -207,6 +208,7 @@ mod imp {
         pub commit_nav_forward: RefCell<Vec<String>>,
 
         pub sort_mode: RefCell<FileSortMode>,
+        pub grid_zoom: RefCell<GridZoom>,
         pub column_visibility: RefCell<ColumnVisibility>,
 
         pub timeline_level: RefCell<TimelineLevel>,
@@ -874,6 +876,25 @@ impl TemporalExplorerWindow {
                     _ => FileSortMode::Name,
                 };
                 *win.imp().sort_mode.borrow_mut() = mode;
+                let dir = win.imp().current_dir.borrow().clone();
+                if win.imp().current_hash.borrow().is_some() {
+                    win.navigate_to_dir(dir);
+                }
+                None
+            });
+
+        let win = self.clone();
+        self.imp()
+            .toolbar
+            .view_controls()
+            .connect_local("zoom-changed", false, move |args| {
+                let raw = args[1].get::<u32>().unwrap_or(1);
+                let zoom = match raw {
+                    0 => GridZoom::Small,
+                    2 => GridZoom::Large,
+                    _ => GridZoom::Normal,
+                };
+                *win.imp().grid_zoom.borrow_mut() = zoom;
                 let dir = win.imp().current_dir.borrow().clone();
                 if win.imp().current_hash.borrow().is_some() {
                     win.navigate_to_dir(dir);
@@ -1823,6 +1844,7 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         let mode = *imp.view_mode.borrow();
         let sort_mode = *imp.sort_mode.borrow();
+        let grid_zoom = *imp.grid_zoom.borrow();
         let hash = imp.current_hash.borrow().clone().unwrap_or_default();
 
         let mut decorated: Vec<(TreeNode, String, String)> = nodes
@@ -1875,7 +1897,7 @@ impl TemporalExplorerWindow {
                 list_view::build_list_view(&nodes, &hash, on_enter_dir, on_open_file).upcast()
             }
             ViewMode::Grid => {
-                grid_view::build_grid_view(&nodes, &hash, on_enter_dir, on_open_file).upcast()
+                grid_view::build_grid_view(&nodes, &hash, grid_zoom, on_enter_dir, on_open_file).upcast()
             }
         };
         self.replace_right_panel(widget);

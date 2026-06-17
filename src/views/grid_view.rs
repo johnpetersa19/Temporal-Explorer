@@ -43,6 +43,37 @@ pub type OnEnterDir = Box<dyn Fn(PathBuf) + 'static>;
 /// Callback type invoked when the user activates a file cell.
 pub type OnOpenFile = Box<dyn Fn(&std::path::Path, &str) + 'static>;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub enum GridZoom {
+    Small,
+    #[default]
+    Normal,
+    Large,
+}
+
+impl GridZoom {
+    fn metrics(self) -> GridMetrics {
+        match self {
+            GridZoom::Small => GridMetrics {
+                icon_size: 64,
+                cell_width: 112,
+                label_width_chars: 14,
+            },
+            GridZoom::Normal => GridMetrics {
+                icon_size: 80,
+                cell_width: 132,
+                label_width_chars: 16,
+            },
+            GridZoom::Large => GridMetrics {
+                icon_size: 96,
+                cell_width: 156,
+                label_width_chars: 18,
+            },
+        }
+    }
+}
+
+
 #[derive(Debug, Clone, Copy)]
 struct GridMetrics {
     icon_size: i32,
@@ -50,36 +81,14 @@ struct GridMetrics {
     label_width_chars: i32,
 }
 
-/// Nautilus-like default grid metrics.
-///
-/// This is intentionally not tiny: Nautilus keeps a readable icon size and
-/// controls density through zoom levels. We keep the default close to the
-/// normal grid size instead of hard-coding a small icon.
-#[inline]
-fn default_grid_metrics() -> GridMetrics {
-    GridMetrics {
-        icon_size: 64,
-        cell_width: 112,
-        label_width_chars: 14,
-    }
-}
-
-
-/// Builds a scrollable grid (flow) view for `children` at the given `hash`.
-///
-/// `on_enter_dir` is called when the user double-clicks / activates a
-/// directory cell.  `on_open_file` is called for file cells.
-/// Submodule entries reuse `on_enter_dir` — the caller navigates into
-/// the submodule path the same way it navigates into a directory.
-///
-/// Returns a [`gtk::Widget`] (upcast from [`gtk::ScrolledWindow`]) ready
-/// to be inserted as the right-panel content.
 pub fn build_grid_view(
     children: &[TreeNode],
     hash: &str,
+    zoom: GridZoom,
     on_enter_dir: OnEnterDir,
     on_open_file: OnOpenFile,
 ) -> gtk::Widget {
+    let metrics = zoom.metrics();
     let scrolled = gtk::ScrolledWindow::builder()
         .vexpand(true)
         .hexpand(true)
@@ -116,7 +125,7 @@ pub fn build_grid_view(
         flow.insert(&placeholder, -1);
     } else {
         for node in children {
-            let cell = build_grid_cell(node, default_grid_metrics());
+            let cell = build_grid_cell(node, metrics);
             let child = gtk::FlowBoxChild::builder()
                 .child(&cell)
                 .valign(gtk::Align::Start)
