@@ -43,6 +43,28 @@ pub type OnEnterDir = Box<dyn Fn(PathBuf) + 'static>;
 /// Callback type invoked when the user activates a file cell.
 pub type OnOpenFile = Box<dyn Fn(&std::path::Path, &str) + 'static>;
 
+#[derive(Debug, Clone, Copy)]
+struct GridMetrics {
+    icon_size: i32,
+    cell_width: i32,
+    label_width_chars: i32,
+}
+
+/// Nautilus-like default grid metrics.
+///
+/// This is intentionally not tiny: Nautilus keeps a readable icon size and
+/// controls density through zoom levels. We keep the default close to the
+/// normal grid size instead of hard-coding a small icon.
+#[inline]
+fn default_grid_metrics() -> GridMetrics {
+    GridMetrics {
+        icon_size: 64,
+        cell_width: 112,
+        label_width_chars: 14,
+    }
+}
+
+
 /// Builds a scrollable grid (flow) view for `children` at the given `hash`.
 ///
 /// `on_enter_dir` is called when the user double-clicks / activates a
@@ -94,7 +116,7 @@ pub fn build_grid_view(
         flow.insert(&placeholder, -1);
     } else {
         for node in children {
-            let cell = build_grid_cell(node);
+            let cell = build_grid_cell(node, default_grid_metrics());
             let child = gtk::FlowBoxChild::builder()
                 .child(&cell)
                 .valign(gtk::Align::Start)
@@ -158,7 +180,7 @@ pub fn build_grid_view(
 /// | `Dir` | `folder-*` (64 px) |
 /// | `Submodule` | `folder-remote` (64 px) |
 /// | `File` | full mime icon (64 px) |
-pub fn build_grid_cell(node: &TreeNode) -> gtk::Box {
+fn build_grid_cell(node: &TreeNode, metrics: GridMetrics) -> gtk::Box {
     let vbox = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .spacing(6)
@@ -166,7 +188,8 @@ pub fn build_grid_cell(node: &TreeNode) -> gtk::Box {
         .margin_bottom(6)
         .margin_start(6)
         .margin_end(6)
-        .width_request(104)
+        // Match the visual size used by the system file manager more closely.
+        .width_request(88)
         .build();
     vbox.add_css_class("nautilus-view-cell");
 
@@ -179,7 +202,7 @@ pub fn build_grid_cell(node: &TreeNode) -> gtk::Box {
         TreeNode::Submodule(_) => "folder-remote",
     };
     let icon = gtk::Image::from_icon_name(icon_name);
-    icon.set_pixel_size(64);
+    icon.set_pixel_size(48);
     icon.set_halign(gtk::Align::Center);
     vbox.append(&icon);
 
@@ -194,7 +217,7 @@ pub fn build_grid_cell(node: &TreeNode) -> gtk::Box {
         .justify(gtk::Justification::Center)
         .wrap(true)
         .wrap_mode(gtk::pango::WrapMode::WordChar)
-        .max_width_chars(12)
+        .max_width_chars(11)
         .lines(3)
         // Nautilus uses middle ellipsize for long filenames.
         .ellipsize(gtk::pango::EllipsizeMode::Middle)
