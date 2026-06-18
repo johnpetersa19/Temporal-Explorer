@@ -246,3 +246,14 @@ flowboxchild:selected flowboxchild:selected:focus .nautilus-emblems-box {
 .nautilus-emblem {
     -gtk-icon-size: 12px;
 }
+
+/* ── Nautilus-like properties dialog ───────────────────────────────── */
+
+.properties-card {
+    border-radius: 12px;
+    background-color: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+.properties-card separator {
+    opacity: 0.35;
+}

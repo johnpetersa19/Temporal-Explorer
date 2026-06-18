@@ -390,6 +390,17 @@ fn file_matches_search_category(path: &str, filter: &FileTypeFilter) -> bool {
             .map_or(false, |wanted| ext == wanted.trim_start_matches('.').to_lowercase())
 }
 
+fn format_git_mode(mode: i32) -> String {
+    match mode {
+        0o040000 | 16384 => "040000 · Directory".to_string(),
+        0o100644 | 33188 => "100644 · Read/write file".to_string(),
+        0o100755 | 33261 => "100755 · Executable file".to_string(),
+        0o120000 | 40960 => "120000 · Symbolic link".to_string(),
+        0o160000 | 57344 => "160000 · Git submodule".to_string(),
+        other => format!("{other:o} · Git mode"),
+    }
+}
+
 fn format_file_size(size: u64) -> String {
     const KIB: f64 = 1024.0;
     const MIB: f64 = 1024.0 * 1024.0;
@@ -2918,6 +2929,17 @@ impl TemporalExplorerWindow {
         let short = short_hash(&hash).to_string();
         let repo_name = self.imp().repo_name.borrow().clone();
 
+        let snapshot_date = {
+            let commits = self.imp().all_commits.borrow();
+            let index = self.imp().commit_index.borrow();
+
+            index
+                .get(&hash)
+                .and_then(|idx| commits.get(*idx))
+                .map(|commit| Self::format_timestamp(commit.timestamp))
+                .unwrap_or_else(|| gettext("Unknown snapshot date"))
+        };
+
         let name = node
             .path()
             .file_name()
@@ -2926,6 +2948,15 @@ impl TemporalExplorerWindow {
             .to_string();
 
         let repository_path = node.path().display().to_string();
+
+        let parent_folder = node
+            .path()
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .map(|parent| parent.display().to_string())
+            .unwrap_or_else(|| self.imp().repo_path.borrow().clone()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| gettext("Repository root")));
 
         let kind = if node.is_dir() {
             gettext("Folder")
@@ -2944,6 +2975,7 @@ impl TemporalExplorerWindow {
         };
 
         let mut git_object = gettext("Not available");
+        let mut git_mode = gettext("Not available");
         let mut size = gettext("Not available");
 
         if let Some(hash) = self.imp().current_hash.borrow().clone() {
@@ -2960,17 +2992,19 @@ impl TemporalExplorerWindow {
                     .and_then(|tree| tree.get_path(node.path()).ok())
                     .and_then(|entry| {
                         let oid = entry.id();
+                        let mode = entry.filemode();
 
                         if matches!(node, TreeNode::File(_)) {
                             repo.find_blob(oid)
                                 .ok()
-                                .map(|blob| (oid.to_string(), Some(blob.size() as u64)))
+                                .map(|blob| (oid.to_string(), mode, Some(blob.size() as u64)))
                         } else {
-                            Some((oid.to_string(), None))
+                            Some((oid.to_string(), mode, None))
                         }
                     })
                 {
                     git_object = object_id;
+                    git_mode = format_git_mode(object_mode);
 
                     if let Some(object_size) = object_size {
                         size = format_file_size(object_size);
@@ -2999,9 +3033,12 @@ impl TemporalExplorerWindow {
             icon_name,
             repository: repo_name,
             repository_path,
+            parent_folder,
             snapshot_commit: short,
             full_commit: hash,
+            snapshot_date,
             git_object,
+            git_mode,
             size,
             system_status,
         };
