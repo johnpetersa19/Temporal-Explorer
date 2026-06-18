@@ -184,3 +184,26 @@ flowboxchild:selected:focus .nautilus-grid-cell {
 .toolbar-search-bar button {
     border-radius: 0 9999px 9999px 0;
 }
+
+/* ── Nautilus-like list view rows ───────────────────────────────────── */
+
+.nautilus-list-row {
+    border-radius: 9px;
+}
+
+.file-list-name-label {
+    font-weight: 500;
+}
+
+.file-list-badge {
+    padding: 2px 6px;
+    border-radius: 9999px;
+}
+
+.nautilus-emblems-box {
+    padding: 1px;
+}
+
+.nautilus-emblem {
+    -gtk-icon-size: 10px;
+}

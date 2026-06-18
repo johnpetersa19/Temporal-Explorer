@@ -35,8 +35,8 @@ use gtk::glib;
 use gtk::prelude::*;
 use std::path::PathBuf;
 
+use crate::file_list_row::FileListRow;
 use crate::git_engine::TreeNode;
-use crate::icon_helpers::{folder_icon_symbolic, mime_icon};
 
 /// Callback type invoked when the user activates a directory entry.
 pub type OnEnterDir = Box<dyn Fn(PathBuf) + 'static>;
@@ -131,61 +131,7 @@ pub fn build_list_view(
 /// | `Submodule` | `folder-remote-symbolic` | `vcs-branch-symbolic` chain badge |
 /// | `File` | mime icon | extension label |
 pub fn build_file_row(node: &TreeNode) -> gtk::ListBoxRow {
-    let hbox = gtk::Box::builder()
-        .orientation(gtk::Orientation::Horizontal)
-        .spacing(10)
-        .margin_top(5)
-        .margin_bottom(5)
-        .margin_start(12)
-        .margin_end(12)
-        .build();
-    hbox.add_css_class("nautilus-list-row");
-
-    let icon_name = match node {
-        TreeNode::Dir(p) => {
-            folder_icon_symbolic(p.file_name().and_then(|n| n.to_str()).unwrap_or(""))
-        }
-        TreeNode::File(p) => mime_icon(p),
-        // Submodules use the "remote folder" symbolic icon so they are
-        // visually distinct from plain directories at a glance.
-        TreeNode::Submodule(_) => "folder-remote-symbolic",
-    };
-    let icon = gtk::Image::from_icon_name(icon_name);
-    icon.set_pixel_size(16);
-    hbox.append(&icon);
-
-    let name = node
-        .path()
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
-    let label = gtk::Label::builder()
-        .label(name)
-        .xalign(0.0)
-        .hexpand(true)
-        .ellipsize(gtk::pango::EllipsizeMode::End)
-        .build();
-    hbox.append(&label);
-
-    if node.is_dir() {
-        let chevron = gtk::Image::from_icon_name("go-next-symbolic");
-        chevron.add_css_class("dim-label");
-        chevron.set_pixel_size(12);
-        hbox.append(&chevron);
-    } else if node.is_submodule() {
-        // Show a small chain/branch icon to signal "this is a submodule".
-        let badge = gtk::Image::from_icon_name("vcs-branch-symbolic");
-        badge.add_css_class("dim-label");
-        badge.set_pixel_size(12);
-        hbox.append(&badge);
-    } else if let Some(ext) = node.path().extension().and_then(|e| e.to_str()) {
-        let type_label = gtk::Label::builder()
-            .label(&ext.to_uppercase())
-            .build();
-        type_label.add_css_class("caption");
-        type_label.add_css_class("dim-label");
-        hbox.append(&type_label);
-    }
-
-    gtk::ListBoxRow::builder().child(&hbox).build()
+    let row = FileListRow::new();
+    row.configure(node);
+    row.upcast()
 }
