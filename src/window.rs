@@ -75,6 +75,7 @@ use crate::filter_types_dialog::FilterTypesDialog;
 use crate::git_engine::{CommitInfo, DirCache, HistoryReader, SnapshotResolver, TreeNode};
 use crate::merge_conflict_dialog::{ConflictInfo, MergeConflictDialog};
 use crate::new_branch_dialog::NewBranchDialog;
+use crate::node_properties_dialog::{NodeProperties, NodePropertiesDialog};
 use crate::search_filter_popover::{FileTypeFilter, FilterState, SearchFilterPopover};
 use crate::select_commits_by_pattern::{commit_matches_pattern, SelectCommitsByPattern};
 use crate::timeline_filter;
@@ -2718,14 +2719,17 @@ impl TemporalExplorerWindow {
 
     fn show_node_properties(&self, node: &TreeNode) {
         let hash = self.imp().current_hash.borrow().clone().unwrap_or_default();
-        let short = short_hash(&hash);
+        let short = short_hash(&hash).to_string();
         let repo_name = self.imp().repo_name.borrow().clone();
 
         let name = node
             .path()
             .file_name()
             .and_then(|n| n.to_str())
-            .unwrap_or("");
+            .unwrap_or("")
+            .to_string();
+
+        let repository_path = node.path().display().to_string();
 
         let kind = if node.is_dir() {
             gettext("Folder")
@@ -2735,30 +2739,45 @@ impl TemporalExplorerWindow {
             gettext("File")
         };
 
-        let mut blob_hash = gettext("Not available");
+        let icon_name = if node.is_dir() {
+            "folder-symbolic".to_string()
+        } else if node.is_submodule() {
+            "folder-remote-symbolic".to_string()
+        } else {
+            "text-x-generic-symbolic".to_string()
+        };
+
+        let mut git_object = gettext("Not available");
         let mut size = gettext("Not available");
 
-        if matches!(node, TreeNode::File(_)) {
-            if let Some(hash) = self.imp().current_hash.borrow().clone() {
-                let repo_ref = self.imp().repository.borrow();
+        if let Some(hash) = self.imp().current_hash.borrow().clone() {
+            let repo_ref = self.imp().repository.borrow();
 
-                if let Some(repo_wrapper) = repo_ref.as_ref() {
-                    let repo = &repo_wrapper.0;
+            if let Some(repo_wrapper) = repo_ref.as_ref() {
+                let repo = &repo_wrapper.0;
 
-                    if let Some((oid, blob_size)) = repo
-                        .revparse_single(&hash)
-                        .ok()
-                        .and_then(|obj| obj.peel_to_commit().ok())
-                        .and_then(|commit| commit.tree().ok())
-                        .and_then(|tree| tree.get_path(node.path()).ok())
-                        .and_then(|entry| {
-                            repo.find_blob(entry.id())
+                if let Some((object_id, object_size)) = repo
+                    .revparse_single(&hash)
+                    .ok()
+                    .and_then(|obj| obj.peel_to_commit().ok())
+                    .and_then(|commit| commit.tree().ok())
+                    .and_then(|tree| tree.get_path(node.path()).ok())
+                    .and_then(|entry| {
+                        let oid = entry.id();
+
+                        if matches!(node, TreeNode::File(_)) {
+                            repo.find_blob(oid)
                                 .ok()
-                                .map(|blob| (entry.id(), blob.size() as u64))
-                        })
-                    {
-                        blob_hash = oid.to_string();
-                        size = format_file_size(blob_size);
+                                .map(|blob| (oid.to_string(), Some(blob.size() as u64)))
+                        } else {
+                            Some((oid.to_string(), None))
+                        }
+                    })
+                {
+                    git_object = object_id;
+
+                    if let Some(object_size) = object_size {
+                        size = format_file_size(object_size);
                     }
                 }
             }
@@ -2772,40 +2791,28 @@ impl TemporalExplorerWindow {
             .map(|repo_path| repo_path.join(node.path()).exists())
             .unwrap_or(false);
 
-        let working_tree_text = if working_tree_status {
+        let system_status = if working_tree_status {
             gettext("Exists in working tree")
         } else {
             gettext("Only available in selected snapshot")
         };
 
-        let body = format!(
-            "{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}",
-            gettext("Name"),
+        let props = NodeProperties {
             name,
-            gettext("Type"),
             kind,
-            gettext("Repository"),
-            repo_name,
-            gettext("Repository path"),
-            node.path().display(),
-            gettext("Snapshot commit"),
-            short,
-            gettext("Blob"),
-            blob_hash,
-            gettext("Size"),
+            icon_name,
+            repository: repo_name,
+            repository_path,
+            snapshot_commit: short,
+            full_commit: hash,
+            git_object,
             size,
-            gettext("System status"),
-            working_tree_text,
-        );
+            system_status,
+        };
 
-        let dialog = adw::AlertDialog::builder()
-            .heading(&gettext("Properties"))
-            .body(&body)
-            .build();
-
-        dialog.add_response("close", &gettext("Close"));
-        dialog.set_default_response(Some("close"));
-        dialog.present(Some(self));
+        let dialog = NodePropertiesDialog::new();
+        dialog.set_properties(&props);
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
     // ── Right-panel management    // ── Right-panel management ────────────────────────────────────────────────

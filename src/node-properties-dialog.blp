@@ -1,0 +1,117 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $NodePropertiesDialog : Adw.Dialog {
+  title: _("Properties");
+  content-width: 520;
+  content-height: 560;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      title-widget: Adw.WindowTitle dialog_title {
+        title: _("Properties");
+      };
+    }
+
+    content: ScrolledWindow {
+      hscrollbar-policy: never;
+      vscrollbar-policy: automatic;
+      propagate-natural-height: true;
+
+      child: Box {
+        orientation: vertical;
+        spacing: 18;
+        margin-top: 18;
+        margin-bottom: 18;
+        margin-start: 18;
+        margin-end: 18;
+
+        Box {
+          orientation: vertical;
+          spacing: 8;
+          halign: center;
+
+          Image icon_image {
+            pixel-size: 96;
+            icon-name: "text-x-generic-symbolic";
+            halign: center;
+          }
+
+          Label name_label {
+            label: "";
+            justify: center;
+            wrap: true;
+            wrap-mode: word_char;
+            max-width-chars: 32;
+            lines: 3;
+            ellipsize: middle;
+            halign: center;
+
+            styles ["title-2"]
+          }
+
+          Label path_label {
+            label: "";
+            justify: center;
+            wrap: true;
+            wrap-mode: word_char;
+            max-width-chars: 48;
+            lines: 2;
+            ellipsize: middle;
+            halign: center;
+
+            styles ["dim-label", "caption"]
+          }
+        }
+
+        Adw.PreferencesGroup {
+          title: _("General");
+
+          Adw.ActionRow type_row {
+            title: _("Type");
+          }
+
+          Adw.ActionRow size_row {
+            title: _("Size");
+          }
+
+          Adw.ActionRow repository_path_row {
+            title: _("Repository Path");
+          }
+
+          Adw.ActionRow system_status_row {
+            title: _("System Status");
+          }
+        }
+
+        Adw.PreferencesGroup {
+          title: _("Git Snapshot");
+
+          Adw.ActionRow repository_row {
+            title: _("Repository");
+          }
+
+          Adw.ActionRow snapshot_commit_row {
+            title: _("Snapshot Commit");
+          }
+
+          Adw.ActionRow object_row {
+            title: _("Git Object");
+          }
+
+          Adw.ActionRow full_commit_row {
+            title: _("Full Commit");
+          }
+        }
+
+        Button copy_details_button {
+          label: _("Copy Details");
+          halign: center;
+
+          styles ["suggested-action"]
+        }
+      };
+    }
+  };
+}
