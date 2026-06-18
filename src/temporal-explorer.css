@@ -136,32 +136,7 @@ row:selected .nautilus-list-row {
 
 /* ── Nautilus-like file grid cell template ───────────────────────────── */
 
-.nautilus-grid-cell {
-    border-radius: 8px;
-    padding: 8px 6px 6px 6px;
-    transition: background-color 150ms ease;
-}
-
-.nautilus-grid-cell:hover {
-    background-color: color-mix(in srgb, currentColor 7%, transparent);
-}
-
-flowboxchild:selected .nautilus-grid-cell {
-    background-color: color-mix(in srgb, @accent_bg_color 18%, transparent);
-    outline: 1.5px solid color-mix(in srgb, @accent_bg_color 60%, transparent);
-    outline-offset: -1.5px;
-}
-
-flowboxchild:selected:focus .nautilus-grid-cell {
-    background-color: color-mix(in srgb, @accent_bg_color 28%, transparent);
-    outline-color: @accent_bg_color;
-}
-
-.icon-ui-labels-box {
-    padding-top: 2px;
-}
-
-.nautilus-emblems-box {
+flowboxchild:selected flowboxchild:selected:focus .nautilus-emblems-box {
     margin: 0 2px 2px 0;
 }
 
@@ -206,4 +181,68 @@ flowboxchild:selected:focus .nautilus-grid-cell {
 
 .nautilus-emblem {
     -gtk-icon-size: 10px;
+}
+
+/* ── Nautilus-like grid physics and selection ───────────────────────── */
+
+.nautilus-grid-view {
+    background: transparent;
+}
+
+.nautilus-grid-view flowboxchild {
+    border-radius: 12px;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+}
+
+.nautilus-grid-view flowboxchild:hover {
+    background-color: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.nautilus-grid-view flowboxchild:selected {
+    background-color: color-mix(in srgb, @accent_bg_color 28%, transparent);
+    color: @window_fg_color;
+}
+
+.nautilus-grid-view flowboxchild:selected .nautilus-grid-cell {
+    background: transparent;
+}
+
+.nautilus-grid-cell {
+    border-radius: 12px;
+    padding: 6px;
+    background: transparent;
+}
+
+.nautilus-grid-cell:hover {
+    background: transparent;
+}
+
+.nautilus-grid-cell image {
+    -gtk-icon-size: 96px;
+}
+
+.icon-ui-labels-box {
+    margin-top: 4px;
+}
+
+.icon-ui-labels-box label {
+    border-radius: 8px;
+    padding: 1px 5px;
+}
+
+.nautilus-grid-view flowboxchild:selected .icon-ui-labels-box label {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}
+
+.nautilus-emblems-box {
+    padding: 2px;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, @window_bg_color 80%, transparent);
+}
+
+.nautilus-emblem {
+    -gtk-icon-size: 12px;
 }

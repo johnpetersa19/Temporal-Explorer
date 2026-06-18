@@ -74,18 +74,18 @@ impl GridZoom {
         match self {
             GridZoom::Small => GridMetrics {
                 icon_size: 64,
-                cell_width: 112,
-                label_width_chars: 14,
+                cell_width: 108,
+                label_width_chars: 13,
             },
             GridZoom::Normal => GridMetrics {
-                icon_size: 80,
+                icon_size: 96,
                 cell_width: 132,
-                label_width_chars: 16,
+                label_width_chars: 14,
             },
             GridZoom::Large => GridMetrics {
-                icon_size: 96,
-                cell_width: 156,
-                label_width_chars: 18,
+                icon_size: 128,
+                cell_width: 164,
+                label_width_chars: 17,
             },
         }
     }
@@ -119,24 +119,28 @@ pub fn build_grid_view(
         .build();
 
     let flow = gtk::FlowBox::builder()
-        .selection_mode(gtk::SelectionMode::Single)
-        // Nautilus-like compact grid: keep the whole flow aligned to the start.
-        // The previous version changed only the children, but the FlowBox itself
-        // was still expanding to the full viewport width, leaving huge gaps.
-        .halign(gtk::Align::Start)
+        .selection_mode(gtk::SelectionMode::Multiple)
+        .activate_on_single_click(false)
+        // Nautilus-like grid physics:
+        // keep items packed from the start, but let the view own the full
+        // viewport so the background and selection area behave like a file view.
+        .halign(gtk::Align::Fill)
         .valign(gtk::Align::Start)
-        .hexpand(false)
-        .vexpand(false)
+        .hexpand(true)
+        .vexpand(true)
         .homogeneous(false)
-        .column_spacing(12)
-        .row_spacing(12)
-        .margin_top(16)
-        .margin_bottom(16)
-        .margin_start(16)
-        .margin_end(16)
+        .column_spacing(6)
+        .row_spacing(10)
+        .margin_top(12)
+        .margin_bottom(12)
+        .margin_start(12)
+        .margin_end(12)
         .max_children_per_line(64)
         .min_children_per_line(1)
         .build();
+
+    flow.add_css_class("view");
+    flow.add_css_class("nautilus-grid-view");
 
     if children.is_empty() {
         let placeholder = gtk::Label::builder()
@@ -152,9 +156,11 @@ pub fn build_grid_view(
             let child = gtk::FlowBoxChild::builder()
                 .child(&cell)
                 .valign(gtk::Align::Start)
-                .halign(gtk::Align::Start)
+                .halign(gtk::Align::Center)
                 .hexpand(false)
                 .build();
+
+            child.add_css_class("nautilus-grid-view-item");
 
             let node_for_menu = node.clone();
             let on_context_menu = Rc::clone(&on_context_menu);
