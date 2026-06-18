@@ -75,7 +75,7 @@ use crate::filter_types_dialog::FilterTypesDialog;
 use crate::git_engine::{CommitInfo, DirCache, HistoryReader, SnapshotResolver, TreeNode};
 use crate::merge_conflict_dialog::{ConflictInfo, MergeConflictDialog};
 use crate::new_branch_dialog::NewBranchDialog;
-use crate::search_filter_popover::{FilterState, SearchFilterPopover};
+use crate::search_filter_popover::{FileTypeFilter, FilterState, SearchFilterPopover};
 use crate::select_commits_by_pattern::{commit_matches_pattern, SelectCommitsByPattern};
 use crate::timeline_filter;
 use crate::toolbar::TemporalToolbar;
