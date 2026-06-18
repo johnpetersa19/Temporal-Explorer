@@ -314,6 +314,63 @@ fn commit_touches_path(
     false
 }
 
+fn file_matches_search_category(path: &str, filter: &FileTypeFilter) -> bool {
+    let path_obj = std::path::Path::new(path);
+
+    let ext = path_obj
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    let in_folder = path_obj
+        .parent()
+        .is_some_and(|parent| !parent.as_os_str().is_empty());
+
+    let audio_ext = matches!(
+        ext.as_str(),
+        "mp3" | "flac" | "wav" | "ogg" | "opus" | "m4a" | "aac" | "mid" | "midi"
+    );
+
+    let document_ext = matches!(
+        ext.as_str(),
+        "doc" | "docx" | "odt" | "ott" | "rtf" | "abw" | "pages"
+    );
+
+    let image_ext = matches!(
+        ext.as_str(),
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "tif" | "tiff" | "heic" | "avif"
+    );
+
+    let pdf_ext = ext == "pdf";
+
+    let text_ext = matches!(
+        ext.as_str(),
+        "txt" | "md" | "markdown" | "rst" | "log" | "csv" | "json" | "jsonc" |
+        "yaml" | "yml" | "toml" | "xml" | "html" | "css" | "scss" | "js" |
+        "ts" | "jsx" | "tsx" | "rs" | "c" | "h" | "cpp" | "hpp" | "cc" |
+        "py" | "sh" | "bash" | "zsh" | "fish" | "go" | "java" | "kt" |
+        "swift" | "php" | "rb" | "lua" | "blp" | "ui" | "desktop" | "service"
+    );
+
+    let video_ext = matches!(
+        ext.as_str(),
+        "mp4" | "mkv" | "webm" | "mov" | "avi" | "m4v" | "flv" | "wmv" | "mpeg" | "mpg"
+    );
+
+    (filter.audio && audio_ext)
+        || (filter.documents && document_ext)
+        || (filter.folders && in_folder)
+        || (filter.images && image_ext)
+        || (filter.pdf && pdf_ext)
+        || (filter.text && text_ext)
+        || (filter.videos && video_ext)
+        || filter
+            .other_ext
+            .as_deref()
+            .map_or(false, |wanted| ext == wanted.trim_start_matches('.').to_lowercase())
+}
+
 fn format_file_size(size: u64) -> String {
     const KIB: f64 = 1024.0;
     const MIB: f64 = 1024.0 * 1024.0;
@@ -3136,23 +3193,10 @@ impl TemporalExplorerWindow {
                         }
                     }
 
-                    let has_file_match = commit.changed_files.iter().any(|file| {
-                        let ext = std::path::Path::new(file)
-                            .extension()
-                            .and_then(|e| e.to_str())
-                            .unwrap_or("")
-                            .to_lowercase();
-
-                        (filter.files.rust && ext == "rs")
-                            || (filter.files.toml && ext == "toml")
-                            || (filter.files.blueprint && ext == "blp")
-                            || filter
-                                .files
-                                .other_ext
-                                .as_deref()
-                                .map(|wanted| ext == wanted.trim_start_matches('.').to_lowercase())
-                                .unwrap_or(false)
-                    });
+                    let has_file_match = commit
+                        .changed_files
+                        .iter()
+                        .any(|file| file_matches_search_category(file, &filter.files));
 
                     if !has_file_match {
                         continue;
