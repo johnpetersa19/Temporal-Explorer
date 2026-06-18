@@ -257,3 +257,13 @@ flowboxchild:selected flowboxchild:selected:focus .nautilus-emblems-box {
 .properties-card separator {
     opacity: 0.35;
 }
+
+
+
+
+
+/* ── Nautilus-like native context menu ─────────────────────────────── */
+
+.nautilus-context-menu {
+    padding: 6px;
+}

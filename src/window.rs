@@ -2390,6 +2390,10 @@ impl TemporalExplorerWindow {
     // ── File context menu ─────────────────────────────────────────────────────
 
     fn show_file_context_menu(&self, node: TreeNode, anchor: &gtk::Widget) {
+        *self.imp().context_node.borrow_mut() = Some(node.clone());
+
+        let is_file = !node.is_dir() && !node.is_submodule();
+
         let menu = gio::Menu::new();
 
         let open_section = gio::Menu::new();
@@ -2418,23 +2422,28 @@ impl TemporalExplorerWindow {
             let win = self.clone();
             let node = node.clone();
             open_action.connect_activate(move |_, _| {
-                win.open_snapshot_node_with_default_app(&node);
+                if node.is_dir() || node.is_submodule() {
+                    win.push_dir(node.path().to_path_buf());
+                } else {
+                    win.open_snapshot_node_with_default_app(&node);
+                }
             });
         }
         group.add_action(&open_action);
 
         let open_with_action = gio::SimpleAction::new("open-with", None);
+        open_with_action.set_enabled(is_file);
         {
             let win = self.clone();
             let node = node.clone();
             open_with_action.connect_activate(move |_, _| {
-                // Temporary behavior: use default app. Later this can open an app chooser.
-                win.open_snapshot_node_with_default_app(&node);
+                win.open_snapshot_node_with_app_chooser(&node);
             });
         }
         group.add_action(&open_with_action);
 
         let export_action = gio::SimpleAction::new("export", None);
+        export_action.set_enabled(is_file);
         {
             let win = self.clone();
             let node = node.clone();
@@ -2455,6 +2464,7 @@ impl TemporalExplorerWindow {
         group.add_action(&copy_path_action);
 
         let copy_content_action = gio::SimpleAction::new("copy-content", None);
+        copy_content_action.set_enabled(is_file);
         {
             let win = self.clone();
             let node = node.clone();
@@ -2484,11 +2494,24 @@ impl TemporalExplorerWindow {
         }
         group.add_action(&properties_action);
 
+        // Put the action group on the anchor widget itself. This makes action
+        // lookup stable for the PopoverMenu, while keeping the native GNOME menu
+        // styling instead of custom button rows.
+        anchor.insert_action_group("ctx", Some(&group));
+
         let popover = gtk::PopoverMenu::from_model(Some(&menu));
         popover.set_has_arrow(false);
-        popover.insert_action_group("ctx", Some(&group));
+        popover.add_css_class("nautilus-context-menu");
         popover.set_parent(anchor);
-        popover.connect_closed(|p| p.unparent());
+
+        let anchor_weak = anchor.downgrade();
+        popover.connect_closed(move |p| {
+            if let Some(anchor) = anchor_weak.upgrade() {
+                anchor.insert_action_group("ctx", None::<&gio::SimpleActionGroup>);
+            }
+            p.unparent();
+        });
+
         popover.popup();
     }
 
