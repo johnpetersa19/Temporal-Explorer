@@ -71,8 +71,10 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
-            let obj = self.obj();
-            self.copy_details_button.connect_clicked(move |_| {
+            let obj = self.obj().clone();
+            let button = self.copy_details_button.get();
+
+            button.connect_clicked(move |_| {
                 obj.copy_details();
             });
         }
