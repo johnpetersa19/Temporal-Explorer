@@ -2421,6 +2421,7 @@ impl TemporalExplorerWindow {
         {
             let win = self.clone();
             let node = node.clone();
+
             open_action.connect_activate(move |_, _| {
                 if node.is_dir() || node.is_submodule() {
                     win.push_dir(node.path().to_path_buf());
@@ -2436,6 +2437,7 @@ impl TemporalExplorerWindow {
         {
             let win = self.clone();
             let node = node.clone();
+
             open_with_action.connect_activate(move |_, _| {
                 win.open_snapshot_node_with_app_chooser(&node);
             });
@@ -2447,6 +2449,7 @@ impl TemporalExplorerWindow {
         {
             let win = self.clone();
             let node = node.clone();
+
             export_action.connect_activate(move |_, _| {
                 win.export_snapshot_node(&node);
             });
@@ -2457,6 +2460,7 @@ impl TemporalExplorerWindow {
         {
             let win = self.clone();
             let node = node.clone();
+
             copy_path_action.connect_activate(move |_, _| {
                 win.copy_repository_path(&node);
             });
@@ -2468,6 +2472,7 @@ impl TemporalExplorerWindow {
         {
             let win = self.clone();
             let node = node.clone();
+
             copy_content_action.connect_activate(move |_, _| {
                 win.copy_snapshot_node_content(&node);
             });
@@ -2478,6 +2483,7 @@ impl TemporalExplorerWindow {
         {
             let win = self.clone();
             let node = node.clone();
+
             show_system_action.connect_activate(move |_, _| {
                 win.show_node_in_system(&node);
             });
@@ -2488,27 +2494,28 @@ impl TemporalExplorerWindow {
         {
             let win = self.clone();
             let node = node.clone();
+
             properties_action.connect_activate(move |_, _| {
                 win.show_node_properties(&node);
             });
         }
         group.add_action(&properties_action);
 
-        // Put the action group on the anchor widget itself. This makes action
-        // lookup stable for the PopoverMenu, while keeping the native GNOME menu
-        // styling instead of custom button rows.
-        anchor.insert_action_group("ctx", Some(&group));
+        // Important:
+        // Keep the native Gtk.PopoverMenu design, but install the action group
+        // on the window. This gives the menu a stable action lookup path.
+        self.upcast_ref::<gtk::Widget>()
+            .insert_action_group("ctx", Some(&group));
 
         let popover = gtk::PopoverMenu::from_model(Some(&menu));
         popover.set_has_arrow(false);
         popover.add_css_class("nautilus-context-menu");
         popover.set_parent(anchor);
 
-        let anchor_weak = anchor.downgrade();
+        let win = self.clone();
         popover.connect_closed(move |p| {
-            if let Some(anchor) = anchor_weak.upgrade() {
-                anchor.insert_action_group("ctx", None::<&gio::SimpleActionGroup>);
-            }
+            win.upcast_ref::<gtk::Widget>()
+                .insert_action_group("ctx", None::<&gio::SimpleActionGroup>);
             p.unparent();
         });
 
