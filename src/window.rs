@@ -392,11 +392,11 @@ fn file_matches_search_category(path: &str, filter: &FileTypeFilter) -> bool {
 
 fn format_git_mode(mode: i32) -> String {
     match mode {
-        0o040000 | 16384 => "040000 · Directory".to_string(),
-        0o100644 | 33188 => "100644 · Read/write file".to_string(),
-        0o100755 | 33261 => "100755 · Executable file".to_string(),
-        0o120000 | 40960 => "120000 · Symbolic link".to_string(),
-        0o160000 | 57344 => "160000 · Git submodule".to_string(),
+        0o040000 => "040000 · Directory".to_string(),
+        0o100644 => "100644 · Read/write file".to_string(),
+        0o100755 => "100755 · Executable file".to_string(),
+        0o120000 => "120000 · Symbolic link".to_string(),
+        0o160000 => "160000 · Git submodule".to_string(),
         other => format!("{other:o} · Git mode"),
     }
 }
@@ -2984,7 +2984,7 @@ impl TemporalExplorerWindow {
             if let Some(repo_wrapper) = repo_ref.as_ref() {
                 let repo = &repo_wrapper.0;
 
-                if let Some((object_id, object_size)) = repo
+                if let Some((object_id, object_mode, object_size)) = repo
                     .revparse_single(&hash)
                     .ok()
                     .and_then(|obj| obj.peel_to_commit().ok())

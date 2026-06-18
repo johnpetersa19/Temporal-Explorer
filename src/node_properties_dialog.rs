@@ -177,8 +177,6 @@ impl NodePropertiesDialog {
             props.git_object,
             gettext("Git Mode"),
             props.git_mode,
-            gettext("System Status"),
-            props.system_status,
         );
 
         *imp.details_text.borrow_mut() = details;
