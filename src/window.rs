@@ -2393,22 +2393,22 @@ impl TemporalExplorerWindow {
         let menu = gio::Menu::new();
 
         let open_section = gio::Menu::new();
-        open_section.append(Some(&gettext("Open")), Some("action.ctx.open"));
-        open_section.append(Some(&gettext("Open With…")), Some("action.ctx.open-with"));
+        open_section.append(Some(&gettext("Open")), Some("ctx.open"));
+        open_section.append(Some(&gettext("Open With…")), Some("ctx.open-with"));
         menu.append_section(None, &open_section);
 
         let edit_section = gio::Menu::new();
-        edit_section.append(Some(&gettext("Export File…")), Some("action.ctx.export"));
-        edit_section.append(Some(&gettext("Copy Repository Path")), Some("action.ctx.copy-path"));
-        edit_section.append(Some(&gettext("Copy Content")), Some("action.ctx.copy-content"));
+        edit_section.append(Some(&gettext("Export File…")), Some("ctx.export"));
+        edit_section.append(Some(&gettext("Copy Repository Path")), Some("ctx.copy-path"));
+        edit_section.append(Some(&gettext("Copy Content")), Some("ctx.copy-content"));
         menu.append_section(None, &edit_section);
 
         let system_section = gio::Menu::new();
-        system_section.append(Some(&gettext("Show in System")), Some("action.ctx.show-system"));
+        system_section.append(Some(&gettext("Show in System")), Some("ctx.show-system"));
         menu.append_section(None, &system_section);
 
         let properties_section = gio::Menu::new();
-        properties_section.append(Some(&gettext("Properties")), Some("action.ctx.properties"));
+        properties_section.append(Some(&gettext("Properties")), Some("ctx.properties"));
         menu.append_section(None, &properties_section);
 
         let group = gio::SimpleActionGroup::new();
