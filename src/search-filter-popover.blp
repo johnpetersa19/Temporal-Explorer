@@ -200,33 +200,65 @@ template $SearchFilterPopover : Popover {
           line-spacing: 6;
           natural-line-length: 280;
 
-          Button file_type_rust_button {
+          Button file_type_audio_button {
             accessible-role: checkbox;
             child: Adw.ButtonContent {
-              icon-name: "text-x-script-symbolic";
-              label: "Rust";
+              icon-name: "audio-x-generic-symbolic";
+              label: _("Audio");
             };
           }
 
-          Button file_type_toml_button {
+          Button file_type_documents_button {
             accessible-role: checkbox;
             child: Adw.ButtonContent {
-              icon-name: "text-x-generic-symbolic";
-              label: "TOML";
+              icon-name: "x-office-document-symbolic";
+              label: _("Documents");
             };
           }
 
-          Button file_type_blueprint_button {
+          Button file_type_folders_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "folder-symbolic";
+              label: _("Folders");
+            };
+          }
+
+          Button file_type_images_button {
             accessible-role: checkbox;
             child: Adw.ButtonContent {
               icon-name: "image-x-generic-symbolic";
-              label: "Blueprint";
+              label: _("Images");
+            };
+          }
+
+          Button file_type_pdf_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "x-office-document-symbolic";
+              label: "PDF";
+            };
+          }
+
+          Button file_type_text_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "text-x-generic-symbolic";
+              label: _("Text");
+            };
+          }
+
+          Button file_type_videos_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "video-x-generic-symbolic";
+              label: _("Videos");
             };
           }
 
           Button file_type_other_button {
             icon-name: "view-more-horizontal-symbolic";
-            tooltip-text: _("Other File Type");
+            tooltip-text: _("Specific Type");
             styles ["circular"]
           }
         }

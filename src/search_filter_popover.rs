@@ -156,16 +156,85 @@ impl FilterDateRange {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FileTypeFilter {
-    pub rust: bool,
-    pub toml: bool,
-    pub blueprint: bool,
+    pub audio: bool,
+    pub documents: bool,
+    pub folders: bool,
+    pub images: bool,
+    pub pdf: bool,
+    pub text: bool,
+    pub videos: bool,
     pub other_ext: Option<String>,
 }
 
 impl FileTypeFilter {
     pub fn is_active(&self) -> bool {
-        self.rust || self.toml || self.blueprint || self.other_ext.is_some()
+        self.audio
+            || self.documents
+            || self.folders
+            || self.images
+            || self.pdf
+            || self.text
+            || self.videos
+            || self.other_ext.is_some()
     }
+}
+
+fn file_matches_type_filter(path: &str, filter: &FileTypeFilter) -> bool {
+    let path_obj = std::path::Path::new(path);
+
+    let ext = path_obj
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    // Git changed-files are file paths. A path containing a parent directory is
+    // treated as matching "Folders" because the commit touched something inside
+    // a folder.
+    let in_folder = path_obj.parent().is_some_and(|parent| !parent.as_os_str().is_empty());
+
+    let audio_ext = matches!(
+        ext.as_str(),
+        "mp3" | "flac" | "wav" | "ogg" | "opus" | "m4a" | "aac" | "mid" | "midi"
+    );
+
+    let document_ext = matches!(
+        ext.as_str(),
+        "doc" | "docx" | "odt" | "ott" | "rtf" | "abw" | "pages"
+    );
+
+    let image_ext = matches!(
+        ext.as_str(),
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "tif" | "tiff" | "heic" | "avif"
+    );
+
+    let pdf_ext = ext == "pdf";
+
+    let text_ext = matches!(
+        ext.as_str(),
+        "txt" | "md" | "markdown" | "rst" | "log" | "csv" | "json" | "jsonc" |
+        "yaml" | "yml" | "toml" | "xml" | "html" | "css" | "scss" | "js" |
+        "ts" | "jsx" | "tsx" | "rs" | "c" | "h" | "cpp" | "hpp" | "cc" |
+        "py" | "sh" | "bash" | "zsh" | "fish" | "go" | "java" | "kt" |
+        "swift" | "php" | "rb" | "lua" | "blp" | "ui" | "desktop" | "service"
+    );
+
+    let video_ext = matches!(
+        ext.as_str(),
+        "mp4" | "mkv" | "webm" | "mov" | "avi" | "m4v" | "flv" | "wmv" | "mpeg" | "mpg"
+    );
+
+    (filter.audio && audio_ext)
+        || (filter.documents && document_ext)
+        || (filter.folders && in_folder)
+        || (filter.images && image_ext)
+        || (filter.pdf && pdf_ext)
+        || (filter.text && text_ext)
+        || (filter.videos && video_ext)
+        || filter
+            .other_ext
+            .as_deref()
+            .map_or(false, |wanted| ext == wanted.trim_start_matches('.').to_lowercase())
 }
 
 // ── FilterState ────────────────────────────────────────────────────────────────
@@ -213,23 +282,13 @@ impl FilterState {
             }
         }
 
-        // File-type filter: commit must have touched at least one matching file
+        // File-type filter: commit must have touched at least one matching file.
         if self.files.is_active() {
-            let has_match = c.changed_files.iter().any(|f| {
-                let ext = std::path::Path::new(f)
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("")
-                    .to_lowercase();
-                (self.files.rust && ext == "rs")
-                    || (self.files.toml && ext == "toml")
-                    || (self.files.blueprint && ext == "blp")
-                    || self
-                        .files
-                        .other_ext
-                        .as_deref()
-                        .map_or(false, |oe| ext == oe.to_lowercase())
-            });
+            let has_match = c
+                .changed_files
+                .iter()
+                .any(|path| file_matches_type_filter(path, &self.files));
+
             if !has_match {
                 return false;
             }
@@ -286,11 +345,19 @@ mod imp {
 
         // ── File types section ──
         #[template_child]
-        pub file_type_rust_button: TemplateChild<gtk::Button>,
+        pub file_type_audio_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub file_type_toml_button: TemplateChild<gtk::Button>,
+        pub file_type_documents_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub file_type_blueprint_button: TemplateChild<gtk::Button>,
+        pub file_type_folders_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub file_type_images_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub file_type_pdf_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub file_type_text_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub file_type_videos_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub file_type_other_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -561,9 +628,13 @@ impl SearchFilterPopover {
         let normalized = ext.trim().trim_start_matches('.').to_lowercase();
 
         for btn in [
-            imp.file_type_rust_button.get(),
-            imp.file_type_toml_button.get(),
-            imp.file_type_blueprint_button.get(),
+            imp.file_type_audio_button.get(),
+            imp.file_type_documents_button.get(),
+            imp.file_type_folders_button.get(),
+            imp.file_type_images_button.get(),
+            imp.file_type_pdf_button.get(),
+            imp.file_type_text_button.get(),
+            imp.file_type_videos_button.get(),
             imp.file_type_other_button.get(),
         ] {
             btn.remove_css_class("suggested-action");
@@ -574,18 +645,33 @@ impl SearchFilterPopover {
 
         match normalized.as_str() {
             "" => {}
-            "rs" => {
-                state.files.rust = true;
-                imp.file_type_rust_button.add_css_class("suggested-action");
+            "mp3" | "flac" | "wav" | "ogg" | "opus" | "m4a" | "aac" | "mid" | "midi" => {
+                state.files.audio = true;
+                imp.file_type_audio_button.add_css_class("suggested-action");
             }
-            "toml" => {
-                state.files.toml = true;
-                imp.file_type_toml_button.add_css_class("suggested-action");
+            "doc" | "docx" | "odt" | "ott" | "rtf" | "abw" | "pages" => {
+                state.files.documents = true;
+                imp.file_type_documents_button.add_css_class("suggested-action");
             }
-            "blp" => {
-                state.files.blueprint = true;
-                imp.file_type_blueprint_button
-                    .add_css_class("suggested-action");
+            "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "tif" | "tiff" | "heic" | "avif" => {
+                state.files.images = true;
+                imp.file_type_images_button.add_css_class("suggested-action");
+            }
+            "pdf" => {
+                state.files.pdf = true;
+                imp.file_type_pdf_button.add_css_class("suggested-action");
+            }
+            "txt" | "md" | "markdown" | "rst" | "log" | "csv" | "json" | "jsonc" |
+            "yaml" | "yml" | "toml" | "xml" | "html" | "css" | "scss" | "js" |
+            "ts" | "jsx" | "tsx" | "rs" | "c" | "h" | "cpp" | "hpp" | "cc" |
+            "py" | "sh" | "bash" | "zsh" | "fish" | "go" | "java" | "kt" |
+            "swift" | "php" | "rb" | "lua" | "blp" | "ui" | "desktop" | "service" => {
+                state.files.text = true;
+                imp.file_type_text_button.add_css_class("suggested-action");
+            }
+            "mp4" | "mkv" | "webm" | "mov" | "avi" | "m4v" | "flv" | "wmv" | "mpeg" | "mpg" => {
+                state.files.videos = true;
+                imp.file_type_videos_button.add_css_class("suggested-action");
             }
             other => {
                 state.files.other_ext = Some(other.to_string());
@@ -678,9 +764,13 @@ impl SearchFilterPopover {
         }
 
         // ── File type chips ───────────────────────────────────────────────
-        self.connect_file_type_chip(&imp.file_type_rust_button, |f| &mut f.rust);
-        self.connect_file_type_chip(&imp.file_type_toml_button, |f| &mut f.toml);
-        self.connect_file_type_chip(&imp.file_type_blueprint_button, |f| &mut f.blueprint);
+        self.connect_file_type_chip(&imp.file_type_audio_button, |f| &mut f.audio);
+        self.connect_file_type_chip(&imp.file_type_documents_button, |f| &mut f.documents);
+        self.connect_file_type_chip(&imp.file_type_folders_button, |f| &mut f.folders);
+        self.connect_file_type_chip(&imp.file_type_images_button, |f| &mut f.images);
+        self.connect_file_type_chip(&imp.file_type_pdf_button, |f| &mut f.pdf);
+        self.connect_file_type_chip(&imp.file_type_text_button, |f| &mut f.text);
+        self.connect_file_type_chip(&imp.file_type_videos_button, |f| &mut f.videos);
 
         {
             let popover = self.clone();
@@ -882,9 +972,14 @@ impl SearchFilterPopover {
 
         // Clear file type UI
         for btn in [
-            imp.file_type_rust_button.get(),
-            imp.file_type_toml_button.get(),
-            imp.file_type_blueprint_button.get(),
+            imp.file_type_audio_button.get(),
+            imp.file_type_documents_button.get(),
+            imp.file_type_folders_button.get(),
+            imp.file_type_images_button.get(),
+            imp.file_type_pdf_button.get(),
+            imp.file_type_text_button.get(),
+            imp.file_type_videos_button.get(),
+            imp.file_type_other_button.get(),
         ] {
             btn.remove_css_class("suggested-action");
         }
