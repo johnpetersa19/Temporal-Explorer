@@ -18,6 +18,7 @@
     <file compressed="true">month-row.ui</file>
     <file compressed="true">new-branch-dialog.ui</file>
     <file compressed="true">node-properties-dialog.ui</file>
+    <file compressed="true">operation-progress-dialog.ui</file>
     <file compressed="true">preferences-dialog.ui</file>
     <file compressed="true">search-filter-popover.ui</file>
     <file compressed="true">select-commits-by-pattern.ui</file>

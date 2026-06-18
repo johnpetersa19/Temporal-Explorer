@@ -60,6 +60,7 @@ use gtk::{gio, glib};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::io::Write;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -76,6 +77,7 @@ use crate::git_engine::{CommitInfo, DirCache, HistoryReader, SnapshotResolver, T
 use crate::merge_conflict_dialog::{ConflictInfo, MergeConflictDialog};
 use crate::new_branch_dialog::NewBranchDialog;
 use crate::node_properties_dialog::{NodeProperties, NodePropertiesDialog};
+use crate::operation_progress_dialog::OperationProgressDialog;
 use crate::search_filter_popover::{FileTypeFilter, FilterState, SearchFilterPopover};
 use crate::select_commits_by_pattern::{commit_matches_pattern, SelectCommitsByPattern};
 use crate::timeline_filter;
@@ -87,6 +89,22 @@ use crate::views::list_view::{OnEnterDir, OnOpenFile};
 use crate::views::{grid_view, list_view};
 
 // ── ViewMode ───────────────────────────────────────────────────────────────────
+
+enum SnapshotWriteMessage {
+    Progress {
+        fraction: f64,
+        status: String,
+    },
+    Done(Result<PathBuf, String>),
+}
+
+enum SearchProgressMessage {
+    Progress {
+        current: usize,
+        total: usize,
+    },
+    Done(Option<(Vec<CommitInfo>, Vec<(String, Vec<String>)>)>),
+}
 
 /// Whether the right panel renders files as a list or a grid.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -2516,6 +2534,163 @@ impl TemporalExplorerWindow {
         });
     }
 
+    fn write_snapshot_node_to_path_with_progress<F>(
+        &self,
+        node: &TreeNode,
+        target: PathBuf,
+        title: &str,
+        initial_status: &str,
+        on_done: F,
+    )
+    where
+        F: FnOnce(&Self, PathBuf) + 'static,
+    {
+        if node.is_dir() || node.is_submodule() {
+            self.show_toast(&gettext("Only files can be opened or exported from a snapshot"));
+            return;
+        }
+
+        let Some(repo_path) = self.imp().repo_path.borrow().clone() else {
+            self.show_error(&gettext("No repository loaded"));
+            return;
+        };
+
+        let Some(hash) = self.imp().current_hash.borrow().clone() else {
+            self.show_error(&gettext("No snapshot selected"));
+            return;
+        };
+
+        let node_path = node.path().to_path_buf();
+        let cancel = Arc::new(AtomicBool::new(false));
+
+        let dialog = OperationProgressDialog::new();
+        dialog.setup(title, initial_status, cancel.clone());
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
+
+        let (tx, rx) = std::sync::mpsc::sync_channel::<SnapshotWriteMessage>(16);
+        let worker_cancel = cancel.clone();
+
+        std::thread::spawn(move || {
+            let result = (|| -> Result<PathBuf, String> {
+                let repo = git2::Repository::open(&repo_path)
+                    .map_err(|e| format!("Cannot open repository: {e}"))?;
+
+                let obj = repo
+                    .revparse_single(&hash)
+                    .map_err(|e| format!("Cannot read snapshot: {e}"))?;
+
+                let commit = obj
+                    .peel_to_commit()
+                    .map_err(|e| format!("Cannot peel commit: {e}"))?;
+
+                let tree = commit
+                    .tree()
+                    .map_err(|e| format!("Cannot read tree: {e}"))?;
+
+                let entry = tree
+                    .get_path(&node_path)
+                    .map_err(|e| format!("Cannot find file in snapshot: {e}"))?;
+
+                let blob = repo
+                    .find_blob(entry.id())
+                    .map_err(|e| format!("Cannot read file blob: {e}"))?;
+
+                if let Some(parent) = target.parent() {
+                    std::fs::create_dir_all(parent)
+                        .map_err(|e| format!("Cannot create destination directory: {e}"))?;
+                }
+
+                let content = blob.content();
+                let total = content.len().max(1);
+                let mut written = 0usize;
+
+                let mut file = std::fs::File::create(&target)
+                    .map_err(|e| format!("Cannot create destination file: {e}"))?;
+
+                for chunk in content.chunks(64 * 1024) {
+                    if worker_cancel.load(Ordering::Relaxed) {
+                        return Err("Operation cancelled".to_string());
+                    }
+
+                    file.write_all(chunk)
+                        .map_err(|e| format!("Cannot write destination file: {e}"))?;
+
+                    written += chunk.len();
+
+                    let fraction = written as f64 / total as f64;
+                    let status = format!("Writing {} / {} bytes", written, total);
+
+                    let _ = tx.send(SnapshotWriteMessage::Progress { fraction, status });
+                }
+
+                file.flush()
+                    .map_err(|e| format!("Cannot flush destination file: {e}"))?;
+
+                Ok(target)
+            })();
+
+            let _ = tx.send(SnapshotWriteMessage::Done(result));
+        });
+
+        let win = self.clone();
+        let callback = std::rc::Rc::new(std::cell::RefCell::new(Some(on_done)));
+        let callback_ref = callback.clone();
+
+        glib::idle_add_local(move || {
+            loop {
+                match rx.try_recv() {
+                    Ok(SnapshotWriteMessage::Progress { fraction, status }) => {
+                        dialog.set_progress(fraction, &status);
+                    }
+                    Ok(SnapshotWriteMessage::Done(result)) => {
+                        dialog.finish_and_close();
+
+                        match result {
+                            Ok(path) => {
+                                if let Some(callback) = callback_ref.borrow_mut().take() {
+                                    callback(&win, path);
+                                }
+                            }
+                            Err(msg) => {
+                                if msg != "Operation cancelled" {
+                                    win.show_error(&msg);
+                                } else {
+                                    win.show_toast(&gettext("Operation cancelled"));
+                                }
+                            }
+                        }
+
+                        return glib::ControlFlow::Break;
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                        return glib::ControlFlow::Continue;
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        dialog.finish_and_close();
+                        return glib::ControlFlow::Break;
+                    }
+                }
+            }
+        });
+    }
+
+    fn temp_target_for_snapshot_node(&self, node: &TreeNode) -> Option<PathBuf> {
+        let hash = self.imp().current_hash.borrow().clone()?;
+
+        let file_name = node
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("snapshot-file");
+
+        Some(
+            std::env::temp_dir()
+                .join("temporal-explorer")
+                .join(short_hash(&hash))
+                .join(file_name),
+        )
+    }
+
     fn materialize_snapshot_node_to_temp(&self, node: &TreeNode) -> Option<PathBuf> {
         if node.is_dir() || node.is_submodule() {
             self.show_toast(&gettext("Only files can be opened or exported from a snapshot"));
@@ -2552,66 +2727,81 @@ impl TemporalExplorerWindow {
     }
 
     fn open_snapshot_node_with_default_app(&self, node: &TreeNode) {
-        let Some(path) = self.materialize_snapshot_node_to_temp(node) else {
+        let Some(target) = self.temp_target_for_snapshot_node(node) else {
             return;
         };
 
-        let uri = format!("file://{}", path.to_string_lossy());
-        if gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>).is_err() {
-            self.show_error(&gettext("Could not open file with the default application"));
-        }
+        self.write_snapshot_node_to_path_with_progress(
+            node,
+            target,
+            &gettext("Opening File"),
+            &gettext("Materializing snapshot file…"),
+            |win, path| {
+                let uri = format!("file://{}", path.to_string_lossy());
+
+                if gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>).is_err() {
+                    win.show_error(&gettext("Could not open file with the default application"));
+                }
+            },
+        );
     }
 
     fn open_snapshot_node_with_app_chooser(&self, node: &TreeNode) {
-        let Some(path) = self.materialize_snapshot_node_to_temp(node) else {
+        let Some(target) = self.temp_target_for_snapshot_node(node) else {
             return;
         };
 
-        let file = gio::File::for_path(&path);
+        self.write_snapshot_node_to_path_with_progress(
+            node,
+            target,
+            &gettext("Preparing File"),
+            &gettext("Materializing snapshot file…"),
+            |win, path| {
+                let file = gio::File::for_path(&path);
 
-        let content_type = file
-            .query_info(
-                "standard::content-type",
-                gio::FileQueryInfoFlags::NONE,
-                None::<&gio::Cancellable>,
-            )
-            .ok()
-            .and_then(|info| info.content_type())
-            .unwrap_or_else(|| "application/octet-stream".into());
+                let content_type = file
+                    .query_info(
+                        "standard::content-type",
+                        gio::FileQueryInfoFlags::NONE,
+                        None::<&gio::Cancellable>,
+                    )
+                    .ok()
+                    .and_then(|info| info.content_type())
+                    .unwrap_or_else(|| "application/octet-stream".into());
 
-        let dialog = gtk::AppChooserDialog::for_content_type(
-            Some(self),
-            gtk::DialogFlags::MODAL,
-            content_type.as_str(),
-        );
+                let dialog = gtk::AppChooserDialog::for_content_type(
+                    Some(win),
+                    gtk::DialogFlags::MODAL,
+                    content_type.as_str(),
+                );
 
-        dialog.set_heading(&gettext("Open With…"));
+                dialog.set_heading(&gettext("Open With…"));
 
-        let win = self.clone();
-        dialog.connect_response(move |dialog, response| {
-            if response == gtk::ResponseType::Ok {
-                if let Some(app) = dialog.app_info() {
-                    let file = gio::File::for_path(&path);
+                let win = win.clone();
+                dialog.connect_response(move |dialog, response| {
+                    if response == gtk::ResponseType::Ok {
+                        if let Some(app) = dialog.app_info() {
+                            let file = gio::File::for_path(&path);
 
-                    if app
-                        .launch(&[file], None::<&gio::AppLaunchContext>)
-                        .is_err()
-                    {
-                        win.show_error(&gettext("Could not open file with the selected application"));
+                            if app.launch(&[file], None::<&gio::AppLaunchContext>).is_err() {
+                                win.show_error(&gettext("Could not open file with the selected application"));
+                            }
+                        }
                     }
-                }
-            }
 
-            dialog.close();
-        });
+                    dialog.close();
+                });
 
-        dialog.present();
+                dialog.present();
+            },
+        );
     }
 
     fn export_snapshot_node(&self, node: &TreeNode) {
-        let Some(temp_path) = self.materialize_snapshot_node_to_temp(node) else {
+        if node.is_dir() || node.is_submodule() {
+            self.show_toast(&gettext("Only files can be exported from a snapshot"));
             return;
-        };
+        }
 
         let file_name = node
             .path()
@@ -2632,19 +2822,25 @@ impl TemporalExplorerWindow {
         dialog.set_current_name(&file_name);
 
         let win = self.clone();
+        let node = node.clone();
+
         dialog.connect_response(move |dialog, response| {
             if response == gtk::ResponseType::Accept {
                 if let Some(file) = dialog.file() {
                     if let Some(target) = file.path() {
-                        if std::fs::copy(&temp_path, &target).is_ok() {
-                            win.show_toast(&format!(
-                                "{}: {}",
-                                gettext("Exported"),
-                                target.display()
-                            ));
-                        } else {
-                            win.show_error(&gettext("Could not export file"));
-                        }
+                        win.write_snapshot_node_to_path_with_progress(
+                            &node,
+                            target.clone(),
+                            &gettext("Exporting File"),
+                            &gettext("Exporting snapshot file…"),
+                            move |win, path| {
+                                win.show_toast(&format!(
+                                    "{}: {}",
+                                    gettext("Exported"),
+                                    path.display()
+                                ));
+                            },
+                        );
                     }
                 }
             }
@@ -3128,7 +3324,23 @@ impl TemporalExplorerWindow {
             .and_then(|branch| self.imp().branch_commit_index.borrow().get(branch).cloned());
         let q = query.to_lowercase();
 
-        let (tx, rx) = std::sync::mpsc::sync_channel::<Option<(Vec<CommitInfo>, Vec<(String, Vec<String>)>)>>(1);
+        let file_filter_active = filter.files.is_active();
+
+        let progress_dialog = if file_filter_active {
+            let dialog = OperationProgressDialog::new();
+            dialog.setup(
+                &gettext("Indexing Changed Files"),
+                &gettext("Reading changed-file metadata…"),
+                cancel.clone(),
+            );
+            AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
+            Some(dialog)
+        } else {
+            None
+        };
+
+        let total_commits = all_commits.len().max(1);
+        let (tx, rx) = std::sync::mpsc::sync_channel::<SearchProgressMessage>(32);
         let worker_cancel = cancel.clone();
 
         std::thread::spawn(move || {
@@ -3146,10 +3358,17 @@ impl TemporalExplorerWindow {
                 None
             };
 
-            for commit in all_commits {
+            for (idx, commit) in all_commits.into_iter().enumerate() {
                 if worker_cancel.load(Ordering::Relaxed) {
-                    let _ = tx.send(None);
+                    let _ = tx.send(SearchProgressMessage::Done(None));
                     return;
+                }
+
+                if file_filter_active && idx % 25 == 0 {
+                    let _ = tx.send(SearchProgressMessage::Progress {
+                        current: idx + 1,
+                        total: total_commits,
+                    });
                 }
 
                 // ── Author filter ─────────────────────────────────────────
@@ -3226,52 +3445,92 @@ impl TemporalExplorerWindow {
                 results.push(commit);
             }
 
-            let _ = tx.send(Some((results, newly_cached_changed_files)));
+            let _ = tx.send(SearchProgressMessage::Done(Some((results, newly_cached_changed_files))));
         });
 
         let win = self.clone();
         glib::idle_add_local(move || {
             if cancel.load(Ordering::Relaxed) {
+                if let Some(ref dialog) = progress_dialog {
+                    dialog.finish_and_close();
+                }
                 return glib::ControlFlow::Break;
             }
 
-            match rx.try_recv() {
-                Ok(Some((results, newly_cached_changed_files))) => {
-                    if !cancel.load(Ordering::Relaxed) {
-                        if !newly_cached_changed_files.is_empty() {
-                            let imp = win.imp();
+            loop {
+                match rx.try_recv() {
+                    Ok(SearchProgressMessage::Progress { current, total }) => {
+                        if let Some(ref dialog) = progress_dialog {
+                            let fraction = current as f64 / total.max(1) as f64;
+                            dialog.set_progress(
+                                fraction,
+                                &format!(
+                                    "{} {}/{}",
+                                    gettext("Reading changed-file metadata…"),
+                                    current,
+                                    total
+                                ),
+                            );
+                        }
+                    }
 
-                            {
-                                let mut cache = imp.changed_files_cache.borrow_mut();
-                                for (hash, files) in newly_cached_changed_files {
-                                    cache.insert(hash.clone(), files.clone());
+                    Ok(SearchProgressMessage::Done(Some((results, newly_cached_changed_files)))) => {
+                        if let Some(ref dialog) = progress_dialog {
+                            dialog.finish_and_close();
+                        }
+
+                        if !cancel.load(Ordering::Relaxed) {
+                            if !newly_cached_changed_files.is_empty() {
+                                let imp = win.imp();
+
+                                {
+                                    let mut cache = imp.changed_files_cache.borrow_mut();
+                                    for (hash, files) in newly_cached_changed_files {
+                                        cache.insert(hash.clone(), files.clone());
+                                    }
                                 }
-                            }
 
-                            {
-                                let cache = imp.changed_files_cache.borrow();
-                                let mut commits = imp.all_commits.borrow_mut();
-                                let index = imp.commit_index.borrow();
+                                {
+                                    let cache = imp.changed_files_cache.borrow();
+                                    let mut commits = imp.all_commits.borrow_mut();
+                                    let index = imp.commit_index.borrow();
 
-                                for (hash, files) in cache.iter() {
-                                    if let Some(idx) = index.get(hash) {
-                                        if let Some(commit) = commits.get_mut(*idx) {
-                                            if commit.changed_files.is_empty() {
-                                                commit.changed_files = files.clone();
+                                    for (hash, files) in cache.iter() {
+                                        if let Some(idx) = index.get(hash) {
+                                            if let Some(commit) = commits.get_mut(*idx) {
+                                                if commit.changed_files.is_empty() {
+                                                    commit.changed_files = files.clone();
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
+
+                            commit_controller::populate_commit_list(&win.imp().commit_list, &results);
                         }
 
-                        commit_controller::populate_commit_list(&win.imp().commit_list, &results);
+                        return glib::ControlFlow::Break;
                     }
-                    glib::ControlFlow::Break
+
+                    Ok(SearchProgressMessage::Done(None)) => {
+                        if let Some(ref dialog) = progress_dialog {
+                            dialog.finish_and_close();
+                        }
+                        return glib::ControlFlow::Break;
+                    }
+
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                        return glib::ControlFlow::Continue;
+                    }
+
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        if let Some(ref dialog) = progress_dialog {
+                            dialog.finish_and_close();
+                        }
+                        return glib::ControlFlow::Break;
+                    }
                 }
-                Ok(None) => glib::ControlFlow::Break,
-                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => glib::ControlFlow::Break,
             }
         });
     }

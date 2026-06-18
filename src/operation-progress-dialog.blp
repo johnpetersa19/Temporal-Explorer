@@ -1,0 +1,48 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $OperationProgressDialog : Adw.Dialog {
+  title: _("Working");
+  content-width: 420;
+  content-height: 180;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      title-widget: Adw.WindowTitle title_widget {
+        title: _("Working");
+      };
+    }
+
+    content: Box {
+      orientation: vertical;
+      spacing: 16;
+      margin-top: 18;
+      margin-bottom: 18;
+      margin-start: 18;
+      margin-end: 18;
+
+      Label status_label {
+        label: _("Preparing…");
+        xalign: 0;
+        wrap: true;
+      }
+
+      ProgressBar progress_bar {
+        show-text: true;
+        fraction: 0.0;
+      }
+
+      Button cancel_button {
+        label: _("_Cancel");
+        use-underline: true;
+        halign: end;
+
+        styles ["destructive-action"]
+      }
+    };
+  };
+}
