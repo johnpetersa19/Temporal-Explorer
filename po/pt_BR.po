@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: temporal-explorer 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-18 22:28-0300\n"
+"POT-Creation-Date: 2026-06-18 22:36-0300\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -186,11 +186,14 @@ msgid "Name"
 msgstr "Nome"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:160
+#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:254
+#: src/view-controls.blp
 msgid "Type"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:162
-#: src/column-chooser.blp
+#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:253
+#: src/column-chooser.blp src/view-controls.blp
 msgid "Size"
 msgstr "Tamanho"
 
@@ -304,22 +307,16 @@ msgid "Z-A"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:251
-msgid "Última modificação"
-msgstr ""
+#: src/view-controls.blp
+#, fuzzy
+msgid "Last Modified"
+msgstr "Data de modificação"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:252
-msgid "Primeira modificação"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:253
 #: src/view-controls.blp
-msgid "Tamanho"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:254
-#: src/view-controls.blp
-msgid "Tipo"
-msgstr ""
+#, fuzzy
+msgid "First Modified"
+msgstr "Data de modificação"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:147
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/list_view.rs:74
@@ -1352,11 +1349,12 @@ msgid "About Temporal Explorer"
 msgstr "Sobre o Temporal Explorer"
 
 #: src/view-controls.blp
-msgid "Tamanho do Ã­cone"
-msgstr ""
+#, fuzzy
+msgid "Icon Size"
+msgstr "Tamanho"
 
 #: src/view-controls.blp
-msgid "Ordena"
+msgid "Sort"
 msgstr ""
 
 #: src/view-controls.blp
@@ -1364,19 +1362,11 @@ msgid "A-Z"
 msgstr ""
 
 #: src/view-controls.blp
-msgid "Ãltima modificaÃ§Ã£o"
+msgid "Show Hidden Files"
 msgstr ""
 
 #: src/view-controls.blp
-msgid "Primeira modificaÃ§Ã£o"
-msgstr ""
-
-#: src/view-controls.blp
-msgid "Mostrar arquivos ocultos"
-msgstr ""
-
-#: src/view-controls.blp
-msgid "Legendasâ¦"
+msgid "Captionsâ¦"
 msgstr ""
 
 #: src/view-controls.blp
