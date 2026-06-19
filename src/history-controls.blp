@@ -5,23 +5,19 @@ using Gtk 4.0;
 
 template $HistoryControls : Gtk.Box {
   orientation: horizontal;
-  spacing: 0;
+  spacing: 6;
 
   Button back_button {
     icon-name: "go-previous-symbolic";
-    tooltip-text: _("Previous commit");
+    tooltip-text: _("Back");
     sensitive: false;
     clicked => $on_back_clicked() swapped;
-
-    styles ["flat"]
   }
 
   Button forward_button {
     icon-name: "go-next-symbolic";
-    tooltip-text: _("Next commit");
+    tooltip-text: _("Forward");
     sensitive: false;
     clicked => $on_forward_clicked() swapped;
-
-    styles ["flat"]
   }
 }

@@ -4,39 +4,25 @@ using Adw 1;
 template $TemporalToolbar : Adw.Bin {
   Adw.HeaderBar header_bar {
     [start]
-    $HistoryControls history_controls {}
-
-    [start]
-    Button open_repo_button {
-      icon-name: "folder-open-symbolic";
-      tooltip-text: _("Open Repository");
-      styles ["flat"]
-    }
-
-    [start]
-    Button new_branch_button {
-      icon-name: "list-add-symbolic";
-      tooltip-text: _("New Branch");
-      action-name: "win.new-branch";
-      styles ["flat"]
-    }
-
-    [start]
     ToggleButton show_sidebar_button {
       icon-name: "sidebar-show-symbolic";
       tooltip-text: _("Show Sidebar");
       styles ["flat"]
     }
 
+    [start]
+    $HistoryControls history_controls {}
+
     [title]
-    Box {
+    Box header_toolbar {
       orientation: horizontal;
       spacing: 6;
+      valign: center;
       styles ["header-toolbar-box"]
 
       Stack toolbar_switcher {
         valign: center;
-        hexpand: true;
+        hexpand: false;
         transition-type: crossfade;
         transition-duration: 150;
 
@@ -46,6 +32,8 @@ template $TemporalToolbar : Adw.Bin {
             hscrollbar-policy: external;
             vscrollbar-policy: never;
             propagate-natural-width: true;
+            min-content-width: 360;
+            max-content-width: 860;
 
             Box address_bar {
               orientation: horizontal;
@@ -93,13 +81,14 @@ template $TemporalToolbar : Adw.Bin {
           };
         }
       }
-    }
 
-    [end]
-    ToggleButton search_button {
-      icon-name: "system-search-symbolic";
-      tooltip-text: _("Search");
-      styles ["flat"]
+      ToggleButton search_button {
+        icon-name: "system-search-symbolic";
+        tooltip-text: _("Search Current Folder");
+        halign: center;
+        valign: center;
+        styles ["flat"]
+      }
     }
 
     [end]
@@ -111,12 +100,36 @@ template $TemporalToolbar : Adw.Bin {
       icon-name: "open-menu-symbolic";
       tooltip-text: _("Main Menu");
       menu-model: primary_menu;
+      styles ["flat"]
+    }
+
+    // Kept as hidden template children because toolbar.rs/window.rs still use them.
+    [end]
+    Button open_repo_button {
+      visible: false;
+      icon-name: "folder-open-symbolic";
+      tooltip-text: _("Open Repository");
+      styles ["flat"]
+    }
+
+    [end]
+    Button new_branch_button {
+      visible: false;
+      icon-name: "list-add-symbolic";
+      tooltip-text: _("New Branch");
+      action-name: "win.new-branch";
+      styles ["flat"]
     }
   }
 }
 
 menu primary_menu {
   section {
+    item {
+      label: _("Open Repository");
+      action: "win.open-repository";
+    }
+
     item {
       label: _("New Branch");
       action: "win.new-branch";

@@ -694,6 +694,7 @@ impl TemporalExplorerWindow {
 
     fn setup_actions(&self) {
         let actions: &[(&str, fn(&TemporalExplorerWindow))] = &[
+            ("open-repository", Self::open_repo_dialog),
             ("batch-operations", Self::show_batch_operations_dialog),
             ("select-by-pattern", Self::show_select_by_pattern_dialog),
             ("filter-file-type", Self::show_filter_types_dialog),
