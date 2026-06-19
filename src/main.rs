@@ -33,6 +33,58 @@ use application::Application;
 use config::{GETTEXT_PACKAGE, LOCALEDIR, RESOURCES_FILE};
 
 use gio::prelude::*;
+use std::path::PathBuf;
+
+fn load_app_resources() {
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    if let Ok(path) = std::env::var("TEMPORAL_EXPLORER_RESOURCE_FILE") {
+        candidates.push(PathBuf::from(path));
+    }
+
+    // Flatpak/default Meson installation path.
+    candidates.push(PathBuf::from(RESOURCES_FILE));
+
+    // Native Linux installation paths.
+    candidates.push(PathBuf::from(
+        "/usr/local/share/temporal-explorer/temporal-explorer.gresource",
+    ));
+    candidates.push(PathBuf::from(
+        "/usr/share/temporal-explorer/temporal-explorer.gresource",
+    ));
+
+    // Developer build directories when running from the project root.
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join("build/src/temporal-explorer.gresource"));
+        candidates.push(cwd.join("builddir/src/temporal-explorer.gresource"));
+        candidates.push(cwd.join("_build/src/temporal-explorer.gresource"));
+    }
+
+    for path in &candidates {
+        if !path.exists() {
+            continue;
+        }
+
+        match gio::Resource::load(path) {
+            Ok(resource) => {
+                gio::resources_register(&resource);
+                eprintln!("Loaded resources from {}", path.display());
+                return;
+            }
+            Err(err) => {
+                eprintln!("Failed to load resources from {}: {err}", path.display());
+            }
+        }
+    }
+
+    let checked = candidates
+        .iter()
+        .map(|path| format!("  - {}", path.display()))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    panic!("Could not load temporal-explorer.gresource. Checked:\n{checked}");
+}
 
 fn main() -> glib::ExitCode {
     // Initialise translations
@@ -42,9 +94,11 @@ fn main() -> glib::ExitCode {
     gettextrs::textdomain(GETTEXT_PACKAGE).expect("Unable to switch to the text domain");
 
     // Load resources
-    let res = gio::Resource::load(RESOURCES_FILE).expect("Could not load gresource file");
-    gio::resources_register(&res);
+    load_app_resources();
 
-    let app = Application::new("io.github.johnpetersa19.TemporalExplorer", &gio::ApplicationFlags::default());
+    let app = Application::new(
+        "io.github.johnpetersa19.TemporalExplorer",
+        &gio::ApplicationFlags::default(),
+    );
     app.run()
 }
