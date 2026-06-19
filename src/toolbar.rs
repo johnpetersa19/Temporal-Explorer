@@ -76,6 +76,8 @@ mod imp {
         #[template_child]
         pub search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
+        pub search_filter_button: TemplateChild<gtk::ToggleButton>,
+        #[template_child]
         pub search_close_btn: TemplateChild<gtk::Button>,
 
         // ── End-slot widgets ──────────────────────────────────────────────────
@@ -162,6 +164,10 @@ impl TemporalToolbar {
 
     pub fn search_entry(&self) -> &gtk::SearchEntry {
         &self.imp().search_entry
+    }
+
+    pub fn search_filter_button(&self) -> &gtk::ToggleButton {
+        &self.imp().search_filter_button
     }
 
     pub fn search_close_btn(&self) -> &gtk::Button {

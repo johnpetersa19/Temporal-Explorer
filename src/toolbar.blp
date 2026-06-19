@@ -74,6 +74,11 @@ template $TemporalToolbar : Adw.Bin {
               placeholder-text: _("Search commits, hash, date…");
             }
 
+            ToggleButton search_filter_button {
+              icon-name: "funnel-symbolic";
+              tooltip-text: _("Filters");
+            }
+
             Button search_close_btn {
               icon-name: "window-close-symbolic";
               tooltip-text: _("Close Search");

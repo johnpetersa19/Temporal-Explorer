@@ -17,23 +17,104 @@ template $SearchFilterPopover : Popover {
 
     child: Box {
       orientation: vertical;
-      spacing: 18;
+      spacing: 12;
       margin-top: 12;
       margin-bottom: 12;
       margin-start: 12;
       margin-end: 12;
-      width-request: 300;
+      width-request: 340;
 
-      /* ── Date section ────────────────────────────────────────────── */
+      /* ── File type filter — same position as Nautilus ─────────────── */
       Box {
         orientation: vertical;
-        spacing: 8;
+        spacing: 6;
+
+        Label {
+          label: _("File Types");
+          xalign: 0;
+          valign: baseline;
+          styles ["heading"]
+        }
+
+        Adw.WrapBox file_type_chips_box {
+          child-spacing: 6;
+          line-spacing: 6;
+          natural-line-length: 340;
+
+          Button file_type_audio_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "audio-x-generic-symbolic";
+              label: _("Audio");
+            };
+          }
+
+          Button file_type_documents_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "rich-text-symbolic";
+              label: _("Documents");
+            };
+          }
+
+          Button file_type_folders_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "folder-symbolic";
+              label: _("Folders");
+            };
+          }
+
+          Button file_type_images_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "image-print-symbolic";
+              label: _("Images");
+            };
+          }
+
+          Button file_type_pdf_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "rich-text-symbolic";
+              label: "PDF";
+            };
+          }
+
+          Button file_type_text_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "paper-symbolic";
+              label: _("Text");
+            };
+          }
+
+          Button file_type_videos_button {
+            accessible-role: checkbox;
+            child: Adw.ButtonContent {
+              icon-name: "camera-video-symbolic";
+              label: _("Videos");
+            };
+          }
+
+          Button file_type_other_button {
+            icon-name: "view-more-horizontal-symbolic";
+            tooltip-text: _("Specific Type");
+            styles ["circular"]
+          }
+        }
+      }
+
+      /* ── Date filter — Nautilus-like “Last Modified” section ──────── */
+      Box {
+        orientation: vertical;
+        spacing: 6;
 
         Box {
           spacing: 6;
 
           Label date_header {
-            label: _("Date Range");
+            label: _("Last Modified");
             hexpand: true;
             xalign: 0;
             valign: baseline;
@@ -48,11 +129,10 @@ template $SearchFilterPopover : Popover {
           }
         }
 
-        /* Quick-pick date chips — same pattern as nautilus-search-popover */
         Adw.WrapBox date_chips_box {
           child-spacing: 6;
           line-spacing: 6;
-          natural-line-length: 280;
+          natural-line-length: 340;
 
           Button today_button {
             label: _("_Today");
@@ -84,7 +164,6 @@ template $SearchFilterPopover : Popover {
             accessible-role: checkbox;
           }
 
-          /* Custom range chip — shown after user picks custom range */
           Button custom_range_chip {
             visible: false;
             accessible-role: checkbox;
@@ -98,9 +177,42 @@ template $SearchFilterPopover : Popover {
         }
       }
 
+      /* ── Text matching — Nautilus visual section.
+       * In Temporal Explorer the main SearchEntry still controls the text query.
+       */
+      Box {
+        orientation: vertical;
+        spacing: 6;
+
+        Label {
+          label: _("Text Matching");
+          xalign: 0;
+          valign: baseline;
+          styles ["heading"]
+        }
+
+        Adw.WrapBox {
+          child-spacing: 6;
+          line-spacing: 6;
+          natural-line-length: 340;
+
+          Button {
+            label: _("Content & Filename");
+            tooltip-text: _("Search commit text and changed file names");
+            sensitive: false;
+          }
+
+          Button {
+            label: _("Only Filename");
+            tooltip-text: _("Filename-only search is not enabled yet");
+            sensitive: false;
+          }
+        }
+      }
+
       Separator {}
 
-      /* ── Author section ──────────────────────────────────────────── */
+      /* ── Git-specific filters kept after Nautilus sections ────────── */
       Box {
         orientation: vertical;
         spacing: 8;
@@ -129,13 +241,9 @@ template $SearchFilterPopover : Popover {
           hexpand: true;
         }
 
-        /* Author list — fixed-height scroll area.
-         * Authors are populated dynamically from unique commit authors.
-         * Each author uses one full-width row so the popover keeps a stable size.
-         */
         ScrolledWindow {
-          min-content-height: 170;
-          max-content-height: 170;
+          min-content-height: 120;
+          max-content-height: 120;
           hscrollbar-policy: never;
           vscrollbar-policy: automatic;
           propagate-natural-height: false;
@@ -147,9 +255,6 @@ template $SearchFilterPopover : Popover {
         }
       }
 
-      Separator {}
-
-      /* ── Branch section ──────────────────────────────────────────── */
       Box {
         orientation: vertical;
         spacing: 8;
@@ -173,98 +278,13 @@ template $SearchFilterPopover : Popover {
           }
         }
 
-        /* Branch chips — populated dynamically from repo branches */
         Adw.WrapBox branch_chips_box {
           child-spacing: 6;
           line-spacing: 6;
-          natural-line-length: 280;
+          natural-line-length: 340;
         }
       }
 
-      Separator {}
-
-      /* ── Files changed section ───────────────────────────────────── */
-      Box {
-        orientation: vertical;
-        spacing: 8;
-
-        Label {
-          label: _("Changed Files");
-          xalign: 0;
-          valign: baseline;
-          styles ["heading"]
-        }
-
-        Adw.WrapBox file_type_chips_box {
-          child-spacing: 6;
-          line-spacing: 6;
-          natural-line-length: 280;
-
-          Button file_type_audio_button {
-            accessible-role: checkbox;
-            child: Adw.ButtonContent {
-              icon-name: "audio-x-generic-symbolic";
-              label: _("Audio");
-            };
-          }
-
-          Button file_type_documents_button {
-            accessible-role: checkbox;
-            child: Adw.ButtonContent {
-              icon-name: "x-office-document-symbolic";
-              label: _("Documents");
-            };
-          }
-
-          Button file_type_folders_button {
-            accessible-role: checkbox;
-            child: Adw.ButtonContent {
-              icon-name: "folder-symbolic";
-              label: _("Folders");
-            };
-          }
-
-          Button file_type_images_button {
-            accessible-role: checkbox;
-            child: Adw.ButtonContent {
-              icon-name: "image-x-generic-symbolic";
-              label: _("Images");
-            };
-          }
-
-          Button file_type_pdf_button {
-            accessible-role: checkbox;
-            child: Adw.ButtonContent {
-              icon-name: "x-office-document-symbolic";
-              label: "PDF";
-            };
-          }
-
-          Button file_type_text_button {
-            accessible-role: checkbox;
-            child: Adw.ButtonContent {
-              icon-name: "text-x-generic-symbolic";
-              label: _("Text");
-            };
-          }
-
-          Button file_type_videos_button {
-            accessible-role: checkbox;
-            child: Adw.ButtonContent {
-              icon-name: "video-x-generic-symbolic";
-              label: _("Videos");
-            };
-          }
-
-          Button file_type_other_button {
-            icon-name: "view-more-horizontal-symbolic";
-            tooltip-text: _("Specific Type");
-            styles ["circular"]
-          }
-        }
-      }
-
-      /* ── Footer: Reset all ───────────────────────────────────────── */
       Box {
         halign: end;
 

@@ -3290,9 +3290,15 @@ impl TemporalExplorerWindow {
     fn setup_filter_popover(&self) {
         let imp = self.imp();
         let popover = SearchFilterPopover::new();
-        popover.set_parent(&imp.filter_button.get());
 
-        imp.filter_button.connect_toggled({
+        // Nautilus-like behavior:
+        // the search filter popover is anchored to the search field in the top
+        // toolbar, not to the timeline/sidebar search entry.
+        let filter_button = imp.toolbar.search_filter_button().clone();
+
+        popover.set_parent(&filter_button);
+
+        filter_button.connect_toggled({
             let pop = popover.clone();
             move |btn| {
                 if btn.is_active() {
@@ -3304,7 +3310,7 @@ impl TemporalExplorerWindow {
         });
 
         popover.connect_closed({
-            let btn = imp.filter_button.downgrade();
+            let btn = filter_button.downgrade();
             move |_| {
                 if let Some(b) = btn.upgrade() {
                     b.set_active(false);
