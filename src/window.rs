@@ -699,7 +699,6 @@ impl TemporalExplorerWindow {
             ("open-repository-system", Self::open_repository_in_system),
             ("open-repository-console", Self::open_repository_in_console),
             ("copy-current-repository-path", Self::copy_current_repository_path),
-            ("select-all-files", Self::select_all_files),
             ("show-captions", Self::show_file_grid_captions_dialog),
             ("current-properties", Self::show_current_folder_properties),
             ("open-repository", Self::open_repo_dialog),
@@ -786,37 +785,6 @@ impl TemporalExplorerWindow {
         if let Some(display) = gtk::gdk::Display::default() {
             display.clipboard().set_text(&repo_path.to_string_lossy());
             self.show_toast(&gettext("Repository path copied"));
-        }
-    }
-
-    fn find_flow_box(widget: &gtk::Widget) -> Option<gtk::FlowBox> {
-        if let Ok(flow) = widget.clone().downcast::<gtk::FlowBox>() {
-            return Some(flow);
-        }
-
-        let mut child = widget.first_child();
-
-        while let Some(w) = child {
-            let next = w.next_sibling();
-
-            if let Some(found) = Self::find_flow_box(&w) {
-                return Some(found);
-            }
-
-            child = next;
-        }
-
-        None
-    }
-
-    fn select_all_files(&self) {
-        let root = self.imp().right_panel_content.get();
-
-        if let Some(flow) = Self::find_flow_box(root.upcast_ref()) {
-            flow.select_all();
-            self.show_toast(&gettext("Selected all items"));
-        } else {
-            self.show_toast(&gettext("No file view available"));
         }
     }
 
