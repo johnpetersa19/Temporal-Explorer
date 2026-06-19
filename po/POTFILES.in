@@ -9,7 +9,6 @@ src/commit_controller.rs
 src/commit-name-cell.blp
 src/date-range-dialog.blp
 src/file-grid-captions-dialog.blp
-src/file-list-row.blp
 src/file-list-view.blp
 src/file-preview-dialog.blp
 src/file_preview.rs
@@ -19,6 +18,9 @@ src/git_engine.rs
 src/history-controls.blp
 src/merge-conflict-dialog.blp
 src/new-branch-dialog.blp
+src/node-properties-dialog.blp
+src/node_properties_dialog.rs
+src/operation-progress-dialog.blp
 src/preferences-dialog.blp
 src/search-filter-popover.blp
 src/select-commits-by-pattern.blp
@@ -28,6 +30,7 @@ src/ssh-passphrase-dialog.blp
 src/timeline_filter.rs
 src/toolbar.blp
 src/view-controls.blp
+src/view_controls.rs
 src/views/file-list-view.blp
 src/views/grid_view.rs
 src/views/list_view.rs
