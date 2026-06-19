@@ -3161,7 +3161,6 @@ impl TemporalExplorerWindow {
     pub fn show_toast(&self, msg: &str) {
         self.imp().toast_overlay.add_toast(adw::Toast::new(msg));
     }
-    }
 
     pub fn show_error(&self, msg: &str) {
         let dialog = adw::AlertDialog::builder()
