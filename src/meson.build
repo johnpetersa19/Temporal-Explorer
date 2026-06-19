@@ -69,9 +69,15 @@ else
   cargo_flags = []
 endif
 
-cargo_env = [
-  'CARGO_HOME=' + meson.project_build_root() / 'cargo-home',
-]
+cargo_home = meson.project_build_root() / 'cargo-home'
+cargo_manifest = meson.project_source_root() / 'Cargo.toml'
+cargo_target_dir = meson.project_build_root() / 'target'
+
+if get_option('buildtype') == 'release'
+  cargo_shell_command = 'CARGO_HOME="$1" "$2" build --release --manifest-path "$3" --target-dir "$4" && cp "$4/$5/temporal-explorer" "$6"'
+else
+  cargo_shell_command = 'CARGO_HOME="$1" "$2" build --manifest-path "$3" --target-dir "$4" && cp "$4/$5/temporal-explorer" "$6"'
+endif
 
 cargo_build = custom_target('cargo-build',
   build_by_default: true,
@@ -82,15 +88,14 @@ cargo_build = custom_target('cargo-build',
   install_dir: get_option('bindir'),
   install_mode: 'rwxr-xr-x',
   command: [
-    'env',
-    cargo_env,
-    cargo, 'build',
-    cargo_flags,
-    '--manifest-path', meson.project_source_root() / 'Cargo.toml',
-    '--target-dir', meson.project_build_root() / 'target',
-    '&&',
-    'cp',
-    meson.project_build_root() / 'target' / rust_target / 'temporal-explorer',
+    'sh', '-c',
+    cargo_shell_command,
+    'sh',
+    cargo_home,
+    cargo.full_path(),
+    cargo_manifest,
+    cargo_target_dir,
+    rust_target,
     '@OUTPUT@',
   ],
 )
