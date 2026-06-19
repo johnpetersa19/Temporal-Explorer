@@ -5,10 +5,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+use adw::prelude::*;
 use gettextrs::gettext;
-use gtk::{gio, glib};
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+use gtk::{gio, glib};
 use std::cell::{Cell, RefCell};
 use std::sync::OnceLock;
 
@@ -34,13 +35,15 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/view-controls.ui")]
     pub struct ViewControls {
-        #[template_child] pub grid_view_button:   TemplateChild<gtk::ToggleButton>,
-        #[template_child] pub list_view_button:   TemplateChild<gtk::ToggleButton>,
-        #[template_child] pub view_options_label: TemplateChild<gtk::Label>,
-        #[template_child] pub zoom_out_button:    TemplateChild<gtk::Button>,
-        #[template_child] pub zoom_in_button:     TemplateChild<gtk::Button>,
+        #[template_child]
+        pub view_split_button: TemplateChild<adw::SplitButton>,
+        #[template_child]
+        pub zoom_out_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub zoom_in_button: TemplateChild<gtk::Button>,
 
         pub zoom_level: Cell<u32>,
+        pub is_grid: Cell<bool>,
         pub sort_action: RefCell<Option<gio::SimpleAction>>,
     }
 
@@ -66,7 +69,9 @@ mod imp {
 
             // 0 = small, 1 = normal, 2 = large.
             self.zoom_level.set(1);
+            self.is_grid.set(false);
             self.update_zoom_sensitivity();
+            self.update_view_split_button();
 
             self.obj().setup_menu_actions();
         }
@@ -84,39 +89,37 @@ mod imp {
                     glib::subclass::Signal::builder("zoom-changed")
                         .param_types([u32::static_type()])
                         .build(),
-                    glib::subclass::Signal::builder("captions-requested")
-                        .build(),
+                    glib::subclass::Signal::builder("captions-requested").build(),
                 ]
             })
         }
     }
 
     impl WidgetImpl for ViewControls {}
-    impl BoxImpl   for ViewControls {}
+    impl BoxImpl for ViewControls {}
 
     #[gtk::template_callbacks]
     impl ViewControls {
         #[template_callback]
-        fn on_list_toggled(&self) {
-            if self.list_view_button.get().is_active() {
-                self.obj().emit_by_name::<()>("view-mode-changed", &[&false]);
-            }
-        }
+        fn on_view_split_clicked(&self) {
+            let next_is_grid = !self.is_grid.get();
 
-        #[template_callback]
-        fn on_grid_toggled(&self) {
-            if self.grid_view_button.get().is_active() {
-                self.obj().emit_by_name::<()>("view-mode-changed", &[&true]);
-            }
+            self.is_grid.set(next_is_grid);
+            self.update_view_split_button();
+
+            self.obj()
+                .emit_by_name::<()>("view-mode-changed", &[&next_is_grid]);
         }
 
         #[template_callback]
         fn on_zoom_out_clicked(&self) {
             let current = self.zoom_level.get();
+
             if current > 0 {
                 let next = current - 1;
                 self.zoom_level.set(next);
                 self.update_zoom_sensitivity();
+
                 self.obj().emit_by_name::<()>("zoom-changed", &[&next]);
             }
         }
@@ -124,18 +127,35 @@ mod imp {
         #[template_callback]
         fn on_zoom_in_clicked(&self) {
             let current = self.zoom_level.get();
+
             if current < 2 {
                 let next = current + 1;
                 self.zoom_level.set(next);
                 self.update_zoom_sensitivity();
+
                 self.obj().emit_by_name::<()>("zoom-changed", &[&next]);
             }
         }
 
         fn update_zoom_sensitivity(&self) {
             let current = self.zoom_level.get();
+
             self.zoom_out_button.get().set_sensitive(current > 0);
             self.zoom_in_button.get().set_sensitive(current < 2);
+        }
+
+        fn update_view_split_button(&self) {
+            let button = self.view_split_button.get();
+
+            if self.is_grid.get() {
+                // Current view is grid, so the main button offers list view.
+                button.set_icon_name("view-list-symbolic");
+                button.set_tooltip_text(Some(&gettext("List view")));
+            } else {
+                // Current view is list, so the main button offers grid view.
+                button.set_icon_name("view-grid-symbolic");
+                button.set_tooltip_text(Some(&gettext("Grid view")));
+            }
         }
     }
 }
@@ -150,7 +170,9 @@ glib::wrapper! {
 }
 
 impl Default for ViewControls {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ViewControls {
@@ -169,6 +191,7 @@ impl ViewControls {
 
         {
             let obj = self.clone();
+
             sort_action.connect_activate(move |action, param| {
                 let Some(param) = param else {
                     return;
@@ -198,6 +221,7 @@ impl ViewControls {
         let captions_action = gio::SimpleAction::new("captions", None);
         {
             let obj = self.clone();
+
             captions_action.connect_activate(move |_, _| {
                 obj.emit_by_name::<()>("captions-requested", &[]);
             });
@@ -211,17 +235,30 @@ impl ViewControls {
         self.insert_action_group("viewctrl", Some(&group));
     }
 
-    /// Sync toggle button states.
+    /// Sync view mode from window.rs.
     pub fn set_view_mode(&self, is_grid: bool) {
         let imp = self.imp();
-        imp.grid_view_button.get().set_active(is_grid);
-        imp.list_view_button.get().set_active(!is_grid);
+
+        imp.is_grid.set(is_grid);
+
+        let button = imp.view_split_button.get();
+
+        if is_grid {
+            // Current view is grid, so the main button offers list view.
+            button.set_icon_name("view-list-symbolic");
+            button.set_tooltip_text(Some(&gettext("List view")));
+        } else {
+            // Current view is list, so the main button offers grid view.
+            button.set_icon_name("view-grid-symbolic");
+            button.set_tooltip_text(Some(&gettext("Grid view")));
+        }
     }
 
     /// Restore zoom button state from saved settings.
     pub fn set_zoom_level(&self, level: u32) {
         let imp = self.imp();
         let level = level.min(2);
+
         imp.zoom_level.set(level);
         imp.zoom_out_button.get().set_sensitive(level > 0);
         imp.zoom_in_button.get().set_sensitive(level < 2);
@@ -245,16 +282,8 @@ impl ViewControls {
         }
     }
 
-    fn set_sort_label_for_key(&self, key: &str) {
-        let label = match key {
-            "name-desc" => gettext("Z-A"),
-            "last-modified" => gettext("Last Modified"),
-            "first-modified" => gettext("First Modified"),
-            "size" => gettext("Size"),
-            "type" => gettext("Type"),
-            _ => gettext("Name"),
-        };
-
-        self.imp().view_options_label.get().set_label(&label);
+    fn set_sort_label_for_key(&self, _key: &str) {
+        // Nautilus does not show the active sort text in the header button.
+        // The selected option is represented by the stateful menu item.
     }
 }

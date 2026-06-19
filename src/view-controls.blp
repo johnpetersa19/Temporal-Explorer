@@ -60,7 +60,7 @@ menu view_menu {
 
   section {
     item {
-      label: _("Show Hidden Files");
+      label: _("Show _Hidden Files");
       action: "viewctrl.show-hidden-files";
       accel: "<control>h";
     }
@@ -78,49 +78,15 @@ template $ViewControls : Gtk.Box {
   orientation: horizontal;
   spacing: 4;
 
-  ToggleButton list_view_button {
-    icon-name: "view-list-symbolic";
-    tooltip-text: _("List view");
-    active: true;
-    toggled => $on_list_toggled() swapped;
+  Adw.SplitButton view_split_button {
+    halign: center;
+    valign: center;
 
-    styles ["flat"]
-  }
-
-  ToggleButton grid_view_button {
     icon-name: "view-grid-symbolic";
     tooltip-text: _("Grid view");
-    group: list_view_button;
-    toggled => $on_grid_toggled() swapped;
+    dropdown-tooltip: _("View Options");
 
-    styles ["flat"]
-  }
-
-  Separator {
-    orientation: vertical;
-    margin-start: 2;
-    margin-end: 2;
-  }
-
-  MenuButton view_options_button {
-    tooltip-text: _("View Options");
-
-    styles ["flat"]
-
-    child: Box {
-      orientation: horizontal;
-      spacing: 6;
-
-      Label view_options_label {
-        label: _("Name");
-        valign: center;
-      }
-
-      Image {
-        icon-name: "pan-down-symbolic";
-        valign: center;
-      }
-    };
+    clicked => $on_view_split_clicked() swapped;
 
     popover: PopoverMenu {
       menu-model: view_menu;
