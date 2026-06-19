@@ -155,8 +155,6 @@ mod imp {
     pub struct TemporalExplorerWindow {
         // ── Toolbar / title ──────────────────────────────────────────────────
         #[template_child]
-        pub toast_overlay: TemplateChild<adw::ToastOverlay>,
-        #[template_child]
         pub toolbar: TemplateChild<TemporalToolbar>,
         #[template_child]
         pub window_title: TemplateChild<adw::WindowTitle>,
@@ -2456,11 +2454,7 @@ impl TemporalExplorerWindow {
 
     fn context_open_selected(&self) {
         self.with_context_node(|win, node| {
-            if node.is_dir() || node.is_submodule() {
-                win.push_dir(node.path().to_path_buf());
-            } else {
-                win.open_snapshot_node_with_default_app(&node);
-            }
+            win.open_snapshot_node_with_default_app(&node);
         });
     }
 
@@ -2873,9 +2867,7 @@ impl TemporalExplorerWindow {
             return;
         }
 
-        let file = gio::File::for_path(&working_path);
-        let uri = file.uri();
-
+        let uri = format!("file://{}", working_path.to_string_lossy());
         if gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>).is_err() {
             self.show_error(&gettext("Could not show file in the system"));
         }
@@ -3159,7 +3151,15 @@ impl TemporalExplorerWindow {
     // ── Toast / error helpers ─────────────────────────────────────────────────
 
     pub fn show_toast(&self, msg: &str) {
-        self.imp().toast_overlay.add_toast(adw::Toast::new(msg));
+        let toast = adw::Toast::new(msg);
+        if let Some(overlay) = self
+            .imp()
+            .content_toolbar_view
+            .parent()
+            .and_then(|w| w.downcast::<adw::ToastOverlay>().ok())
+        {
+            overlay.add_toast(toast);
+        }
     }
 
     pub fn show_error(&self, msg: &str) {
