@@ -60,6 +60,7 @@ use gtk::{gio, glib};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::process::Command;
 use std::io::Write;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -694,6 +695,13 @@ impl TemporalExplorerWindow {
 
     fn setup_actions(&self) {
         let actions: &[(&str, fn(&TemporalExplorerWindow))] = &[
+            ("reload-repository", Self::reload_repository),
+            ("open-repository-system", Self::open_repository_in_system),
+            ("open-repository-console", Self::open_repository_in_console),
+            ("copy-current-repository-path", Self::copy_current_repository_path),
+            ("select-all-files", Self::select_all_files),
+            ("show-captions", Self::show_file_grid_captions_dialog),
+            ("current-properties", Self::show_current_folder_properties),
             ("open-repository", Self::open_repo_dialog),
             ("batch-operations", Self::show_batch_operations_dialog),
             ("select-by-pattern", Self::show_select_by_pattern_dialog),
@@ -717,6 +725,111 @@ impl TemporalExplorerWindow {
             self.add_action(&action);
         }
     }
+
+
+    // ── Folder / main menu actions ───────────────────────────────────────────
+
+    fn reload_repository(&self) {
+        let Some(repo_path) = self.imp().repo_path.borrow().clone() else {
+            self.show_toast(&gettext("No repository loaded"));
+            return;
+        };
+
+        self.load_repository(repo_path);
+    }
+
+    fn open_repository_in_system(&self) {
+        let Some(repo_path) = self.imp().repo_path.borrow().clone() else {
+            self.show_toast(&gettext("No repository loaded"));
+            return;
+        };
+
+        let file = gio::File::for_path(&repo_path);
+        let uri = file.uri();
+
+        if gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>).is_err() {
+            self.show_error(&gettext("Could not open repository in the system"));
+        }
+    }
+
+    fn open_repository_in_console(&self) {
+        let Some(repo_path) = self.imp().repo_path.borrow().clone() else {
+            self.show_toast(&gettext("No repository loaded"));
+            return;
+        };
+
+        let attempts: &[(&str, &[&str])] = &[
+            ("kgx", &["--working-directory"]),
+            ("gnome-terminal", &["--working-directory"]),
+            ("konsole", &["--workdir"]),
+            ("xfce4-terminal", &["--working-directory"]),
+        ];
+
+        for (program, args) in attempts {
+            let mut command = Command::new(program);
+            command.args(*args).arg(&repo_path);
+
+            if command.spawn().is_ok() {
+                return;
+            }
+        }
+
+        self.show_error(&gettext("Could not open a console for this repository"));
+    }
+
+    fn copy_current_repository_path(&self) {
+        let Some(repo_path) = self.imp().repo_path.borrow().clone() else {
+            self.show_toast(&gettext("No repository loaded"));
+            return;
+        };
+
+        if let Some(display) = gtk::gdk::Display::default() {
+            display.clipboard().set_text(&repo_path.to_string_lossy());
+            self.show_toast(&gettext("Repository path copied"));
+        }
+    }
+
+    fn find_flow_box(widget: &gtk::Widget) -> Option<gtk::FlowBox> {
+        if let Ok(flow) = widget.clone().downcast::<gtk::FlowBox>() {
+            return Some(flow);
+        }
+
+        let mut child = widget.first_child();
+
+        while let Some(w) = child {
+            let next = w.next_sibling();
+
+            if let Some(found) = Self::find_flow_box(&w) {
+                return Some(found);
+            }
+
+            child = next;
+        }
+
+        None
+    }
+
+    fn select_all_files(&self) {
+        let root = self.imp().right_panel_content.get();
+
+        if let Some(flow) = Self::find_flow_box(root.upcast_ref()) {
+            flow.select_all();
+            self.show_toast(&gettext("Selected all items"));
+        } else {
+            self.show_toast(&gettext("No file view available"));
+        }
+    }
+
+    fn show_current_folder_properties(&self) {
+        if self.imp().current_hash.borrow().is_none() {
+            self.show_toast(&gettext("No snapshot selected"));
+            return;
+        }
+
+        let current_dir = self.imp().current_dir.borrow().clone();
+        self.show_node_properties(&TreeNode::Dir(current_dir));
+    }
+
 
     // ── NewBranchDialog ───────────────────────────────────────────────────────
 

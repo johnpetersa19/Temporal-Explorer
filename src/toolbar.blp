@@ -143,6 +143,51 @@ menu primary_menu {
 
   section {
     item {
+      label: _("Reload");
+      action: "win.reload-repository";
+      accel: "F5";
+    }
+  }
+
+  section {
+    item {
+      label: _("Open Repository in System");
+      action: "win.open-repository-system";
+    }
+
+    item {
+      label: _("Open in Console");
+      action: "win.open-repository-console";
+    }
+
+    item {
+      label: _("Copy Repository Path");
+      action: "win.copy-current-repository-path";
+    }
+  }
+
+  section {
+    item {
+      label: _("Select All");
+      action: "win.select-all-files";
+      accel: "<control>a";
+    }
+
+    item {
+      label: _("Captions…");
+      action: "win.show-captions";
+    }
+  }
+
+  section {
+    item {
+      label: _("Properties");
+      action: "win.current-properties";
+    }
+  }
+
+  section {
+    item {
       label: _("Preferences");
       action: "app.preferences";
     }

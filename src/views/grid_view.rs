@@ -119,7 +119,7 @@ pub fn build_grid_view(
         .build();
 
     let flow = gtk::FlowBox::builder()
-        .selection_mode(gtk::SelectionMode::Single)
+        .selection_mode(gtk::SelectionMode::Multiple)
         .activate_on_single_click(false)
         // Nautilus-like grid physics:
         // keep items packed from the start, but let the view own the full
