@@ -155,6 +155,8 @@ mod imp {
     pub struct TemporalExplorerWindow {
         // ── Toolbar / title ──────────────────────────────────────────────────
         #[template_child]
+        pub toast_overlay: TemplateChild<adw::ToastOverlay>,
+        #[template_child]
         pub toolbar: TemplateChild<TemporalToolbar>,
         #[template_child]
         pub window_title: TemplateChild<adw::WindowTitle>,
@@ -2394,21 +2396,6 @@ impl TemporalExplorerWindow {
 
         let is_file = !node.is_dir() && !node.is_submodule();
 
-        // These actions are registered once in setup_actions() as window actions.
-        // Update sensitivity here, but keep the native PopoverMenu design.
-        for (name, enabled) in [
-            ("context-open-with", is_file),
-            ("context-export", is_file),
-            ("context-copy-content", is_file),
-        ] {
-            if let Some(action) = self
-                .lookup_action(name)
-                .and_then(|action| action.downcast::<gio::SimpleAction>().ok())
-            {
-                action.set_enabled(enabled);
-            }
-        }
-
         let menu = gio::Menu::new();
 
         let open_section = gio::Menu::new();
@@ -2430,12 +2417,107 @@ impl TemporalExplorerWindow {
         properties_section.append(Some(&gettext("Properties")), Some("win.context-properties"));
         menu.append_section(None, &properties_section);
 
+        let group = gio::SimpleActionGroup::new();
+
+        let open_action = gio::SimpleAction::new("context-open", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+
+            open_action.connect_activate(move |_, _| {
+                if node.is_dir() || node.is_submodule() {
+                    win.push_dir(node.path().to_path_buf());
+                } else {
+                    win.open_snapshot_node_with_default_app(&node);
+                }
+            });
+        }
+        group.add_action(&open_action);
+
+        let open_with_action = gio::SimpleAction::new("context-open-with", None);
+        open_with_action.set_enabled(is_file);
+        {
+            let win = self.clone();
+            let node = node.clone();
+
+            open_with_action.connect_activate(move |_, _| {
+                win.open_snapshot_node_with_app_chooser(&node);
+            });
+        }
+        group.add_action(&open_with_action);
+
+        let export_action = gio::SimpleAction::new("context-export", None);
+        export_action.set_enabled(is_file);
+        {
+            let win = self.clone();
+            let node = node.clone();
+
+            export_action.connect_activate(move |_, _| {
+                win.export_snapshot_node(&node);
+            });
+        }
+        group.add_action(&export_action);
+
+        let copy_path_action = gio::SimpleAction::new("context-copy-path", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+
+            copy_path_action.connect_activate(move |_, _| {
+                win.copy_repository_path(&node);
+            });
+        }
+        group.add_action(&copy_path_action);
+
+        let copy_content_action = gio::SimpleAction::new("context-copy-content", None);
+        copy_content_action.set_enabled(is_file);
+        {
+            let win = self.clone();
+            let node = node.clone();
+
+            copy_content_action.connect_activate(move |_, _| {
+                win.copy_snapshot_node_content(&node);
+            });
+        }
+        group.add_action(&copy_content_action);
+
+        let show_system_action = gio::SimpleAction::new("context-show-system", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+
+            show_system_action.connect_activate(move |_, _| {
+                win.show_node_in_system(&node);
+            });
+        }
+        group.add_action(&show_system_action);
+
+        let properties_action = gio::SimpleAction::new("context-properties", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+
+            properties_action.connect_activate(move |_, _| {
+                win.show_node_properties(&node);
+            });
+        }
+        group.add_action(&properties_action);
+
+        // Não muda o design: continua Gtk.PopoverMenu nativo.
+        // O grupo "win" local garante que win.context-* seja resolvido.
         let popover = gtk::PopoverMenu::from_model(Some(&menu));
+        popover.insert_action_group("win", Some(&group));
         popover.set_has_arrow(false);
         popover.add_css_class("nautilus-context-menu");
         popover.set_parent(anchor);
+
+        // Atrasa o unparent para o GTK terminar a ativação do item.
         popover.connect_closed(|p| {
-            p.unparent();
+            let popover = p.clone();
+
+            glib::idle_add_local_once(move || {
+                popover.unparent();
+            });
         });
 
         popover.popup();
@@ -2454,7 +2536,11 @@ impl TemporalExplorerWindow {
 
     fn context_open_selected(&self) {
         self.with_context_node(|win, node| {
-            win.open_snapshot_node_with_default_app(&node);
+            if node.is_dir() || node.is_submodule() {
+                win.push_dir(node.path().to_path_buf());
+            } else {
+                win.open_snapshot_node_with_default_app(&node);
+            }
         });
     }
 
@@ -2867,7 +2953,9 @@ impl TemporalExplorerWindow {
             return;
         }
 
-        let uri = format!("file://{}", working_path.to_string_lossy());
+        let file = gio::File::for_path(&working_path);
+        let uri = file.uri();
+
         if gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>).is_err() {
             self.show_error(&gettext("Could not show file in the system"));
         }
@@ -3151,15 +3239,7 @@ impl TemporalExplorerWindow {
     // ── Toast / error helpers ─────────────────────────────────────────────────
 
     pub fn show_toast(&self, msg: &str) {
-        let toast = adw::Toast::new(msg);
-        if let Some(overlay) = self
-            .imp()
-            .content_toolbar_view
-            .parent()
-            .and_then(|w| w.downcast::<adw::ToastOverlay>().ok())
-        {
-            overlay.add_toast(toast);
-        }
+        self.imp().toast_overlay.add_toast(adw::Toast::new(msg));
     }
 
     pub fn show_error(&self, msg: &str) {
