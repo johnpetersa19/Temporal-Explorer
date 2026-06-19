@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: temporal-explorer 0.1.0\n"
-"POT-Creation-Date: 2026-06-18 22:28-0300\n"
+"POT-Creation-Date: 2026-06-19 18:48-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -10,7 +10,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/application.rs:110
+#: /home/john/Projects/Temporal-Explorer/po/../src/application.rs:137
 msgid "translator-credits"
 msgstr ""
 
@@ -173,18 +173,18 @@ msgid "Git stores content snapshots, not filesystem creation time"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:158
-#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:255
 #: src/column-chooser.blp
-#: src/view-controls.blp
 msgid "Name"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:160
+#: src/view-controls.blp
 msgid "Type"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:162
 #: src/column-chooser.blp
+#: src/view-controls.blp
 msgid "Size"
 msgstr ""
 
@@ -289,27 +289,15 @@ msgstr ""
 msgid "December"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:250
-#: src/view-controls.blp
-msgid "Z-A"
+#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:153
+#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:249
+msgid "List view"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:251
-msgid "Última modificação"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:252
-msgid "Primeira modificação"
-msgstr ""
-
+#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:157
 #: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:253
 #: src/view-controls.blp
-msgid "Tamanho"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:254
-#: src/view-controls.blp
-msgid "Tipo"
+msgid "Grid view"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:147
@@ -318,17 +306,17 @@ msgid "Empty directory"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:294
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2999
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3157
 msgid "Folder"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:295
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3003
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3161
 msgid "File"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:296
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3001
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3159
 msgid "Submodule"
 msgstr ""
 
@@ -348,173 +336,206 @@ msgstr ""
 msgid "Unknown date"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:758
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:750
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:759
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:773
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:798
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2758
+msgid "No repository loaded"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:767
+msgid "Could not open repository in the system"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:793
+msgid "Could not open a console for this repository"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:804
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3063
+msgid "Repository path copied"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:853
+msgid "Selected all items"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:859
+msgid "Select All in grid view requires the GridView selection backend"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:864
+msgid "No file view available"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:869
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2763
+msgid "No snapshot selected"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:916
 msgid "No repository loaded."
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:765
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:923
 msgid "Cannot read HEAD"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:773
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:931
 msgid "Cannot peel HEAD to commit"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:786
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:944
 msgid "No repository path stored."
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:802
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3135
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:960
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3293
 msgid "Cannot open repository"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:806
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:964
 msgid "Cannot find HEAD commit"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:812
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:970
 msgid "Failed to create branch"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:823
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:981
 msgid "Created branch"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1221
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1379
 msgid "Cherry-pick"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1224
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1382
 msgid " with sign-off"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1305
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1463
 msgid "Copied"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1367
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1525
 msgid "Selected"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1488
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1646
 msgid "Conflict resolved"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1492
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1650
 msgid "applied to all"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1567
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1725
+#: src/toolbar.blp
 #: src/toolbar.blp
 msgid "Open Repository"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1620
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1778
 msgid "Failed to open repository"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1711
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1917
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1997
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2005
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1869
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2075
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2155
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2163
 #: src/window.blp
 msgid "Timeline"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1713
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1871
 msgid "No commits found"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1832
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1990
 msgid "Failed to read history"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2136
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2294
 msgid "Error reading tree"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2402
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2560
 msgid "Open"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2403
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2824
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2561
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2982
 msgid "Open With…"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2407
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2565
 msgid "Export File…"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2408
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2566
+#: src/toolbar.blp
 msgid "Copy Repository Path"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2409
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2567
 msgid "Copy Content"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2413
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2571
 msgid "Show in System"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2417
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2575
 #: src/node-properties-dialog.blp
+#: src/toolbar.blp
 msgid "Properties"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2595
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2742
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2753
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2900
 msgid "Only files can be opened or exported from a snapshot"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2600
-msgid "No repository loaded"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2605
-msgid "No snapshot selected"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2704
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2862
 msgid "Operation cancelled"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2783
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2941
 msgid "Opening File"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2784
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2804
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2942
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2962
 msgid "Materializing snapshot file…"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2789
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2947
 msgid "Could not open file with the default application"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2803
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2961
 msgid "Preparing File"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2833
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2991
 msgid "Could not open file with the selected application"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2848
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3006
 msgid "Only files can be exported from a snapshot"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2860
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3018
 msgid "Export File"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2864
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3022
 msgid "Export"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2865
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3023
 #: src/batch-operations-dialog.blp
 #: src/new-branch-dialog.blp
 #: src/select-commits-by-pattern.blp
@@ -523,82 +544,78 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2880
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3038
 msgid "Exporting File"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2881
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3039
 msgid "Exporting snapshot file…"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2885
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3043
 msgid "Exported"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2905
-msgid "Repository path copied"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2911
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3069
 msgid "Only file content can be copied"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2937
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3095
 msgid "File content copied"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2940
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3098
 msgid "This file is binary or could not be copied as text"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2952
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3110
 msgid "This file does not exist in the current working tree"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2960
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3118
 msgid "Could not show file in the system"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2977
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3135
 msgid "Unknown snapshot date"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2996
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3154
 msgid "Repository root"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3014
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3015
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3016
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3172
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3173
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3174
 msgid "Not available"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3062
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3220
 msgid "Exists in working tree"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3064
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3222
 msgid "Only available in selected snapshot"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3247
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3405
 msgid "Error"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3250
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3408
 msgid "OK"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3353
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3517
 msgid "Search Results"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3398
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3562
 msgid "Indexing Changed Files"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3399
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3535
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3563
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3699
 msgid "Reading changed-file metadata…"
 msgstr ""
 
@@ -722,7 +739,6 @@ msgid "_Cancel"
 msgstr ""
 
 #: src/date-range-dialog.blp
-#: src/search-filter-popover.blp
 msgid "Date Range"
 msgstr ""
 
@@ -817,11 +833,12 @@ msgid "Try a different search, or press Enter to add a custom extension."
 msgstr ""
 
 #: src/history-controls.blp
-msgid "Previous commit"
+#: src/window.blp
+msgid "Back"
 msgstr ""
 
 #: src/history-controls.blp
-msgid "Next commit"
+msgid "Forward"
 msgstr ""
 
 #: src/merge-conflict-dialog.blp
@@ -1153,47 +1170,7 @@ msgid "Fetch _Interval (minutes)"
 msgstr ""
 
 #: src/search-filter-popover.blp
-msgid "Clear Date Filter"
-msgstr ""
-
-#: src/search-filter-popover.blp
-msgid "_Today"
-msgstr ""
-
-#: src/search-filter-popover.blp
-msgid "_Yesterday"
-msgstr ""
-
-#: src/search-filter-popover.blp
-msgid "Past _Week"
-msgstr ""
-
-#: src/search-filter-popover.blp
-msgid "Past _Month"
-msgstr ""
-
-#: src/search-filter-popover.blp
-msgid "Past Y_ear"
-msgstr ""
-
-#: src/search-filter-popover.blp
-msgid "Clear Author Filter"
-msgstr ""
-
-#: src/search-filter-popover.blp
-msgid "Filter by author name or emailâ¦"
-msgstr ""
-
-#: src/search-filter-popover.blp
-msgid "Branch"
-msgstr ""
-
-#: src/search-filter-popover.blp
-msgid "Clear Branch Filter"
-msgstr ""
-
-#: src/search-filter-popover.blp
-msgid "Changed Files"
+msgid "File Types"
 msgstr ""
 
 #: src/search-filter-popover.blp
@@ -1222,6 +1199,71 @@ msgstr ""
 
 #: src/search-filter-popover.blp
 msgid "Specific Type"
+msgstr ""
+
+#: src/search-filter-popover.blp
+#: src/view-controls.blp
+msgid "Last Modified"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Clear Date Filter"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "_Today"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "_Yesterday"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Past _Week"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Past _Month"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Past Y_ear"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Text Matching"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Content & Filename"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Search commit text and changed file names"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Only Filename"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Filename-only search is not enabled yet"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Clear Author Filter"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Filter by author name or emailâ¦"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Branch"
+msgstr ""
+
+#: src/search-filter-popover.blp
+msgid "Clear Branch Filter"
 msgstr ""
 
 #: src/search-filter-popover.blp
@@ -1302,15 +1344,41 @@ msgid "Search commits, hash, dateâ¦"
 msgstr ""
 
 #: src/toolbar.blp
+#: src/window.blp
+msgid "Filters"
+msgstr ""
+
+#: src/toolbar.blp
 msgid "Close Search"
 msgstr ""
 
 #: src/toolbar.blp
-msgid "Search"
+msgid "Search Current Folder"
 msgstr ""
 
 #: src/toolbar.blp
 msgid "Main Menu"
+msgstr ""
+
+#: src/toolbar.blp
+msgid "Reload"
+msgstr ""
+
+#: src/toolbar.blp
+msgid "Open Repository in System"
+msgstr ""
+
+#: src/toolbar.blp
+msgid "Open in Console"
+msgstr ""
+
+#: src/toolbar.blp
+msgid "Select All"
+msgstr ""
+
+#: src/toolbar.blp
+#: src/view-controls.blp
+msgid "Captionsâ¦"
 msgstr ""
 
 #: src/toolbar.blp
@@ -1326,11 +1394,11 @@ msgid "About Temporal Explorer"
 msgstr ""
 
 #: src/view-controls.blp
-msgid "Tamanho do Ã­cone"
+msgid "Icon Size"
 msgstr ""
 
 #: src/view-controls.blp
-msgid "Ordena"
+msgid "Sort"
 msgstr ""
 
 #: src/view-controls.blp
@@ -1338,27 +1406,15 @@ msgid "A-Z"
 msgstr ""
 
 #: src/view-controls.blp
-msgid "Ãltima modificaÃ§Ã£o"
+msgid "Z-A"
 msgstr ""
 
 #: src/view-controls.blp
-msgid "Primeira modificaÃ§Ã£o"
+msgid "First Modified"
 msgstr ""
 
 #: src/view-controls.blp
-msgid "Mostrar arquivos ocultos"
-msgstr ""
-
-#: src/view-controls.blp
-msgid "Legendasâ¦"
-msgstr ""
-
-#: src/view-controls.blp
-msgid "List view"
-msgstr ""
-
-#: src/view-controls.blp
-msgid "Grid view"
+msgid "Show _Hidden Files"
 msgstr ""
 
 #: src/view-controls.blp
@@ -1376,14 +1432,6 @@ msgstr ""
 #: src/window.blp
 #: src/window.blp
 msgid "Temporal Explorer"
-msgstr ""
-
-#: src/window.blp
-msgid "Back"
-msgstr ""
-
-#: src/window.blp
-msgid "Filters"
 msgstr ""
 
 #: src/window.blp
