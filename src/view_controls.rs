@@ -248,10 +248,10 @@ impl ViewControls {
     fn set_sort_label_for_key(&self, key: &str) {
         let label = match key {
             "name-desc" => gettext("Z-A"),
-            "last-modified" => gettext("Última modificação"),
-            "first-modified" => gettext("Primeira modificação"),
-            "size" => gettext("Tamanho"),
-            "type" => gettext("Tipo"),
+            "last-modified" => gettext("Last Modified"),
+            "first-modified" => gettext("First Modified"),
+            "size" => gettext("Size"),
+            "type" => gettext("Type"),
             _ => gettext("Name"),
         };
 

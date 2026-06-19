@@ -6,7 +6,7 @@ using Adw 1;
 
 menu view_menu {
   section {
-    label: _("Tamanho do ícone");
+    label: _("Icon Size");
     display-hint: "inline-buttons";
 
     item {
@@ -19,7 +19,7 @@ menu view_menu {
   }
 
   section {
-    label: _("Ordena");
+    label: _("Sort");
 
     item {
       label: _("A-Z");
@@ -34,25 +34,25 @@ menu view_menu {
     }
 
     item {
-      label: _("Última modificação");
+      label: _("Last Modified");
       action: "viewctrl.sort";
       target: "last-modified";
     }
 
     item {
-      label: _("Primeira modificação");
+      label: _("First Modified");
       action: "viewctrl.sort";
       target: "first-modified";
     }
 
     item {
-      label: _("Tamanho");
+      label: _("Size");
       action: "viewctrl.sort";
       target: "size";
     }
 
     item {
-      label: _("Tipo");
+      label: _("Type");
       action: "viewctrl.sort";
       target: "type";
     }
@@ -60,7 +60,7 @@ menu view_menu {
 
   section {
     item {
-      label: _("Mostrar arquivos ocultos");
+      label: _("Show Hidden Files");
       action: "viewctrl.show-hidden-files";
       accel: "<control>h";
     }
@@ -68,7 +68,7 @@ menu view_menu {
 
   section {
     item {
-      label: _("Legendas…");
+      label: _("Captions…");
       action: "viewctrl.captions";
     }
   }
