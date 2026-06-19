@@ -726,16 +726,16 @@ impl TemporalExplorerWindow {
         }
 
         // Menus declared inside TemporalToolbar use actions such as win.reload-repository.
-        // Insert the action groups explicitly into the custom toolbar widget so
-        // PopoverMenu/MenuButton action lookup is stable.
-        self.imp()
-            .toolbar
-            .insert_action_group("win", Some(self));
+        // Insert action groups explicitly into both the custom toolbar and the
+        // MenuButton, so PopoverMenu action lookup is stable.
+        let toolbar = self.imp().toolbar.get();
+
+        toolbar.insert_action_group("win", Some(self));
+        toolbar.main_menu_button().insert_action_group("win", Some(self));
 
         if let Some(app) = self.application() {
-            self.imp()
-                .toolbar
-                .insert_action_group("app", Some(&app));
+            toolbar.insert_action_group("app", Some(&app));
+            toolbar.main_menu_button().insert_action_group("app", Some(&app));
 
             app.set_accels_for_action("win.reload-repository", &["F5"]);
             app.set_accels_for_action("win.select-all-files", &["<Control>a"]);

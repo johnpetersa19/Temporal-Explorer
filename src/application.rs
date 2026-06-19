@@ -20,6 +20,7 @@
 
 use gettextrs::gettext;
 use adw::prelude::*;
+use gtk::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 
@@ -89,7 +90,16 @@ impl TemporalExplorerApplication {
         let preferences_action = gio::ActionEntry::builder("preferences")
             .activate(move |app: &Self, _, _| app.show_preferences())
             .build();
-        self.add_action_entries([quit_action, about_action, preferences_action]);
+        let shortcuts_action = gio::ActionEntry::builder("shortcuts")
+            .activate(move |app: &Self, _, _| app.show_shortcuts())
+            .build();
+
+        self.add_action_entries([
+            quit_action,
+            about_action,
+            preferences_action,
+            shortcuts_action,
+        ]);
     }
 
     fn show_preferences(&self) {
@@ -97,6 +107,23 @@ impl TemporalExplorerApplication {
         let settings = gio::Settings::new("io.github.johnpetersa19.TemporalExplorer");
         let dialog = PreferencesDialog::new(&settings);
         dialog.present(Some(&window));
+    }
+
+    fn show_shortcuts(&self) {
+        let Some(window) = self.active_window() else {
+            return;
+        };
+
+        let builder = gtk::Builder::from_resource(
+            "/io/github/johnpetersa19/TemporalExplorer/shortcuts-dialog.ui",
+        );
+
+        let Some(dialog) = builder.object::<gtk::ShortcutsWindow>("shortcuts_dialog") else {
+            return;
+        };
+
+        dialog.set_transient_for(Some(&window));
+        dialog.present();
     }
 
     fn show_about(&self) {

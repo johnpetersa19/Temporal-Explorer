@@ -182,6 +182,10 @@ impl TemporalToolbar {
         &self.imp().view_controls
     }
 
+    pub fn main_menu_button(&self) -> &gtk::MenuButton {
+        &self.imp().main_menu_button
+    }
+
     /// Switch from pathbar to the inline location-entry, or back.
     pub fn set_location_mode(&self, location_mode: bool) {
         let page = if location_mode { "location" } else { "pathbar" };
