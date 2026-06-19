@@ -65,7 +65,7 @@ pub fn build_list_view(
         .build();
 
     let list = gtk::ListBox::builder()
-        .selection_mode(gtk::SelectionMode::Single)
+        .selection_mode(gtk::SelectionMode::Multiple)
         .build();
     list.add_css_class("boxed-list");
 
