@@ -91,6 +91,7 @@ pub fn show_file_preview_text(
 }
 
 /// Shows a modal dialog previewing the content of `file_path` at `revision`.
+#[allow(dead_code)]
 pub fn show_file_preview(
     parent: &impl IsA<gtk::Window>,
     repo: &git2::Repository,

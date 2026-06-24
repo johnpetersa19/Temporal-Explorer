@@ -36,14 +36,13 @@ mod timeline_filter_tests {
     /// Build a minimal `CommitInfo` with only the fields that the timeline
     /// filter and FilterState inspect.
     fn make_commit(hash: &str, author: &str, summary: &str, timestamp: i64) -> CommitInfo {
-        CommitInfo {
-            hash:         hash.to_owned(),
-            summary:      summary.to_owned(),
-            author:       author.to_owned(),
-            author_email: format!("{author}@test.local"),
+        CommitInfo::for_test(
+            hash.to_owned(),
+            summary.to_owned(),
+            author.to_owned(),
+            format!("{author}@test.local"),
             timestamp,
-            branch:       None,
-        }
+        )
     }
 
     // ── years_in_range ────────────────────────────────────────────────────────
@@ -256,21 +255,6 @@ mod timeline_filter_tests {
         let result = f.apply(&commits);
         assert_eq!(result.len(), 2);
         assert!(result.iter().all(|c| c.author.to_lowercase().contains("alice")));
-    }
-
-    #[test]
-    fn filter_state_apply_branch_filter() {
-        let mut c1 = make_commit("b1", "Alice", "on main",   1_000);
-        let mut c2 = make_commit("b2", "Bob",   "on feature", 2_000);
-        c1.branch = Some("main".to_owned());
-        c2.branch = Some("feature/x".to_owned());
-        let commits = [c1, c2];
-
-        let mut f = empty_filter();
-        f.branch = Some("main".to_owned());
-        let result = f.apply(&commits);
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].hash, "b1");
     }
 
     #[test]

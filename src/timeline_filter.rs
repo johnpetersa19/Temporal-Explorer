@@ -58,6 +58,7 @@ fn ts_to_ym(ts: i64) -> Option<(i32, u32)> {
 /// Uses a plain `Vec` accumulator instead of a `BTreeMap` — the ordered-map
 /// property was never used (the result was re-sorted anyway), so a Vec +
 /// sort is cheaper: no heap tree allocation, no per-insert rebalancing.
+#[allow(dead_code)]
 pub fn years_in_range(commits: &[CommitInfo]) -> Vec<(i32, usize)> {
     // Collect (year, 1) pairs, then fold duplicates.
     let mut v: Vec<(i32, usize)> = Vec::new();

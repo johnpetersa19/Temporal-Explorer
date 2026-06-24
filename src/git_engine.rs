@@ -300,6 +300,26 @@ pub struct CommitInfo {
 }
 
 impl CommitInfo {
+    #[cfg(test)]
+    pub(crate) fn for_test(
+        hash: String,
+        summary: String,
+        author: String,
+        author_email: String,
+        timestamp: i64,
+    ) -> Self {
+        Self {
+            oid: git2::Oid::zero(),
+            hash,
+            summary,
+            author,
+            author_email,
+            timestamp,
+            changed_files: Vec::new(),
+            files_loaded: false,
+        }
+    }
+
     /// Returns the raw [`git2::Oid`] for this commit.
     ///
     /// Prefer this over `git2::Oid::from_str(&commit.hash)` when passing

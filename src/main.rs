@@ -29,6 +29,9 @@ mod view_controls;
 mod views;
 mod window;
 
+#[cfg(test)]
+mod tests;
+
 use application::Application;
 use config::{GETTEXT_PACKAGE, LOCALEDIR, RESOURCES_FILE};
 

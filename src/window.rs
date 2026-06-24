@@ -296,6 +296,7 @@ gtk::Native, gtk::Root, gtk::ShortcutManager;
 // ── Free helpers ───────────────────────────────────────────────────────────────
 
 /// Remove all children from a `gtk::Box`.
+#[allow(dead_code)]
 fn commit_touches_path(
     repo: &git2::Repository,
     commit: &git2::Commit<'_>,
@@ -2895,6 +2896,7 @@ impl TemporalExplorerWindow {
         )
     }
 
+    #[allow(dead_code)]
     fn materialize_snapshot_node_to_temp(&self, node: &TreeNode) -> Option<PathBuf> {
         if node.is_dir() || node.is_submodule() {
             self.show_toast(&gettext("Only files can be opened or exported from a snapshot"));
@@ -2961,42 +2963,20 @@ impl TemporalExplorerWindow {
             &gettext("Preparing File"),
             &gettext("Materializing snapshot file…"),
             |win, path| {
-                let file = gio::File::for_path(&path);
-
-                let content_type = file
-                    .query_info(
-                        "standard::content-type",
-                        gio::FileQueryInfoFlags::NONE,
-                        None::<&gio::Cancellable>,
-                    )
-                    .ok()
-                    .and_then(|info| info.content_type())
-                    .unwrap_or_else(|| "application/octet-stream".into());
-
-                let dialog = gtk::AppChooserDialog::for_content_type(
-                    Some(win),
-                    gtk::DialogFlags::MODAL,
-                    content_type.as_str(),
-                );
-
-                dialog.set_heading(&gettext("Open With…"));
-
                 let win = win.clone();
-                dialog.connect_response(move |dialog, response| {
-                    if response == gtk::ResponseType::Ok {
-                        if let Some(app) = dialog.app_info() {
-                            let file = gio::File::for_path(&path);
-
-                            if app.launch(&[file], None::<&gio::AppLaunchContext>).is_err() {
-                                win.show_error(&gettext("Could not open file with the selected application"));
-                            }
+                let parent = win.clone();
+                let file = gio::File::for_path(&path);
+                let launcher = gtk::FileLauncher::new(Some(&file));
+                launcher.set_always_ask(true);
+                launcher.launch(
+                    Some(&parent),
+                    None::<&gio::Cancellable>,
+                    move |result| {
+                        if result.is_err() {
+                            win.show_error(&gettext("Could not open file with the selected application"));
                         }
                     }
-
-                    dialog.close();
-                });
-
-                dialog.present();
+                );
             },
         );
     }
@@ -3014,45 +2994,38 @@ impl TemporalExplorerWindow {
             .unwrap_or("snapshot-file")
             .to_string();
 
-        let dialog = gtk::FileChooserNative::builder()
-            .title(&gettext("Export File"))
-            .transient_for(self)
+        let dialog = gtk::FileDialog::builder()
+            .title(gettext("Export File"))
             .modal(true)
-            .action(gtk::FileChooserAction::Save)
-            .accept_label(&gettext("Export"))
-            .cancel_label(&gettext("Cancel"))
+            .accept_label(gettext("Export"))
+            .initial_name(file_name)
             .build();
-
-        dialog.set_current_name(&file_name);
 
         let win = self.clone();
         let node = node.clone();
 
-        dialog.connect_response(move |dialog, response| {
-            if response == gtk::ResponseType::Accept {
-                if let Some(file) = dialog.file() {
-                    if let Some(target) = file.path() {
-                        win.write_snapshot_node_to_path_with_progress(
-                            &node,
-                            target.clone(),
-                            &gettext("Exporting File"),
-                            &gettext("Exporting snapshot file…"),
-                            move |win, path| {
-                                win.show_toast(&format!(
-                                    "{}: {}",
-                                    gettext("Exported"),
-                                    path.display()
-                                ));
-                            },
-                        );
-                    }
-                }
-            }
+        dialog.save(Some(self), None::<&gio::Cancellable>, move |result| {
+            let Ok(file) = result else {
+                return;
+            };
+            let Some(target) = file.path() else {
+                return;
+            };
 
-            dialog.destroy();
+            win.write_snapshot_node_to_path_with_progress(
+                &node,
+                target,
+                &gettext("Exporting File"),
+                &gettext("Exporting snapshot file…"),
+                move |win, path| {
+                    win.show_toast(&format!(
+                        "{}: {}",
+                        gettext("Exported"),
+                        path.display()
+                    ));
+                },
+            );
         });
-
-        dialog.show();
     }
 
     fn copy_repository_path(&self, node: &TreeNode) {

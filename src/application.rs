@@ -20,7 +20,6 @@
 
 use gettextrs::gettext;
 use adw::prelude::*;
-use gtk::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::{gio, glib};
 

@@ -81,7 +81,7 @@ mod git_engine_tests {
 
         for (rel_path, content) in files {
             let blob_oid = repo.blob(content).unwrap();
-            let mut entry = git2::IndexEntry {
+            let entry = git2::IndexEntry {
                 ctime: git2::IndexTime::new(0, 0),
                 mtime: git2::IndexTime::new(0, 0),
                 dev: 0,
@@ -190,9 +190,9 @@ mod git_engine_tests {
 
     #[test]
     fn dir_cache_evicts_lru_when_full() {
-        // DIR_CACHE_MAX_ENTRIES is 32; fill it to capacity and then add one more.
+        // DIR_CACHE_MAX_ENTRIES is 64; fill it to capacity and then add one more.
         let mut cache = DirCache::new();
-        for i in 0..32usize {
+        for i in 0..64usize {
             cache.insert(format!("h{i}"), PathBuf::new(), vec![]);
         }
         // "h0" was inserted first — it is the LRU entry.
@@ -232,7 +232,7 @@ mod git_engine_tests {
             None,
         );
 
-        let reader = HistoryReader { repo };
+        let reader = HistoryReader::open(_dir.path()).unwrap();
         let commits = reader.list_commits().unwrap();
         assert_eq!(commits.len(), 1);
         assert_eq!(commits[0].summary, "Initial commit");
@@ -270,7 +270,7 @@ mod git_engine_tests {
             Some(c2),
         );
 
-        let reader = HistoryReader { repo };
+        let reader = HistoryReader::open(_dir.path()).unwrap();
         let commits = reader.list_commits().unwrap();
         assert_eq!(commits.len(), 3);
         // Newest first (timestamp descending).
@@ -297,7 +297,7 @@ mod git_engine_tests {
             ));
         }
 
-        let reader = HistoryReader { repo };
+        let reader = HistoryReader::open(_dir.path()).unwrap();
         let mut all: Vec<CommitInfo> = Vec::new();
         let mut page_count = 0usize;
         reader
@@ -329,7 +329,7 @@ mod git_engine_tests {
                 prev,
             ));
         }
-        let reader = HistoryReader { repo };
+        let reader = HistoryReader::open(_dir.path()).unwrap();
         let mut pages = 0usize;
         let mut total = 0usize;
         reader
@@ -350,7 +350,7 @@ mod git_engine_tests {
         let c1 = commit_files(&repo, &[("a.txt", b"a")], "Fix login bug", "Alice", 1, None);
         commit_files(&repo, &[("b.txt", b"b")], "Add dark mode", "Bob", 2, Some(c1));
 
-        let reader = HistoryReader { repo };
+        let reader = HistoryReader::open(_dir.path()).unwrap();
         let results = reader.search_commits("LOGIN").unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].summary, "Fix login bug");
@@ -362,7 +362,7 @@ mod git_engine_tests {
         let c1 = commit_files(&repo, &[("a.txt", b"x")], "Alpha", "Alice", 1, None);
         commit_files(&repo, &[("b.txt", b"y")], "Beta", "Bob", 2, Some(c1));
 
-        let reader = HistoryReader { repo };
+        let reader = HistoryReader::open(_dir.path()).unwrap();
         let results = reader.search_commits("bob").unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].author, "Bob");
@@ -373,7 +373,7 @@ mod git_engine_tests {
         let (_dir, repo) = init_repo();
         commit_files(&repo, &[("x.txt", b"x")], "Only commit", "Dev", 1, None);
 
-        let reader = HistoryReader { repo };
+        let reader = HistoryReader::open(_dir.path()).unwrap();
         let all = reader.list_commits().unwrap();
         let prefix = &all[0].hash[..8];
 
@@ -388,7 +388,7 @@ mod git_engine_tests {
         let c1 = commit_files(&repo, &[("a.txt", b"a")], "One", "Dev", 1, None);
         commit_files(&repo, &[("b.txt", b"b")], "Two", "Dev", 2, Some(c1));
 
-        let reader = HistoryReader { repo };
+        let reader = HistoryReader::open(_dir.path()).unwrap();
         let results = reader.search_commits("").unwrap();
         assert_eq!(results.len(), 2);
     }
@@ -398,7 +398,7 @@ mod git_engine_tests {
         let (_dir, repo) = init_repo();
         commit_files(&repo, &[("a.txt", b"a")], "Initial", "Dev", 1, None);
 
-        let reader = HistoryReader { repo };
+        let reader = HistoryReader::open(_dir.path()).unwrap();
         let results = reader.search_commits("zzz_no_match_zzz").unwrap();
         assert!(results.is_empty());
     }
@@ -506,7 +506,7 @@ mod git_engine_tests {
         let head = repo.head().unwrap().peel_to_commit().unwrap();
         let tree = head.tree().unwrap();
         let materializer = SnapshotMaterializer::new(&repo);
-        let nodes = materializer.materialize(&tree, PathBuf::new(), 0).unwrap();
+        let nodes = materializer.materialize(&tree, PathBuf::new(), 0, usize::MAX).unwrap();
 
         assert_eq!(nodes.len(), 2);
         assert!(nodes.iter().all(|n| !n.is_dir()));
@@ -531,7 +531,7 @@ mod git_engine_tests {
         let head = repo.head().unwrap().peel_to_commit().unwrap();
         let tree = head.tree().unwrap();
         let materializer = SnapshotMaterializer::new(&repo);
-        let nodes = materializer.materialize(&tree, PathBuf::new(), 0).unwrap();
+        let nodes = materializer.materialize(&tree, PathBuf::new(), 0, usize::MAX).unwrap();
 
         // Expected: README.md, src (dir), src/main.rs, src/utils (dir), src/utils/helper.rs
         assert_eq!(nodes.len(), 5);
@@ -615,7 +615,7 @@ mod git_engine_tests {
             None,
         );
 
-        let reader = HistoryReader { repo };
+        let reader = HistoryReader::open(_dir.path()).unwrap();
         let commits = reader.list_commits().unwrap();
         assert_eq!(commits.len(), 1);
 
@@ -631,7 +631,7 @@ mod git_engine_tests {
         let (_dir, repo) = init_repo();
         commit_files(&repo, &[("f.txt", b"f")], "Msg", "Dev", 1, None);
 
-        let reader = HistoryReader { repo };
+        let reader = HistoryReader::open(_dir.path()).unwrap();
         let commits = reader.list_commits().unwrap();
         let hash = &commits[0].hash;
         assert_eq!(hash.len(), 40);

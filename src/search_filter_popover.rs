@@ -36,7 +36,6 @@
 
 use adw::prelude::*;
 use gtk::glib;
-use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use std::cell::RefCell;
 use std::sync::OnceLock;
