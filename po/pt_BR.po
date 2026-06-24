@@ -8,9 +8,9 @@ msgstr ""
 "Project-Id-Version: temporal-explorer 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-06-19 18:48-0300\n"
-"PO-Revision-Date: \n"
-"Last-Translator: \n"
-"Language-Team: \n"
+"PO-Revision-Date: 2026-06-24 00:00-0300\n"
+"Last-Translator: John Peter Sá <johnpetersa19@gmail.com>\n"
+"Language-Team: Brazilian Portuguese <pt_BR>\n"
 "Language: pt_BR\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -173,11 +173,13 @@ msgstr "Desconhecido"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:141
 msgid "Not available in Git snapshot"
-msgstr ""
+msgstr "Não disponível no snapshot do Git"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:143
 msgid "Git stores content snapshots, not filesystem creation time"
 msgstr ""
+"O Git armazena snapshots de conteúdo, não a hora de criação do sistema de "
+"arquivos."
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:158
 #: src/column-chooser.blp
@@ -187,7 +189,7 @@ msgstr "Nome"
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:160
 #: src/view-controls.blp
 msgid "Type"
-msgstr ""
+msgstr "Tipo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:162
 #: src/column-chooser.blp src/view-controls.blp
@@ -200,38 +202,34 @@ msgid "Repository"
 msgstr "Repositório"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:166
-#, fuzzy
 msgid "Repository Path"
-msgstr "Repositório"
+msgstr "Caminho do repositório"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:168
 #: src/node-properties-dialog.blp
 msgid "Parent Folder"
-msgstr ""
+msgstr "Pasta principal"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:170
-#, fuzzy
 msgid "Snapshot Commit"
-msgstr "Selecionar commits"
+msgstr "Commit do snapshot"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:172
-#, fuzzy
 msgid "Snapshot Date"
-msgstr "Nenhum snapshot selecionado"
+msgstr "Data do snapshot"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:174
-#, fuzzy
 msgid "Full Commit"
-msgstr "Commit"
+msgstr "Commit completo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:176
 #: src/node-properties-dialog.blp
 msgid "Git Object"
-msgstr ""
+msgstr "Objeto Git"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:178
 msgid "Git Mode"
-msgstr ""
+msgstr "Modo Git"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:285
 #: src/select-commits-by-pattern.blp
@@ -317,82 +315,71 @@ msgstr "Diretório vazio"
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:294
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3157
 msgid "Folder"
-msgstr ""
+msgstr "Pasta"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:295
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3161
-#, fuzzy
 msgid "File"
-msgstr "Nenhum arquivo"
+msgstr "Arquivo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:296
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3159
-#, fuzzy
 msgid "Submodule"
-msgstr "submódulo"
+msgstr "Submódulo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:309
-#, fuzzy
 msgid "Directory"
-msgstr "Diretório vazio"
+msgstr "Diretório"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:311
-#, fuzzy
 msgid "No extension"
-msgstr "Extensão"
+msgstr "Sem extensão"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:321
-#, fuzzy
 msgid "Unknown size"
-msgstr "Desconhecido"
+msgstr "Tamanho desconhecido"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:329
-#, fuzzy
 msgid "Unknown date"
-msgstr "Desconhecido"
+msgstr "Data desconhecida"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:750
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:759
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:773
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:798
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2758
-#, fuzzy
 msgid "No repository loaded"
-msgstr "Nenhum repositório carregado."
+msgstr "Nenhum repositório carregado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:767
-#, fuzzy
 msgid "Could not open repository in the system"
-msgstr "Não foi possível abrir o repositório"
+msgstr "Não foi possível abrir o repositório no sistema"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:793
-#, fuzzy
 msgid "Could not open a console for this repository"
-msgstr "Não foi possível abrir o repositório"
+msgstr "Não foi possível abrir um console para este repositório"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:804
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3063
-#, fuzzy
 msgid "Repository path copied"
-msgstr "Nenhum caminho de repositório armazenado."
+msgstr "Caminho do repositório copiado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:853
-#, fuzzy
 msgid "Selected all items"
-msgstr "Commits selecionados"
+msgstr "Todos os itens foram selecionados"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:859
 msgid "Select All in grid view requires the GridView selection backend"
 msgstr ""
+"Selecionar tudo na visualização em grade requer o backend de seleção do "
+"GridView"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:864
-#, fuzzy
 msgid "No file view available"
-msgstr "Arquivo binário -- prévia não disponível."
+msgstr "Nenhuma visualização de arquivos disponível"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:869
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2763
-#, fuzzy
 msgid "No snapshot selected"
 msgstr "Nenhum snapshot selecionado"
 
@@ -484,81 +471,76 @@ msgstr "Erro ao ler árvore"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2560
 msgid "Open"
-msgstr ""
+msgstr "Abrir"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2561
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2982
 msgid "Open With…"
-msgstr ""
+msgstr "Abrir com…"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2565
-#, fuzzy
 msgid "Export File…"
-msgstr "Diretório de exportação"
+msgstr "Exportar arquivo…"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2566
 #: src/toolbar.blp
-#, fuzzy
 msgid "Copy Repository Path"
-msgstr "Abrir Repositório"
+msgstr "Copiar caminho do repositório"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2567
-#, fuzzy
 msgid "Copy Content"
 msgstr "Copiar conteúdo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2571
 msgid "Show in System"
-msgstr ""
+msgstr "Mostrar no sistema"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2575
 #: src/node-properties-dialog.blp src/toolbar.blp
 msgid "Properties"
-msgstr ""
+msgstr "Propriedades"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2753
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2900
 msgid "Only files can be opened or exported from a snapshot"
-msgstr ""
+msgstr "Somente arquivos podem ser abertos ou exportados de um snapshot"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2862
-#, fuzzy
 msgid "Operation cancelled"
-msgstr "Operação"
+msgstr "Operação cancelada"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2941
 msgid "Opening File"
-msgstr ""
+msgstr "Abrindo arquivo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2942
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2962
 msgid "Materializing snapshot file…"
-msgstr ""
+msgstr "Materializando arquivo do snapshot…"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2947
 msgid "Could not open file with the default application"
-msgstr ""
+msgstr "Não foi possível abrir o arquivo com o aplicativo padrão"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2961
 msgid "Preparing File"
-msgstr ""
+msgstr "Preparando arquivo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2991
 msgid "Could not open file with the selected application"
-msgstr ""
+msgstr "Não foi possível abrir o arquivo com o aplicativo selecionado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3006
 msgid "Only files can be exported from a snapshot"
-msgstr ""
+msgstr "Somente arquivos podem ser exportados de um snapshot"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3018
-#, fuzzy
 msgid "Export File"
-msgstr "Diretório de exportação"
+msgstr "Exportar arquivo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3022
 msgid "Export"
-msgstr ""
+msgstr "Exportar"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3023
 #: src/batch-operations-dialog.blp src/new-branch-dialog.blp
@@ -568,61 +550,58 @@ msgid "Cancel"
 msgstr "Cancelar"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3038
-#, fuzzy
 msgid "Exporting File"
-msgstr "Diretório de exportação"
+msgstr "Exportando arquivo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3039
-#, fuzzy
 msgid "Exporting snapshot file…"
-msgstr "Exportar como arquivos .patch"
+msgstr "Exportando arquivo do snapshot…"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3043
 msgid "Exported"
-msgstr ""
+msgstr "Exportado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3069
 msgid "Only file content can be copied"
-msgstr ""
+msgstr "Somente o conteúdo de arquivos pode ser copiado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3095
 msgid "File content copied"
-msgstr ""
+msgstr "Conteúdo do arquivo copiado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3098
 msgid "This file is binary or could not be copied as text"
-msgstr ""
+msgstr "Este arquivo é binário ou não pôde ser copiado como texto"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3110
 msgid "This file does not exist in the current working tree"
-msgstr ""
+msgstr "Este arquivo não existe na árvore de trabalho atual"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3118
 msgid "Could not show file in the system"
-msgstr ""
+msgstr "Não foi possível mostrar o arquivo no sistema"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3135
 msgid "Unknown snapshot date"
-msgstr ""
+msgstr "Data do snapshot desconhecida"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3154
-#, fuzzy
 msgid "Repository root"
-msgstr "Repositório"
+msgstr "Raiz do repositório"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3172
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3173
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3174
 msgid "Not available"
-msgstr ""
+msgstr "Não disponível"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3220
 msgid "Exists in working tree"
-msgstr ""
+msgstr "Existe na árvore de trabalho"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3222
 msgid "Only available in selected snapshot"
-msgstr ""
+msgstr "Disponível somente no snapshot selecionado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3405
 msgid "Error"
@@ -634,18 +613,16 @@ msgstr "OK"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3517
 msgid "Search Results"
-msgstr ""
+msgstr "Resultados da pesquisa"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3562
-#, fuzzy
 msgid "Indexing Changed Files"
-msgstr "Arquivos alterados"
+msgstr "Indexando arquivos alterados"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3563
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3699
-#, fuzzy
 msgid "Reading changed-file metadata…"
-msgstr "Qualquer arquivo alterado corresponde"
+msgstr "Lendo metadados dos arquivos alterados…"
 
 #: src/batch-operations-dialog.blp
 msgid "Batch Operations"
@@ -948,53 +925,47 @@ msgstr "Criar branch"
 
 #: src/node-properties-dialog.blp
 msgid "Favorite"
-msgstr ""
+msgstr "Favorito"
 
 #: src/node-properties-dialog.blp
-#, fuzzy
 msgid "Open Location"
-msgstr "Operação"
+msgstr "Abrir localização"
 
 #: src/node-properties-dialog.blp
-#, fuzzy
 msgid "Snapshot item"
-msgstr "Nenhum snapshot selecionado"
+msgstr "Item do snapshot"
 
 #: src/node-properties-dialog.blp
-#, fuzzy
 msgid "Copy Path"
-msgstr "Caminho"
+msgstr "Copiar caminho"
 
 #: src/node-properties-dialog.blp
-#, fuzzy
 msgid "Modified"
-msgstr "Data de modificação"
+msgstr "Modificado"
 
 #: src/node-properties-dialog.blp
-#, fuzzy
 msgid "Created"
-msgstr "Branch criada"
+msgstr "Criado"
 
 #: src/node-properties-dialog.blp
 msgid "Permissions"
-msgstr ""
+msgstr "Permissões"
 
 #: src/node-properties-dialog.blp
 msgid "Git Snapshot"
-msgstr ""
+msgstr "Snapshot do Git"
 
 #: src/node-properties-dialog.blp
-#, fuzzy
 msgid "Copy Details"
-msgstr "Detalhes da branch"
+msgstr "Copiar detalhes"
 
 #: src/operation-progress-dialog.blp
 msgid "Working"
-msgstr ""
+msgstr "Trabalhando"
 
 #: src/operation-progress-dialog.blp
 msgid "Preparingâ¦"
-msgstr ""
+msgstr "Preparando…"
 
 #: src/preferences-dialog.blp
 msgid "General"
@@ -1197,43 +1168,40 @@ msgid "Fetch _Interval (minutes)"
 msgstr "_Intervalo de busca (minutos)"
 
 #: src/search-filter-popover.blp
-#, fuzzy
 msgid "File Types"
-msgstr "Outro tipo de arquivo"
+msgstr "Tipos de arquivo"
 
 #: src/search-filter-popover.blp
 msgid "Audio"
-msgstr ""
+msgstr "Áudio"
 
 #: src/search-filter-popover.blp
-#, fuzzy
 msgid "Documents"
-msgstr "Documento XML"
+msgstr "Documentos"
 
 #: src/search-filter-popover.blp
 msgid "Folders"
-msgstr ""
+msgstr "Pastas"
 
 #: src/search-filter-popover.blp
 msgid "Images"
-msgstr ""
+msgstr "Imagens"
 
 #: src/search-filter-popover.blp
 msgid "Text"
-msgstr ""
+msgstr "Texto"
 
 #: src/search-filter-popover.blp
 msgid "Videos"
-msgstr ""
+msgstr "Vídeos"
 
 #: src/search-filter-popover.blp
 msgid "Specific Type"
-msgstr ""
+msgstr "Tipo específico"
 
 #: src/search-filter-popover.blp src/view-controls.blp
-#, fuzzy
 msgid "Last Modified"
-msgstr "Data de modificação"
+msgstr "Última modificação"
 
 #: src/search-filter-popover.blp
 msgid "Clear Date Filter"
@@ -1261,24 +1229,23 @@ msgstr "Último _ano"
 
 #: src/search-filter-popover.blp
 msgid "Text Matching"
-msgstr ""
+msgstr "Correspondência de texto"
 
 #: src/search-filter-popover.blp
-#, fuzzy
 msgid "Content & Filename"
-msgstr "Linhas de _contexto"
+msgstr "Conteúdo e nome do arquivo"
 
 #: src/search-filter-popover.blp
 msgid "Search commit text and changed file names"
-msgstr ""
+msgstr "Pesquisar texto de commits e nomes de arquivos alterados"
 
 #: src/search-filter-popover.blp
 msgid "Only Filename"
-msgstr ""
+msgstr "Somente nome do arquivo"
 
 #: src/search-filter-popover.blp
 msgid "Filename-only search is not enabled yet"
-msgstr ""
+msgstr "A pesquisa somente por nome de arquivo ainda não está habilitada"
 
 #: src/search-filter-popover.blp
 msgid "Clear Author Filter"
@@ -1378,11 +1345,11 @@ msgstr "Filtros"
 
 #: src/toolbar.blp
 msgid "Close Search"
-msgstr ""
+msgstr "Fechar pesquisa"
 
 #: src/toolbar.blp
 msgid "Search Current Folder"
-msgstr ""
+msgstr "Pesquisar pasta atual"
 
 #: src/toolbar.blp
 msgid "Main Menu"
@@ -1390,25 +1357,23 @@ msgstr "Menu principal"
 
 #: src/toolbar.blp
 msgid "Reload"
-msgstr ""
+msgstr "Recarregar"
 
 #: src/toolbar.blp
-#, fuzzy
 msgid "Open Repository in System"
-msgstr "Abrir Repositório"
+msgstr "Abrir repositório no sistema"
 
 #: src/toolbar.blp
 msgid "Open in Console"
-msgstr ""
+msgstr "Abrir no console"
 
 #: src/toolbar.blp
-#, fuzzy
 msgid "Select All"
-msgstr "Selecionar"
+msgstr "Selecionar tudo"
 
 #: src/toolbar.blp src/view-controls.blp
 msgid "Captionsâ¦"
-msgstr ""
+msgstr "Legendas…"
 
 #: src/toolbar.blp
 msgid "Preferences"
@@ -1423,43 +1388,40 @@ msgid "About Temporal Explorer"
 msgstr "Sobre o Temporal Explorer"
 
 #: src/view-controls.blp
-#, fuzzy
 msgid "Icon Size"
-msgstr "Tamanho"
+msgstr "Tamanho do ícone"
 
 #: src/view-controls.blp
 msgid "Sort"
-msgstr ""
+msgstr "Ordenar"
 
 #: src/view-controls.blp
 msgid "A-Z"
-msgstr ""
+msgstr "A-Z"
 
 #: src/view-controls.blp
 msgid "Z-A"
-msgstr ""
+msgstr "Z-A"
 
 #: src/view-controls.blp
-#, fuzzy
 msgid "First Modified"
-msgstr "Data de modificação"
+msgstr "Primeira modificação"
 
 #: src/view-controls.blp
 msgid "Show _Hidden Files"
-msgstr ""
+msgstr "Mostrar arquivos _ocultos"
 
 #: src/view-controls.blp
-#, fuzzy
 msgid "View Options"
-msgstr "Opções"
+msgstr "Opções de visualização"
 
 #: src/view-controls.blp
 msgid "Zoom Out"
-msgstr ""
+msgstr "Reduzir zoom"
 
 #: src/view-controls.blp
 msgid "Zoom In"
-msgstr ""
+msgstr "Aumentar zoom"
 
 #: src/window.blp
 msgid "Temporal Explorer"
@@ -1502,7 +1464,6 @@ msgstr "_Sobre o Temporal Explorer"
 #~ msgid "Changed Files"
 #~ msgstr "Arquivos alterados"
 
-#, fuzzy
 #~ msgid "Search"
 #~ msgstr "Março"
 
