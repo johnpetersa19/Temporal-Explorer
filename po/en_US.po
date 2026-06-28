@@ -2,339 +2,338 @@ msgid ""
 msgstr ""
 "Project-Id-Version: temporal-explorer 0.1.0\n"
 "POT-Creation-Date: 2026-06-28 00:13-0300\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"PO-Revision-Date: 2026-06-28 00:06-0300\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: en_US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/application.rs:135
 msgid "translator-credits"
-msgstr ""
+msgstr "translator-credits"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/batch_operations_dialog.rs:281
 msgid "Choose a directory"
-msgstr ""
+msgstr "Choose a directory"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/batch_operations_dialog.rs:307
 #: src/batch-operations-dialog.blp:116
 msgid "Choose export directory"
-msgstr ""
+msgstr "Choose export directory"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/batch_operations_dialog.rs:308
 msgid "Select"
-msgstr ""
+msgstr "Select"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/commit_controller.rs:262
 msgid "commits not shown"
-msgstr ""
+msgstr "commits not shown"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/commit_controller.rs:263
 msgid "use the search box to filter"
-msgstr ""
+msgstr "use the search box to filter"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/commit_controller.rs:500
 msgid "1 item"
-msgstr ""
+msgstr "1 item"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/commit_controller.rs:502
 msgid "items"
-msgstr ""
+msgstr "items"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:54
 msgid "Could not read file"
-msgstr ""
+msgstr "Could not read file"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:66
 msgid "Binary file -- preview not available."
-msgstr ""
+msgstr "Binary file -- preview not available."
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:72
 msgid "Preview truncated at"
-msgstr ""
+msgstr "Preview truncated at"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:135
 #: src/file-preview-dialog.blp:20
 msgid "Copy content"
-msgstr ""
+msgstr "Copy content"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:56
 msgid "Rust source"
-msgstr ""
+msgstr "Rust source"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:57
 msgid "TOML config"
-msgstr ""
+msgstr "TOML config"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:58
 msgid "Blueprint UI"
-msgstr ""
+msgstr "Blueprint UI"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:59
 msgid "Python script"
-msgstr ""
+msgstr "Python script"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:60
 msgid "JavaScript"
-msgstr ""
+msgstr "JavaScript"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:61
 msgid "TypeScript"
-msgstr ""
+msgstr "TypeScript"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:62
 msgid "C source"
-msgstr ""
+msgstr "C source"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:63
 msgid "C++ source"
-msgstr ""
+msgstr "C++ source"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:64
 msgid "C/C++ header"
-msgstr ""
+msgstr "C/C++ header"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:65
 msgid "Go source"
-msgstr ""
+msgstr "Go source"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:66
 msgid "Java source"
-msgstr ""
+msgstr "Java source"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:67
 msgid "Kotlin source"
-msgstr ""
+msgstr "Kotlin source"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:68
 msgid "Swift source"
-msgstr ""
+msgstr "Swift source"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:69
 msgid "Shell script"
-msgstr ""
+msgstr "Shell script"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:70
 msgid "Markdown"
-msgstr ""
+msgstr "Markdown"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:71
 msgid "JSON data"
-msgstr ""
+msgstr "JSON data"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:72
 msgid "YAML config"
-msgstr ""
+msgstr "YAML config"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:73
 msgid "XML document"
-msgstr ""
+msgstr "XML document"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:74
 msgid "SQL query"
-msgstr ""
+msgstr "SQL query"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:75
 msgid "HTML document"
-msgstr ""
+msgstr "HTML document"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:76
 msgid "CSS stylesheet"
-msgstr ""
+msgstr "CSS stylesheet"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:77
 msgid "Plain text"
-msgstr ""
+msgstr "Plain text"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:78
 msgid "Lock file (Cargo/npm)"
-msgstr ""
+msgstr "Lock file (Cargo/npm)"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:79
 msgid "PNG image"
-msgstr ""
+msgstr "PNG image"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:80
 msgid "SVG vector image"
-msgstr ""
+msgstr "SVG vector image"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/git_engine.rs:341
 msgid "Unknown"
-msgstr ""
+msgstr "Unknown"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:203
 msgid "Not available in Git snapshot"
-msgstr ""
+msgstr "Not available in Git snapshot"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:205
 msgid "Git stores content snapshots, not filesystem creation time"
-msgstr ""
+msgstr "Git stores content snapshots, not filesystem creation time"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:223
 #: src/column-chooser.blp:26
 msgid "Name"
-msgstr ""
+msgstr "Name"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:225
 #: src/view-controls.blp:55
 msgid "Type"
-msgstr ""
+msgstr "Type"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:227
-#: src/column-chooser.blp:37
-#: src/view-controls.blp:49
+#: src/column-chooser.blp:37 src/view-controls.blp:49
 msgid "Size"
-msgstr ""
+msgstr "Size"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:229
-#: src/node-properties-dialog.blp:149
-#: src/preferences-dialog.blp:19
+#: src/node-properties-dialog.blp:149 src/preferences-dialog.blp:19
 msgid "Repository"
-msgstr ""
+msgstr "Repository"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:231
 msgid "Repository Path"
-msgstr ""
+msgstr "Repository Path"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:233
 #: src/node-properties-dialog.blp:114
 msgid "Parent Folder"
-msgstr ""
+msgstr "Parent Folder"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:235
 msgid "Snapshot Commit"
-msgstr ""
+msgstr "Snapshot Commit"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:237
 msgid "Snapshot Date"
-msgstr ""
+msgstr "Snapshot Date"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:239
 msgid "Full Commit"
-msgstr ""
+msgstr "Full Commit"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:241
 #: src/node-properties-dialog.blp:280
 msgid "Git Object"
-msgstr ""
+msgstr "Git Object"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:243
 msgid "Git Mode"
-msgstr ""
+msgstr "Git Mode"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:283
 #: src/select-commits-by-pattern.blp:80
 msgid "Enter a pattern to preview matches"
-msgstr ""
+msgstr "Enter a pattern to preview matches"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:299
 msgid "No commits match"
-msgstr ""
+msgstr "No commits match"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:301
 msgid "All {count} commits match"
-msgstr ""
+msgstr "All {count} commits match"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:304
 msgid "{count} of {total} commits match"
-msgstr ""
+msgstr "{count} of {total} commits match"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:139
 msgid "January"
-msgstr ""
+msgstr "January"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:140
 msgid "February"
-msgstr ""
+msgstr "February"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:141
 msgid "March"
-msgstr ""
+msgstr "March"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:142
 msgid "April"
-msgstr ""
+msgstr "April"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:143
 msgid "May"
-msgstr ""
+msgstr "May"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:144
 msgid "June"
-msgstr ""
+msgstr "June"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:145
 msgid "July"
-msgstr ""
+msgstr "July"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:146
 msgid "August"
-msgstr ""
+msgstr "August"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:147
 msgid "September"
-msgstr ""
+msgstr "September"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:148
 msgid "October"
-msgstr ""
+msgstr "October"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:149
 msgid "November"
-msgstr ""
+msgstr "November"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:150
 msgid "December"
-msgstr ""
+msgstr "December"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:156
 #: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:267
 msgid "List view"
-msgstr ""
+msgstr "List view"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:160
 #: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:271
 #: src/view-controls.blp:86
 msgid "Grid view"
-msgstr ""
+msgstr "Grid view"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:272
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/list_view.rs:119
 msgid "Empty directory"
-msgstr ""
+msgstr "Empty directory"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:460
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3782
 msgid "Folder"
-msgstr ""
+msgstr "Folder"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:461
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3786
 msgid "File"
-msgstr ""
+msgstr "File"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:462
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3784
 msgid "Submodule"
-msgstr ""
+msgstr "Submodule"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:475
 msgid "Directory"
-msgstr ""
+msgstr "Directory"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:477
 msgid "No extension"
-msgstr ""
+msgstr "No extension"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:487
 msgid "Unknown size"
-msgstr ""
+msgstr "Unknown size"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:495
 msgid "Unknown date"
-msgstr ""
+msgstr "Unknown date"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:853
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:862
@@ -342,20 +341,20 @@ msgstr ""
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:901
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3404
 msgid "No repository loaded"
-msgstr ""
+msgstr "No repository loaded"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:870
 msgid "Could not open repository in the system"
-msgstr ""
+msgstr "Could not open repository in the system"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:896
 msgid "Could not open a console for this repository"
-msgstr ""
+msgstr "Could not open a console for this repository"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:907
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3675
 msgid "Repository path copied"
-msgstr ""
+msgstr "Repository path copied"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1061
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1077
@@ -363,109 +362,108 @@ msgstr ""
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1272
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1986
 msgid "Selected"
-msgstr ""
+msgstr "Selected"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1063
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1070
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1079
 msgid "No file view available"
-msgstr ""
+msgstr "No file view available"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1069
 msgid "Selection cleared"
-msgstr ""
+msgstr "Selection cleared"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1085
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3409
 msgid "No snapshot selected"
-msgstr ""
+msgstr "No snapshot selected"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1191
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1203
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1228
 msgid "No commit selected"
-msgstr ""
+msgstr "No commit selected"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1197
 msgid "Commit SHA copied"
-msgstr ""
+msgstr "Commit SHA copied"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1213
 msgid "Selected item is not a file"
-msgstr ""
+msgstr "Selected item is not a file"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1214
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1222
 msgid "No file selected"
-msgstr ""
+msgstr "No file selected"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1286
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1301
 msgid "No commits loaded"
-msgstr ""
+msgstr "No commits loaded"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1350
 msgid "No repository loaded."
-msgstr ""
+msgstr "No repository loaded."
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1357
 msgid "Cannot read HEAD"
-msgstr ""
+msgstr "Cannot read HEAD"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1365
 msgid "Cannot peel HEAD to commit"
-msgstr ""
+msgstr "Cannot peel HEAD to commit"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1378
 msgid "No repository path stored."
-msgstr ""
+msgstr "No repository path stored."
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1394
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3940
 msgid "Cannot open repository"
-msgstr ""
+msgstr "Cannot open repository"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1398
 msgid "Cannot find HEAD commit"
-msgstr ""
+msgstr "Cannot find HEAD commit"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1404
 msgid "Failed to create branch"
-msgstr ""
+msgstr "Failed to create branch"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1415
 msgid "Created branch"
-msgstr ""
+msgstr "Created branch"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1840
 msgid "Cherry-pick"
-msgstr ""
+msgstr "Cherry-pick"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1843
 msgid " with sign-off"
-msgstr ""
+msgstr " with sign-off"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1924
 msgid "Copied"
-msgstr ""
+msgstr "Copied"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2107
 msgid "Conflict resolved"
-msgstr ""
+msgstr "Conflict resolved"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2111
 msgid "applied to all"
-msgstr ""
+msgstr "applied to all"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2186
-#: src/toolbar.blp:118
-#: src/toolbar.blp:136
+#: src/toolbar.blp:118 src/toolbar.blp:136
 msgid "Open Repository"
-msgstr ""
+msgstr "Open Repository"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2239
 msgid "Failed to open repository"
-msgstr ""
+msgstr "Failed to open repository"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2330
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2533
@@ -473,1040 +471,1027 @@ msgstr ""
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2621
 #: src/window.blp:27
 msgid "Timeline"
-msgstr ""
+msgstr "Timeline"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2332
 msgid "No commits found"
-msgstr ""
+msgstr "No commits found"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2451
 msgid "Failed to read history"
-msgstr ""
+msgstr "Failed to read history"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2752
 msgid "Error reading tree"
-msgstr ""
+msgstr "Error reading tree"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3132
 #: src/toolbar.blp:173
 msgid "Select All"
-msgstr ""
+msgstr "Select All"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3134
 #: src/toolbar.blp:179
 msgid "Invert Selection"
-msgstr ""
+msgstr "Invert Selection"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3138
 #: src/toolbar.blp:185
 msgid "Clear Selection"
-msgstr ""
+msgstr "Clear Selection"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3144
-#: src/toolbar.blp:190
-#: src/view-controls.blp:71
+#: src/toolbar.blp:190 src/view-controls.blp:71
 msgid "Captions…"
-msgstr ""
+msgstr "Captions…"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3149
 #: src/toolbar.blp:156
 msgid "Open Repository in System"
-msgstr ""
+msgstr "Open Repository in System"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3153
 #: src/toolbar.blp:161
 msgid "Open in Console"
-msgstr ""
+msgstr "Open in Console"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3157
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3203
 #: src/toolbar.blp:166
 msgid "Copy Repository Path"
-msgstr ""
+msgstr "Copy Repository Path"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3163
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3220
-#: src/node-properties-dialog.blp:5
-#: src/toolbar.blp:197
+#: src/node-properties-dialog.blp:5 src/toolbar.blp:197
 msgid "Properties"
-msgstr ""
+msgstr "Properties"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3196
 msgid "Open"
-msgstr ""
+msgstr "Open"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3197
 msgid "Open With…"
-msgstr ""
+msgstr "Open With…"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3201
 msgid "Export File…"
-msgstr ""
+msgstr "Export File…"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3207
 msgid "Copy Content"
-msgstr ""
+msgstr "Copy Content"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3214
 msgid "Show in System"
-msgstr ""
+msgstr "Show in System"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3398
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3546
 msgid "Only files can be opened or exported from a snapshot"
-msgstr ""
+msgstr "Only files can be opened or exported from a snapshot"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3507
 msgid "Operation cancelled"
-msgstr ""
+msgstr "Operation cancelled"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3586
 msgid "Opening File"
-msgstr ""
+msgstr "Opening File"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3587
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3609
 msgid "Materializing snapshot file…"
-msgstr ""
+msgstr "Materializing snapshot file…"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3594
 msgid "Could not open file with the default application"
-msgstr ""
+msgstr "Could not open file with the default application"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3608
 msgid "Preparing File"
-msgstr ""
+msgstr "Preparing File"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3619
 msgid "Could not open file with the selected application"
-msgstr ""
+msgstr "Could not open file with the selected application"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3629
 msgid "Only files can be exported from a snapshot"
-msgstr ""
+msgstr "Only files can be exported from a snapshot"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3641
 msgid "Export File"
-msgstr ""
+msgstr "Export File"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3643
 msgid "Export"
-msgstr ""
+msgstr "Export"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3661
 msgid "Exporting File"
-msgstr ""
+msgstr "Exporting File"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3662
 msgid "Exporting snapshot file…"
-msgstr ""
+msgstr "Exporting snapshot file…"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3664
 msgid "Exported"
-msgstr ""
+msgstr "Exported"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3681
 msgid "Only file content can be copied"
-msgstr ""
+msgstr "Only file content can be copied"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3711
 msgid "File content copied"
-msgstr ""
+msgstr "File content copied"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3715
 msgid "This file is binary or could not be copied as text"
-msgstr ""
+msgstr "This file is binary or could not be copied as text"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3729
 msgid "This file does not exist in the current working tree"
-msgstr ""
+msgstr "This file does not exist in the current working tree"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3738
 msgid "Could not show file in the system"
-msgstr ""
+msgstr "Could not show file in the system"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3755
 msgid "Unknown snapshot date"
-msgstr ""
+msgstr "Unknown snapshot date"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3778
 msgid "Repository root"
-msgstr ""
+msgstr "Repository root"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3797
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3798
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3799
 msgid "Not available"
-msgstr ""
+msgstr "Not available"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3845
 msgid "Exists in working tree"
-msgstr ""
+msgstr "Exists in working tree"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3847
 msgid "Only available in selected snapshot"
-msgstr ""
+msgstr "Only available in selected snapshot"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3872
 msgid "Marked as favorite"
-msgstr ""
+msgstr "Marked as favorite"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3874
 msgid "Removed from favorites"
-msgstr ""
+msgstr "Removed from favorites"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3887
 msgid "Snapshot item icons cannot be edited"
-msgstr ""
+msgstr "Snapshot item icons cannot be edited"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4052
 msgid "Error"
-msgstr ""
+msgstr "Error"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4055
 msgid "OK"
-msgstr ""
+msgstr "OK"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4166
 msgid "Search Results"
-msgstr ""
+msgstr "Search Results"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4211
 msgid "Indexing Changed Files"
-msgstr ""
+msgstr "Indexing Changed Files"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4212
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4351
 msgid "Reading changed-file metadata…"
-msgstr ""
+msgstr "Reading changed-file metadata…"
 
 #: src/batch-operations-dialog.blp:19
 msgid "Batch Operations"
-msgstr ""
+msgstr "Batch Operations"
 
 #: src/batch-operations-dialog.blp:47
 msgid "Selected commits"
-msgstr ""
+msgstr "Selected commits"
 
 #: src/batch-operations-dialog.blp:93
 msgid "Operation"
-msgstr ""
+msgstr "Operation"
 
 #: src/batch-operations-dialog.blp:96
 msgid "Action"
-msgstr ""
+msgstr "Action"
 
 #: src/batch-operations-dialog.blp:99
 msgid "Cherry-pick onto current branch"
-msgstr ""
+msgstr "Cherry-pick onto current branch"
 
 #: src/batch-operations-dialog.blp:100
 msgid "Export as .patch files"
-msgstr ""
+msgstr "Export as .patch files"
 
 #: src/batch-operations-dialog.blp:101
 msgid "Copy SHAs to clipboard"
-msgstr ""
+msgstr "Copy SHAs to clipboard"
 
 #: src/batch-operations-dialog.blp:108
 msgid "Export directory"
-msgstr ""
+msgstr "Export directory"
 
 #: src/batch-operations-dialog.blp:133
 msgid "Add Signed-off-by line"
-msgstr ""
+msgstr "Add Signed-off-by line"
 
 #: src/batch-operations-dialog.blp:139
 msgid "Use short SHAs (7 chars)"
-msgstr ""
+msgstr "Use short SHAs (7 chars)"
 
 #: src/batch-operations-dialog.blp:147
 msgid "Preview"
-msgstr ""
+msgstr "Preview"
 
-#: src/batch-operations-dialog.blp:182
-#: src/new-branch-dialog.blp:37
-#: src/select-commits-by-pattern.blp:95
-#: src/ssh-passphrase-dialog.blp:41
+#: src/batch-operations-dialog.blp:182 src/new-branch-dialog.blp:37
+#: src/select-commits-by-pattern.blp:95 src/ssh-passphrase-dialog.blp:41
 #: src/toolbar.blp:63
 msgid "Cancel"
-msgstr ""
+msgstr "Cancel"
 
 #: src/batch-operations-dialog.blp:187
 msgid "Run"
-msgstr ""
+msgstr "Run"
 
 #: src/branch-sidebar-row.blp:41
 msgid "HEAD"
-msgstr ""
+msgstr "HEAD"
 
 #: src/branch-sidebar-row.blp:67
 msgid "Checkout branch"
-msgstr ""
+msgstr "Checkout branch"
 
 #: src/branch-sidebar-row.blp:77
 msgid "Push branch"
-msgstr ""
+msgstr "Push branch"
 
 #: src/branch-sidebar-row.blp:87
 msgid "Rename branch"
-msgstr ""
+msgstr "Rename branch"
 
 #: src/branch-sidebar-row.blp:97
 msgid "Delete branch"
-msgstr ""
+msgstr "Delete branch"
 
 #: src/column-chooser.blp:5
 msgid "Choose Columns"
-msgstr ""
+msgstr "Choose Columns"
 
 #: src/column-chooser.blp:22
 msgid "Visible Columns"
-msgstr ""
+msgstr "Visible Columns"
 
 #: src/column-chooser.blp:23
 msgid "Choose which columns to show in list view."
-msgstr ""
+msgstr "Choose which columns to show in list view."
 
-#: src/column-chooser.blp:31
-#: src/file-grid-captions-dialog.blp:34
+#: src/column-chooser.blp:31 src/file-grid-captions-dialog.blp:34
 msgid "Status"
-msgstr ""
+msgstr "Status"
 
 #: src/column-chooser.blp:32
 msgid "Added / Modified / Deleted"
-msgstr ""
+msgstr "Added / Modified / Deleted"
 
-#: src/column-chooser.blp:42
-#: src/file-grid-captions-dialog.blp:39
+#: src/column-chooser.blp:42 src/file-grid-captions-dialog.blp:39
 msgid "Extension"
-msgstr ""
+msgstr "Extension"
 
-#: src/column-chooser.blp:55
-#: src/file-grid-captions-dialog.blp:59
+#: src/column-chooser.blp:55 src/file-grid-captions-dialog.blp:59
 msgid "Apply"
-msgstr ""
+msgstr "Apply"
 
 #: src/commit-name-cell.blp:64
 msgid "Copy commit SHA"
-msgstr ""
+msgstr "Copy commit SHA"
 
-#: src/date-range-dialog.blp:28
-#: src/search-filter-popover.blp:174
+#: src/date-range-dialog.blp:28 src/search-filter-popover.blp:174
 msgid "Custom Date Range"
-msgstr ""
+msgstr "Custom Date Range"
 
 #: src/date-range-dialog.blp:40
 msgid "Filter by Date Range"
-msgstr ""
+msgstr "Filter by Date Range"
 
-#: src/date-range-dialog.blp:45
-#: src/filter-types-dialog.blp:28
-#: src/merge-conflict-dialog.blp:24
-#: src/operation-progress-dialog.blp:40
+#: src/date-range-dialog.blp:45 src/filter-types-dialog.blp:28
+#: src/merge-conflict-dialog.blp:24 src/operation-progress-dialog.blp:40
 msgid "_Cancel"
-msgstr ""
+msgstr "_Cancel"
 
 #: src/date-range-dialog.blp:54
 msgid "Date Range"
-msgstr ""
+msgstr "Date Range"
 
 #: src/date-range-dialog.blp:55
 msgid "Show only commits authored within this period (YYYY-MM-DD)"
-msgstr ""
+msgstr "Show only commits authored within this period (YYYY-MM-DD)"
 
 #: src/date-range-dialog.blp:58
 msgid "From"
-msgstr ""
+msgstr "From"
 
 #: src/date-range-dialog.blp:64
 msgid "To"
-msgstr ""
+msgstr "To"
 
 #: src/date-range-dialog.blp:74
 msgid "Invalid date"
-msgstr ""
+msgstr "Invalid date"
 
 #: src/date-range-dialog.blp:75
 msgid "Use the format YYYY-MM-DD, e.g. 2026-01-15"
-msgstr ""
+msgstr "Use the format YYYY-MM-DD, e.g. 2026-01-15"
 
 #: src/date-range-dialog.blp:84
 msgid "_Apply Filter"
-msgstr ""
+msgstr "_Apply Filter"
 
 #: src/file-grid-captions-dialog.blp:13
 msgid "Grid Captions"
-msgstr ""
+msgstr "Grid Captions"
 
 #: src/file-grid-captions-dialog.blp:30
 msgid "Visible Captions"
-msgstr ""
+msgstr "Visible Captions"
 
 #: src/file-grid-captions-dialog.blp:31
 msgid "Choose which information appears below each file in grid view."
-msgstr ""
+msgstr "Choose which information appears below each file in grid view."
 
 #: src/file-grid-captions-dialog.blp:35
 msgid "Added, Modified or Deleted"
-msgstr ""
+msgstr "Added, Modified or Deleted"
 
 #: src/file-grid-captions-dialog.blp:43
 msgid "File Size"
-msgstr ""
+msgstr "File Size"
 
 #: src/file-grid-captions-dialog.blp:47
 msgid "Date Modified"
-msgstr ""
+msgstr "Date Modified"
 
-#: src/file-list-view.blp:38
-#: src/views/file-list-view.blp:38
+#: src/file-list-view.blp:38 src/views/file-list-view.blp:38
 msgid "No Files"
-msgstr ""
+msgstr "No Files"
 
-#: src/file-list-view.blp:39
-#: src/views/file-list-view.blp:39
+#: src/file-list-view.blp:39 src/views/file-list-view.blp:39
 msgid "Select a commit to see its files."
-msgstr ""
+msgstr "Select a commit to see its files."
 
 #: src/filter-types-dialog.blp:14
 msgid "Add File Type Filter"
-msgstr ""
+msgstr "Add File Type Filter"
 
 #: src/filter-types-dialog.blp:36
 msgid "_Add"
-msgstr ""
+msgstr "_Add"
 
 #: src/filter-types-dialog.blp:51
+#, fuzzy
 msgid "Search extensions, e.g. rs, py, ts…"
-msgstr ""
+msgstr "Search extensions, e.g. rs, py, tsâ¦"
 
 #: src/filter-types-dialog.blp:64
 msgid "Filter by File Type"
-msgstr ""
+msgstr "Filter by File Type"
 
 #: src/filter-types-dialog.blp:65
 msgid "Type an extension to add a filter, or choose from common types below."
-msgstr ""
+msgstr "Type an extension to add a filter, or choose from common types below."
 
 #: src/filter-types-dialog.blp:73
 msgid "Common types"
-msgstr ""
+msgstr "Common types"
 
 #: src/filter-types-dialog.blp:99
 msgid "No Types Found"
-msgstr ""
+msgstr "No Types Found"
 
 #: src/filter-types-dialog.blp:100
 msgid "Try a different search, or press Enter to add a custom extension."
-msgstr ""
+msgstr "Try a different search, or press Enter to add a custom extension."
 
-#: src/history-controls.blp:12
-#: src/window.blp:21
+#: src/history-controls.blp:12 src/window.blp:21
 msgid "Back"
-msgstr ""
+msgstr "Back"
 
 #: src/history-controls.blp:19
 msgid "Forward"
-msgstr ""
+msgstr "Forward"
 
-#: src/merge-conflict-dialog.blp:11
-#: src/merge-conflict-dialog.blp:30
+#: src/merge-conflict-dialog.blp:11 src/merge-conflict-dialog.blp:30
 msgid "Merge Conflict"
-msgstr ""
+msgstr "Merge Conflict"
 
 #: src/merge-conflict-dialog.blp:31
 msgid "Choose how to resolve this conflict"
-msgstr ""
+msgstr "Choose how to resolve this conflict"
 
 #: src/merge-conflict-dialog.blp:41
 msgid "This file has conflicting changes from both sides of the merge."
-msgstr ""
+msgstr "This file has conflicting changes from both sides of the merge."
 
 #: src/merge-conflict-dialog.blp:42
 msgid "Show Diff"
-msgstr ""
+msgstr "Show Diff"
 
 #: src/merge-conflict-dialog.blp:56
 msgid "Conflicted File"
-msgstr ""
+msgstr "Conflicted File"
 
 #: src/merge-conflict-dialog.blp:59
 msgid "Path"
-msgstr ""
+msgstr "Path"
 
 #: src/merge-conflict-dialog.blp:84
 msgid "Ours (HEAD)"
-msgstr ""
+msgstr "Ours (HEAD)"
 
-#: src/merge-conflict-dialog.blp:93
-#: src/merge-conflict-dialog.blp:124
+#: src/merge-conflict-dialog.blp:93 src/merge-conflict-dialog.blp:124
 msgid "Commit"
-msgstr ""
+msgstr "Commit"
 
-#: src/merge-conflict-dialog.blp:98
-#: src/merge-conflict-dialog.blp:129
+#: src/merge-conflict-dialog.blp:98 src/merge-conflict-dialog.blp:129
 #: src/search-filter-popover.blp:224
 msgid "Author"
-msgstr ""
+msgstr "Author"
 
-#: src/merge-conflict-dialog.blp:102
-#: src/merge-conflict-dialog.blp:133
+#: src/merge-conflict-dialog.blp:102 src/merge-conflict-dialog.blp:133
 msgid "Date"
-msgstr ""
+msgstr "Date"
 
 #: src/merge-conflict-dialog.blp:115
 msgid "Theirs (Incoming)"
-msgstr ""
+msgstr "Theirs (Incoming)"
 
 #: src/merge-conflict-dialog.blp:142
 msgid "Show conflict diff"
-msgstr ""
+msgstr "Show conflict diff"
 
 #: src/merge-conflict-dialog.blp:164
 msgid "_Apply this resolution to all conflicting files"
-msgstr ""
+msgstr "_Apply this resolution to all conflicting files"
 
 #: src/merge-conflict-dialog.blp:183
 msgid "Use _Ours"
-msgstr ""
+msgstr "Use _Ours"
 
 #: src/merge-conflict-dialog.blp:191
 msgid "Use _Theirs"
-msgstr ""
+msgstr "Use _Theirs"
 
 #: src/merge-conflict-dialog.blp:199
 msgid "Keep _Both"
-msgstr ""
+msgstr "Keep _Both"
 
-#: src/new-branch-dialog.blp:5
-#: src/toolbar.blp:126
-#: src/toolbar.blp:141
+#: src/new-branch-dialog.blp:5 src/toolbar.blp:126 src/toolbar.blp:141
 msgid "New Branch"
-msgstr ""
+msgstr "New Branch"
 
 #: src/new-branch-dialog.blp:24
 msgid "Branch Details"
-msgstr ""
+msgstr "Branch Details"
 
 #: src/new-branch-dialog.blp:27
 msgid "Branch Name"
-msgstr ""
+msgstr "Branch Name"
 
 #: src/new-branch-dialog.blp:42
 msgid "Create Branch"
-msgstr ""
+msgstr "Create Branch"
 
 #: src/node-properties-dialog.blp:18
 msgid "Favorite"
-msgstr ""
+msgstr "Favorite"
 
 #: src/node-properties-dialog.blp:25
 msgid "Open Location"
-msgstr ""
+msgstr "Open Location"
 
 #: src/node-properties-dialog.blp:64
 msgid "Snapshot item"
-msgstr ""
+msgstr "Snapshot item"
 
 #: src/node-properties-dialog.blp:128
 msgid "Copy Path"
-msgstr ""
+msgstr "Copy Path"
 
 #: src/node-properties-dialog.blp:176
 msgid "Modified"
-msgstr ""
+msgstr "Modified"
 
 #: src/node-properties-dialog.blp:199
 msgid "Created"
-msgstr ""
+msgstr "Created"
 
 #: src/node-properties-dialog.blp:227
 msgid "Permissions"
-msgstr ""
+msgstr "Permissions"
 
 #: src/node-properties-dialog.blp:256
 msgid "Git Snapshot"
-msgstr ""
+msgstr "Git Snapshot"
 
 #: src/node-properties-dialog.blp:295
 msgid "Copy Details"
-msgstr ""
+msgstr "Copy Details"
 
-#: src/operation-progress-dialog.blp:5
-#: src/operation-progress-dialog.blp:16
+#: src/operation-progress-dialog.blp:5 src/operation-progress-dialog.blp:16
 msgid "Working"
-msgstr ""
+msgstr "Working"
 
 #: src/operation-progress-dialog.blp:29
+#, fuzzy
 msgid "Preparing…"
-msgstr ""
+msgstr "Preparingâ¦"
 
 #: src/preferences-dialog.blp:15
 msgid "General"
-msgstr ""
+msgstr "General"
 
 #: src/preferences-dialog.blp:20
 msgid "Behaviour when opening and loading repositories."
-msgstr ""
+msgstr "Behaviour when opening and loading repositories."
 
 #: src/preferences-dialog.blp:23
 msgid "_Fetch on Open"
-msgstr ""
+msgstr "_Fetch on Open"
 
 #: src/preferences-dialog.blp:24
 msgid "Run git fetch automatically when a repository is opened."
-msgstr ""
+msgstr "Run git fetch automatically when a repository is opened."
 
 #: src/preferences-dialog.blp:29
 msgid "_Commits per Page"
-msgstr ""
+msgstr "_Commits per Page"
 
 #: src/preferences-dialog.blp:30
 msgid "Number of commits loaded in each batch."
-msgstr ""
+msgstr "Number of commits loaded in each batch."
 
 #: src/preferences-dialog.blp:42
 msgid "_Default Branch"
-msgstr ""
+msgstr "_Default Branch"
 
 #: src/preferences-dialog.blp:47
 msgid "Shallow Clone _Depth"
-msgstr ""
+msgstr "Shallow Clone _Depth"
 
 #: src/preferences-dialog.blp:48
 msgid "Set to 0 to clone the full history."
-msgstr ""
+msgstr "Set to 0 to clone the full history."
 
 #: src/preferences-dialog.blp:61
 msgid "Date and Time"
-msgstr ""
+msgstr "Date and Time"
 
 #: src/preferences-dialog.blp:62
 msgid "Choose how commit timestamps are displayed."
-msgstr ""
+msgstr "Choose how commit timestamps are displayed."
 
 #: src/preferences-dialog.blp:65
 msgid "_Relative"
-msgstr ""
+msgstr "_Relative"
 
 #: src/preferences-dialog.blp:66
 msgid "e.g. \\\"3 days ago\\\""
-msgstr ""
+msgstr "e.g. \\\"3 days ago\\\""
 
 #: src/preferences-dialog.blp:80
 msgid "_Short"
-msgstr ""
+msgstr "_Short"
 
 #: src/preferences-dialog.blp:81
 msgid "e.g. \\\"13 Jun 2026\\\""
-msgstr ""
+msgstr "e.g. \\\"13 Jun 2026\\\""
 
 #: src/preferences-dialog.blp:96
 msgid "_ISO 8601"
-msgstr ""
+msgstr "_ISO 8601"
 
 #: src/preferences-dialog.blp:97
 msgid "e.g. \\\"2026-06-13 14:30:00\\\""
-msgstr ""
+msgstr "e.g. \\\"2026-06-13 14:30:00\\\""
 
 #: src/preferences-dialog.blp:115
 msgid "Appearance"
-msgstr ""
+msgstr "Appearance"
 
 #: src/preferences-dialog.blp:119
 msgid "Commit List"
-msgstr ""
+msgstr "Commit List"
 
 #: src/preferences-dialog.blp:122
 msgid "_Default View"
-msgstr ""
+msgstr "_Default View"
 
 #: src/preferences-dialog.blp:123
 msgid "Layout used when a repository is first opened."
-msgstr ""
+msgstr "Layout used when a repository is first opened."
 
 #: src/preferences-dialog.blp:128
 msgid "List"
-msgstr ""
+msgstr "List"
 
 #: src/preferences-dialog.blp:129
 msgid "Grid"
-msgstr ""
+msgstr "Grid"
 
 #: src/preferences-dialog.blp:135
 msgid "Show _Author Avatars"
-msgstr ""
+msgstr "Show _Author Avatars"
 
 #: src/preferences-dialog.blp:136
 msgid "Display Gravatar / Git author avatar in the commit list."
-msgstr ""
+msgstr "Display Gravatar / Git author avatar in the commit list."
 
 #: src/preferences-dialog.blp:141
 msgid "_Dense Mode"
-msgstr ""
+msgstr "_Dense Mode"
 
 #: src/preferences-dialog.blp:142
 msgid "Reduce row height for more commits on screen at once."
-msgstr ""
+msgstr "Reduce row height for more commits on screen at once."
 
 #: src/preferences-dialog.blp:147
 msgid "Show Branch _Graph"
-msgstr ""
+msgstr "Show Branch _Graph"
 
 #: src/preferences-dialog.blp:148
 msgid "Render the commit graph lines in the timeline."
-msgstr ""
+msgstr "Render the commit graph lines in the timeline."
 
 #: src/preferences-dialog.blp:154
 msgid "Diff View"
-msgstr ""
+msgstr "Diff View"
 
 #: src/preferences-dialog.blp:157
 msgid "_Syntax Highlighting"
-msgstr ""
+msgstr "_Syntax Highlighting"
 
 #: src/preferences-dialog.blp:158
 msgid "Highlight diff output using language-specific colours."
-msgstr ""
+msgstr "Highlight diff output using language-specific colours."
 
 #: src/preferences-dialog.blp:163
 msgid "_Word-level Diff"
-msgstr ""
+msgstr "_Word-level Diff"
 
 #: src/preferences-dialog.blp:164
 msgid "Highlight individual changed words within lines."
-msgstr ""
+msgstr "Highlight individual changed words within lines."
 
 #: src/preferences-dialog.blp:169
 msgid "_Context Lines"
-msgstr ""
+msgstr "_Context Lines"
 
 #: src/preferences-dialog.blp:170
 msgid "Unchanged lines shown above and below each diff hunk."
-msgstr ""
+msgstr "Unchanged lines shown above and below each diff hunk."
 
 #: src/preferences-dialog.blp:185
 msgid "Advanced"
-msgstr ""
+msgstr "Advanced"
 
 #: src/preferences-dialog.blp:189
 msgid "Git"
-msgstr ""
+msgstr "Git"
 
 #: src/preferences-dialog.blp:192
 msgid "_Verify Commit Signatures"
-msgstr ""
+msgstr "_Verify Commit Signatures"
 
 #: src/preferences-dialog.blp:193
 msgid "Show GPG/SSH signature status in the commit detail."
-msgstr ""
+msgstr "Show GPG/SSH signature status in the commit detail."
 
 #: src/preferences-dialog.blp:198
 msgid "_Follow Renames"
-msgstr ""
+msgstr "_Follow Renames"
 
 #: src/preferences-dialog.blp:199
 msgid "Track file history across renames when loading diffs."
-msgstr ""
+msgstr "Track file history across renames when loading diffs."
 
 #: src/preferences-dialog.blp:204
 msgid "Include _Submodules"
-msgstr ""
+msgstr "Include _Submodules"
 
 #: src/preferences-dialog.blp:205
 msgid "List commits from submodule repositories as well."
-msgstr ""
+msgstr "List commits from submodule repositories as well."
 
 #: src/preferences-dialog.blp:210
 msgid "_Git Binary Path"
-msgstr ""
+msgstr "_Git Binary Path"
 
 #: src/preferences-dialog.blp:216
 msgid "Performance"
-msgstr ""
+msgstr "Performance"
 
 #: src/preferences-dialog.blp:219
 msgid "_Background Fetch"
-msgstr ""
+msgstr "_Background Fetch"
 
 #: src/preferences-dialog.blp:220
 msgid "Periodically refresh remote tracking branches in the background."
-msgstr ""
+msgstr "Periodically refresh remote tracking branches in the background."
 
 #: src/preferences-dialog.blp:225
 msgid "Fetch _Interval (minutes)"
-msgstr ""
+msgstr "Fetch _Interval (minutes)"
 
 #: src/search-filter-popover.blp:33
 msgid "File Types"
-msgstr ""
+msgstr "File Types"
 
 #: src/search-filter-popover.blp:48
 msgid "Audio"
-msgstr ""
+msgstr "Audio"
 
 #: src/search-filter-popover.blp:56
 msgid "Documents"
-msgstr ""
+msgstr "Documents"
 
 #: src/search-filter-popover.blp:64
 msgid "Folders"
-msgstr ""
+msgstr "Folders"
 
 #: src/search-filter-popover.blp:72
 msgid "Images"
-msgstr ""
+msgstr "Images"
 
 #: src/search-filter-popover.blp:88
 msgid "Text"
-msgstr ""
+msgstr "Text"
 
 #: src/search-filter-popover.blp:96
 msgid "Videos"
-msgstr ""
+msgstr "Videos"
 
 #: src/search-filter-popover.blp:102
 msgid "Specific Type"
-msgstr ""
+msgstr "Specific Type"
 
-#: src/search-filter-popover.blp:117
-#: src/view-controls.blp:37
+#: src/search-filter-popover.blp:117 src/view-controls.blp:37
 msgid "Last Modified"
-msgstr ""
+msgstr "Last Modified"
 
 #: src/search-filter-popover.blp:126
 msgid "Clear Date Filter"
-msgstr ""
+msgstr "Clear Date Filter"
 
 #: src/search-filter-popover.blp:138
 msgid "_Today"
-msgstr ""
+msgstr "_Today"
 
 #: src/search-filter-popover.blp:144
 msgid "_Yesterday"
-msgstr ""
+msgstr "_Yesterday"
 
 #: src/search-filter-popover.blp:150
 msgid "Past _Week"
-msgstr ""
+msgstr "Past _Week"
 
 #: src/search-filter-popover.blp:156
 msgid "Past _Month"
-msgstr ""
+msgstr "Past _Month"
 
 #: src/search-filter-popover.blp:162
 msgid "Past Y_ear"
-msgstr ""
+msgstr "Past Y_ear"
 
 #: src/search-filter-popover.blp:188
 msgid "Text Matching"
-msgstr ""
+msgstr "Text Matching"
 
 #: src/search-filter-popover.blp:200
 msgid "Content & Filename"
-msgstr ""
+msgstr "Content & Filename"
 
 #: src/search-filter-popover.blp:201
 msgid "Search commit text and changed file names"
-msgstr ""
+msgstr "Search commit text and changed file names"
 
 #: src/search-filter-popover.blp:206
 msgid "Only Filename"
-msgstr ""
+msgstr "Only Filename"
 
 #: src/search-filter-popover.blp:207
 msgid "Filename-only search is not enabled yet"
-msgstr ""
+msgstr "Filename-only search is not enabled yet"
 
 #: src/search-filter-popover.blp:233
 msgid "Clear Author Filter"
-msgstr ""
+msgstr "Clear Author Filter"
 
 #: src/search-filter-popover.blp:240
+#, fuzzy
 msgid "Filter by author name or email…"
-msgstr ""
+msgstr "Filter by author name or emailâ¦"
 
 #: src/search-filter-popover.blp:266
 msgid "Branch"
-msgstr ""
+msgstr "Branch"
 
 #: src/search-filter-popover.blp:275
 msgid "Clear Branch Filter"
-msgstr ""
+msgstr "Clear Branch Filter"
 
 #: src/search-filter-popover.blp:292
 msgid "Reset Filters"
-msgstr ""
+msgstr "Reset Filters"
 
 #: src/select-commits-by-pattern.blp:18
 msgid "Select Commits by Pattern"
-msgstr ""
+msgstr "Select Commits by Pattern"
 
 #: src/select-commits-by-pattern.blp:36
 msgid "File Path Pattern"
-msgstr ""
+msgstr "File Path Pattern"
 
 #: src/select-commits-by-pattern.blp:37
 msgid "Glob syntax: * matches any string, ** crosses directories."
-msgstr ""
+msgstr "Glob syntax: * matches any string, ** crosses directories."
 
 #: src/select-commits-by-pattern.blp:40
 msgid "Pattern"
-msgstr ""
+msgstr "Pattern"
 
 #: src/select-commits-by-pattern.blp:49
 msgid "Options"
-msgstr ""
+msgstr "Options"
 
 #: src/select-commits-by-pattern.blp:52
 msgid "Match mode"
-msgstr ""
+msgstr "Match mode"
 
 #: src/select-commits-by-pattern.blp:55
 msgid "Any changed file matches"
-msgstr ""
+msgstr "Any changed file matches"
 
 #: src/select-commits-by-pattern.blp:56
 msgid "All changed files match"
-msgstr ""
+msgstr "All changed files match"
 
 #: src/select-commits-by-pattern.blp:62
 msgid "Case insensitive"
-msgstr ""
+msgstr "Case insensitive"
 
 #: src/select-commits-by-pattern.blp:100
 msgid "Select Commits"
-msgstr ""
+msgstr "Select Commits"
 
 #: src/ssh-passphrase-dialog.blp:5
 msgid "Authentication Required"
-msgstr ""
+msgstr "Authentication Required"
 
 #: src/ssh-passphrase-dialog.blp:25
 msgid "Enter Passphrase"
-msgstr ""
+msgstr "Enter Passphrase"
 
 #: src/ssh-passphrase-dialog.blp:26
 msgid "This repository requires authentication."
-msgstr ""
+msgstr "This repository requires authentication."
 
 #: src/ssh-passphrase-dialog.blp:31
 msgid "Passphrase"
-msgstr ""
+msgstr "Passphrase"
 
 #: src/ssh-passphrase-dialog.blp:46
 msgid "Confirm"
-msgstr ""
+msgstr "Confirm"
 
 #: src/toolbar.blp:9
 msgid "Show Sidebar"
-msgstr ""
+msgstr "Show Sidebar"
 
 #: src/toolbar.blp:56
+#, fuzzy
 msgid "Type a path and press Enter…"
-msgstr ""
+msgstr "Type a path and press Enterâ¦"
 
-#: src/toolbar.blp:76
-#: src/window.blp:45
+#: src/toolbar.blp:76 src/window.blp:45
+#, fuzzy
 msgid "Search commits, hash, date…"
-msgstr ""
+msgstr "Search commits, hash, dateâ¦"
 
-#: src/toolbar.blp:81
-#: src/window.blp:52
+#: src/toolbar.blp:81 src/window.blp:52
 msgid "Filters"
-msgstr ""
+msgstr "Filters"
 
 #: src/toolbar.blp:86
 msgid "Close Search"
-msgstr ""
+msgstr "Close Search"
 
 #: src/toolbar.blp:94
 msgid "Search Current Folder"
-msgstr ""
+msgstr "Search Current Folder"
 
 #: src/toolbar.blp:108
 msgid "Main Menu"
-msgstr ""
+msgstr "Main Menu"
 
 #: src/toolbar.blp:148
 msgid "Reload"
-msgstr ""
+msgstr "Reload"
 
 #: src/toolbar.blp:204
 msgid "Preferences"
-msgstr ""
+msgstr "Preferences"
 
 #: src/toolbar.blp:209
 msgid "Keyboard Shortcuts"
-msgstr ""
+msgstr "Keyboard Shortcuts"
 
 #: src/toolbar.blp:214
 msgid "About Temporal Explorer"
-msgstr ""
+msgstr "About Temporal Explorer"
 
 #: src/view-controls.blp:9
 msgid "Icon Size"
-msgstr ""
+msgstr "Icon Size"
 
 #: src/view-controls.blp:22
 msgid "Sort"
-msgstr ""
+msgstr "Sort"
 
 #: src/view-controls.blp:25
 msgid "A-Z"
-msgstr ""
+msgstr "A-Z"
 
 #: src/view-controls.blp:31
 msgid "Z-A"
-msgstr ""
+msgstr "Z-A"
 
 #: src/view-controls.blp:43
 msgid "First Modified"
-msgstr ""
+msgstr "First Modified"
 
 #: src/view-controls.blp:63
 msgid "Show _Hidden Files"
-msgstr ""
+msgstr "Show _Hidden Files"
 
 #: src/view-controls.blp:87
 msgid "View Options"
-msgstr ""
+msgstr "View Options"
 
 #: src/view-controls.blp:97
 msgid "Zoom Out"
-msgstr ""
+msgstr "Zoom Out"
 
 #: src/view-controls.blp:106
 msgid "Zoom In"
-msgstr ""
+msgstr "Zoom In"
 
-#: src/window.blp:5
-#: src/window.blp:123
+#: src/window.blp:5 src/window.blp:123
 msgid "Temporal Explorer"
-msgstr ""
+msgstr "Temporal Explorer"
 
 #: src/window.blp:124
 msgid "No repository selected"
-msgstr ""
+msgstr "No repository selected"
 
 #: src/window.blp:130
 msgid "No Snapshot Selected"
-msgstr ""
+msgstr "No Snapshot Selected"
 
 #: src/window.blp:131
-msgid "Open a Git repository and select a commit from the timeline to browse its file tree."
+msgid ""
+"Open a Git repository and select a commit from the timeline to browse its "
+"file tree."
 msgstr ""
+"Open a Git repository and select a commit from the timeline to browse its "
+"file tree."
 
 #: src/window.blp:176
 msgid "_Preferences"
-msgstr ""
+msgstr "_Preferences"
 
 #: src/window.blp:180
 msgid "_Keyboard Shortcuts"
-msgstr ""
+msgstr "_Keyboard Shortcuts"
 
 #: src/window.blp:184
 msgid "_About Temporal Explorer"
-msgstr ""
+msgstr "_About Temporal Explorer"
 
+#~ msgid "Captionsâ¦"
+#~ msgstr "Captionsâ¦"

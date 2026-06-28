@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: temporal-explorer 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 00:02-0300\n"
+"POT-Creation-Date: 2026-06-28 00:13-0300\n"
 "PO-Revision-Date: 2026-06-24 00:00-0300\n"
 "Last-Translator: John Peter Sá <johnpetersa19@gmail.com>\n"
 "Language-Team: Brazilian Portuguese <pt_BR>\n"
@@ -26,7 +26,7 @@ msgid "Choose a directory"
 msgstr "Escolha um diretório"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/batch_operations_dialog.rs:307
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:116
 msgid "Choose export directory"
 msgstr "Escolha o diretório de exportação"
 
@@ -63,7 +63,7 @@ msgid "Preview truncated at"
 msgstr "Prévia truncada em"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:135
-#: src/file-preview-dialog.blp
+#: src/file-preview-dialog.blp:20
 msgid "Copy content"
 msgstr "Copiar conteúdo"
 
@@ -182,22 +182,22 @@ msgstr ""
 "arquivos."
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:223
-#: src/column-chooser.blp
+#: src/column-chooser.blp:26
 msgid "Name"
 msgstr "Nome"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:225
-#: src/view-controls.blp
+#: src/view-controls.blp:55
 msgid "Type"
 msgstr "Tipo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:227
-#: src/column-chooser.blp src/view-controls.blp
+#: src/column-chooser.blp:37 src/view-controls.blp:49
 msgid "Size"
 msgstr "Tamanho"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:229
-#: src/node-properties-dialog.blp src/preferences-dialog.blp
+#: src/node-properties-dialog.blp:149 src/preferences-dialog.blp:19
 msgid "Repository"
 msgstr "Repositório"
 
@@ -206,7 +206,7 @@ msgid "Repository Path"
 msgstr "Caminho do repositório"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:233
-#: src/node-properties-dialog.blp
+#: src/node-properties-dialog.blp:114
 msgid "Parent Folder"
 msgstr "Pasta principal"
 
@@ -223,7 +223,7 @@ msgid "Full Commit"
 msgstr "Commit completo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:241
-#: src/node-properties-dialog.blp
+#: src/node-properties-dialog.blp:280
 msgid "Git Object"
 msgstr "Objeto Git"
 
@@ -232,7 +232,7 @@ msgid "Git Mode"
 msgstr "Modo Git"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:283
-#: src/select-commits-by-pattern.blp
+#: src/select-commits-by-pattern.blp:80
 msgid "Enter a pattern to preview matches"
 msgstr "Digite um padrão para visualizar correspondências"
 
@@ -303,7 +303,7 @@ msgstr "Visualização em lista"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:160
 #: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:271
-#: src/view-controls.blp
+#: src/view-controls.blp:86
 msgid "Grid view"
 msgstr "Visualização em grade"
 
@@ -471,7 +471,7 @@ msgid "applied to all"
 msgstr "aplicado a todos"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2186
-#: src/toolbar.blp
+#: src/toolbar.blp:118 src/toolbar.blp:136
 msgid "Open Repository"
 msgstr "Abrir Repositório"
 
@@ -483,7 +483,7 @@ msgstr "Falha ao abrir repositório"
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2533
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2613
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2621
-#: src/window.blp
+#: src/window.blp:27
 msgid "Timeline"
 msgstr "Linha do Tempo"
 
@@ -500,44 +500,45 @@ msgid "Error reading tree"
 msgstr "Erro ao ler árvore"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3132
-#: src/toolbar.blp
+#: src/toolbar.blp:173
 msgid "Select All"
 msgstr "Selecionar tudo"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3134
-#: src/toolbar.blp
+#: src/toolbar.blp:179
 msgid "Invert Selection"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3138
-#: src/toolbar.blp
+#: src/toolbar.blp:185
 msgid "Clear Selection"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3144
+#: src/toolbar.blp:190 src/view-controls.blp:71
 #, fuzzy
 msgid "Captions…"
 msgstr "Legendas…"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3149
-#: src/toolbar.blp
+#: src/toolbar.blp:156
 msgid "Open Repository in System"
 msgstr "Abrir repositório no sistema"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3153
-#: src/toolbar.blp
+#: src/toolbar.blp:161
 msgid "Open in Console"
 msgstr "Abrir no console"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3157
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3203
-#: src/toolbar.blp
+#: src/toolbar.blp:166
 msgid "Copy Repository Path"
 msgstr "Copiar caminho do repositório"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3163
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3220
-#: src/node-properties-dialog.blp src/toolbar.blp
+#: src/node-properties-dialog.blp:5 src/toolbar.blp:197
 msgid "Properties"
 msgstr "Propriedades"
 
@@ -690,812 +691,814 @@ msgstr "Indexando arquivos alterados"
 msgid "Reading changed-file metadata…"
 msgstr "Lendo metadados dos arquivos alterados…"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:19
 msgid "Batch Operations"
 msgstr "Operações em lote"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:47
 msgid "Selected commits"
 msgstr "Commits selecionados"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:93
 msgid "Operation"
 msgstr "Operação"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:96
 msgid "Action"
 msgstr "Ação"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:99
 msgid "Cherry-pick onto current branch"
 msgstr "Aplicar cherry-pick na branch atual"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:100
 msgid "Export as .patch files"
 msgstr "Exportar como arquivos .patch"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:101
 msgid "Copy SHAs to clipboard"
 msgstr "Copiar SHAs para a área de transferência"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:108
 msgid "Export directory"
 msgstr "Diretório de exportação"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:133
 msgid "Add Signed-off-by line"
 msgstr "Adicionar linha Signed-off-by"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:139
 msgid "Use short SHAs (7 chars)"
 msgstr "Usar SHAs curtos (7 caracteres)"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:147
 msgid "Preview"
 msgstr "Prévia"
 
-#: src/batch-operations-dialog.blp src/new-branch-dialog.blp
-#: src/select-commits-by-pattern.blp src/ssh-passphrase-dialog.blp
-#: src/toolbar.blp
+#: src/batch-operations-dialog.blp:182 src/new-branch-dialog.blp:37
+#: src/select-commits-by-pattern.blp:95 src/ssh-passphrase-dialog.blp:41
+#: src/toolbar.blp:63
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: src/batch-operations-dialog.blp
+#: src/batch-operations-dialog.blp:187
 msgid "Run"
 msgstr "Executar"
 
-#: src/branch-sidebar-row.blp
+#: src/branch-sidebar-row.blp:41
 msgid "HEAD"
 msgstr "HEAD"
 
-#: src/branch-sidebar-row.blp
+#: src/branch-sidebar-row.blp:67
 msgid "Checkout branch"
 msgstr "Fazer checkout da branch"
 
-#: src/branch-sidebar-row.blp
+#: src/branch-sidebar-row.blp:77
 msgid "Push branch"
 msgstr "Enviar branch"
 
-#: src/branch-sidebar-row.blp
+#: src/branch-sidebar-row.blp:87
 msgid "Rename branch"
 msgstr "Renomear branch"
 
-#: src/branch-sidebar-row.blp
+#: src/branch-sidebar-row.blp:97
 msgid "Delete branch"
 msgstr "Excluir branch"
 
-#: src/column-chooser.blp
+#: src/column-chooser.blp:5
 msgid "Choose Columns"
 msgstr "Escolher colunas"
 
-#: src/column-chooser.blp
+#: src/column-chooser.blp:22
 msgid "Visible Columns"
 msgstr "Colunas visíveis"
 
-#: src/column-chooser.blp
+#: src/column-chooser.blp:23
 msgid "Choose which columns to show in list view."
 msgstr "Escolha quais colunas mostrar na visualização em lista."
 
-#: src/column-chooser.blp src/file-grid-captions-dialog.blp
+#: src/column-chooser.blp:31 src/file-grid-captions-dialog.blp:34
 msgid "Status"
 msgstr "Status"
 
-#: src/column-chooser.blp
+#: src/column-chooser.blp:32
 msgid "Added / Modified / Deleted"
 msgstr "Adicionado / Modificado / Excluído"
 
-#: src/column-chooser.blp src/file-grid-captions-dialog.blp
+#: src/column-chooser.blp:42 src/file-grid-captions-dialog.blp:39
 msgid "Extension"
 msgstr "Extensão"
 
-#: src/column-chooser.blp src/file-grid-captions-dialog.blp
+#: src/column-chooser.blp:55 src/file-grid-captions-dialog.blp:59
 msgid "Apply"
 msgstr "Aplicar"
 
-#: src/commit-name-cell.blp
+#: src/commit-name-cell.blp:64
 msgid "Copy commit SHA"
 msgstr "Copiar SHA do commit"
 
-#: src/date-range-dialog.blp src/search-filter-popover.blp
+#: src/date-range-dialog.blp:28 src/search-filter-popover.blp:174
 msgid "Custom Date Range"
 msgstr "Intervalo de datas personalizado"
 
-#: src/date-range-dialog.blp
+#: src/date-range-dialog.blp:40
 msgid "Filter by Date Range"
 msgstr "Filtrar por intervalo de datas"
 
-#: src/date-range-dialog.blp src/filter-types-dialog.blp
-#: src/merge-conflict-dialog.blp src/operation-progress-dialog.blp
+#: src/date-range-dialog.blp:45 src/filter-types-dialog.blp:28
+#: src/merge-conflict-dialog.blp:24 src/operation-progress-dialog.blp:40
 msgid "_Cancel"
 msgstr "_Cancelar"
 
-#: src/date-range-dialog.blp
+#: src/date-range-dialog.blp:54
 msgid "Date Range"
 msgstr "Intervalo de datas"
 
-#: src/date-range-dialog.blp
+#: src/date-range-dialog.blp:55
 msgid "Show only commits authored within this period (YYYY-MM-DD)"
 msgstr "Mostrar apenas commits criados dentro deste período (AAAA-MM-DD)"
 
-#: src/date-range-dialog.blp
+#: src/date-range-dialog.blp:58
 msgid "From"
 msgstr "De"
 
-#: src/date-range-dialog.blp
+#: src/date-range-dialog.blp:64
 msgid "To"
 msgstr "Até"
 
-#: src/date-range-dialog.blp
+#: src/date-range-dialog.blp:74
 msgid "Invalid date"
 msgstr "Data inválida"
 
-#: src/date-range-dialog.blp
+#: src/date-range-dialog.blp:75
 msgid "Use the format YYYY-MM-DD, e.g. 2026-01-15"
 msgstr "Use o formato AAAA-MM-DD, por exemplo, 2026-01-15"
 
-#: src/date-range-dialog.blp
+#: src/date-range-dialog.blp:84
 msgid "_Apply Filter"
 msgstr "_Aplicar filtro"
 
-#: src/file-grid-captions-dialog.blp
+#: src/file-grid-captions-dialog.blp:13
 msgid "Grid Captions"
 msgstr "Legendas da grade"
 
-#: src/file-grid-captions-dialog.blp
+#: src/file-grid-captions-dialog.blp:30
 msgid "Visible Captions"
 msgstr "Legendas visíveis"
 
-#: src/file-grid-captions-dialog.blp
+#: src/file-grid-captions-dialog.blp:31
 msgid "Choose which information appears below each file in grid view."
 msgstr ""
 "Escolha quais informações aparecem abaixo de cada arquivo na visualização em "
 "grade."
 
-#: src/file-grid-captions-dialog.blp
+#: src/file-grid-captions-dialog.blp:35
 msgid "Added, Modified or Deleted"
 msgstr "Adicionado, modificado ou excluído"
 
-#: src/file-grid-captions-dialog.blp
+#: src/file-grid-captions-dialog.blp:43
 msgid "File Size"
 msgstr "Tamanho do arquivo"
 
-#: src/file-grid-captions-dialog.blp
+#: src/file-grid-captions-dialog.blp:47
 msgid "Date Modified"
 msgstr "Data de modificação"
 
-#: src/file-list-view.blp src/views/file-list-view.blp
+#: src/file-list-view.blp:38 src/views/file-list-view.blp:38
 msgid "No Files"
 msgstr "Nenhum arquivo"
 
-#: src/file-list-view.blp src/views/file-list-view.blp
+#: src/file-list-view.blp:39 src/views/file-list-view.blp:39
 msgid "Select a commit to see its files."
 msgstr "Selecione um commit para ver seus arquivos."
 
-#: src/filter-types-dialog.blp
+#: src/filter-types-dialog.blp:14
 msgid "Add File Type Filter"
 msgstr "Adicionar filtro de tipo de arquivo"
 
-#: src/filter-types-dialog.blp
+#: src/filter-types-dialog.blp:36
 msgid "_Add"
 msgstr "_Adicionar"
 
-#: src/filter-types-dialog.blp
-msgid "Search extensions, e.g. rs, py, tsâ¦"
+#: src/filter-types-dialog.blp:51
+#, fuzzy
+msgid "Search extensions, e.g. rs, py, ts…"
 msgstr "Extensões de pesquisa, por exemplo, rs, py, ts…"
 
-#: src/filter-types-dialog.blp
+#: src/filter-types-dialog.blp:64
 msgid "Filter by File Type"
 msgstr "Filtrar por tipo de arquivo"
 
-#: src/filter-types-dialog.blp
+#: src/filter-types-dialog.blp:65
 msgid "Type an extension to add a filter, or choose from common types below."
 msgstr ""
 "Digite uma extensão para adicionar um filtro ou escolha entre os tipos "
 "comuns abaixo."
 
-#: src/filter-types-dialog.blp
+#: src/filter-types-dialog.blp:73
 msgid "Common types"
 msgstr "Tipos comuns"
 
-#: src/filter-types-dialog.blp
+#: src/filter-types-dialog.blp:99
 msgid "No Types Found"
 msgstr "Nenhum tipo encontrado"
 
-#: src/filter-types-dialog.blp
+#: src/filter-types-dialog.blp:100
 msgid "Try a different search, or press Enter to add a custom extension."
 msgstr ""
 "Tente uma pesquisa diferente ou pressione Enter para adicionar uma extensão "
 "personalizada."
 
-#: src/history-controls.blp src/window.blp
+#: src/history-controls.blp:12 src/window.blp:21
 msgid "Back"
 msgstr "Voltar"
 
-#: src/history-controls.blp
+#: src/history-controls.blp:19
 msgid "Forward"
 msgstr "Avançar"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:11 src/merge-conflict-dialog.blp:30
 msgid "Merge Conflict"
 msgstr "Conflito de merge"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:31
 msgid "Choose how to resolve this conflict"
 msgstr "Escolha como resolver este conflito"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:41
 msgid "This file has conflicting changes from both sides of the merge."
 msgstr "Este arquivo tem alterações conflitantes dos dois lados do merge."
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:42
 msgid "Show Diff"
 msgstr "Mostrar diff"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:56
 msgid "Conflicted File"
 msgstr "Arquivo em conflito"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:59
 msgid "Path"
 msgstr "Caminho"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:84
 msgid "Ours (HEAD)"
 msgstr "Nosso (HEAD)"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:93 src/merge-conflict-dialog.blp:124
 msgid "Commit"
 msgstr "Commit"
 
-#: src/merge-conflict-dialog.blp src/search-filter-popover.blp
+#: src/merge-conflict-dialog.blp:98 src/merge-conflict-dialog.blp:129
+#: src/search-filter-popover.blp:224
 msgid "Author"
 msgstr "Autor"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:102 src/merge-conflict-dialog.blp:133
 msgid "Date"
 msgstr "Data"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:115
 msgid "Theirs (Incoming)"
 msgstr "Deles (entrada)"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:142
 msgid "Show conflict diff"
 msgstr "Mostrar diff do conflito"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:164
 msgid "_Apply this resolution to all conflicting files"
 msgstr "_Aplicar esta resolução a todos os arquivos conflitantes"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:183
 msgid "Use _Ours"
 msgstr "Usar _nosso"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:191
 msgid "Use _Theirs"
 msgstr "Usar _deles"
 
-#: src/merge-conflict-dialog.blp
+#: src/merge-conflict-dialog.blp:199
 msgid "Keep _Both"
 msgstr "Manter _ambos"
 
-#: src/new-branch-dialog.blp src/toolbar.blp
+#: src/new-branch-dialog.blp:5 src/toolbar.blp:126 src/toolbar.blp:141
 msgid "New Branch"
 msgstr "Nova branch"
 
-#: src/new-branch-dialog.blp
+#: src/new-branch-dialog.blp:24
 msgid "Branch Details"
 msgstr "Detalhes da branch"
 
-#: src/new-branch-dialog.blp
+#: src/new-branch-dialog.blp:27
 msgid "Branch Name"
 msgstr "Nome da branch"
 
-#: src/new-branch-dialog.blp
+#: src/new-branch-dialog.blp:42
 msgid "Create Branch"
 msgstr "Criar branch"
 
-#: src/node-properties-dialog.blp
+#: src/node-properties-dialog.blp:18
 msgid "Favorite"
 msgstr "Favorito"
 
-#: src/node-properties-dialog.blp
+#: src/node-properties-dialog.blp:25
 msgid "Open Location"
 msgstr "Abrir localização"
 
-#: src/node-properties-dialog.blp
+#: src/node-properties-dialog.blp:64
 msgid "Snapshot item"
 msgstr "Item do snapshot"
 
-#: src/node-properties-dialog.blp
+#: src/node-properties-dialog.blp:128
 msgid "Copy Path"
 msgstr "Copiar caminho"
 
-#: src/node-properties-dialog.blp
+#: src/node-properties-dialog.blp:176
 msgid "Modified"
 msgstr "Modificado"
 
-#: src/node-properties-dialog.blp
+#: src/node-properties-dialog.blp:199
 msgid "Created"
 msgstr "Criado"
 
-#: src/node-properties-dialog.blp
+#: src/node-properties-dialog.blp:227
 msgid "Permissions"
 msgstr "Permissões"
 
-#: src/node-properties-dialog.blp
+#: src/node-properties-dialog.blp:256
 msgid "Git Snapshot"
 msgstr "Snapshot do Git"
 
-#: src/node-properties-dialog.blp
+#: src/node-properties-dialog.blp:295
 msgid "Copy Details"
 msgstr "Copiar detalhes"
 
-#: src/operation-progress-dialog.blp
+#: src/operation-progress-dialog.blp:5 src/operation-progress-dialog.blp:16
 msgid "Working"
 msgstr "Trabalhando"
 
-#: src/operation-progress-dialog.blp
-msgid "Preparingâ¦"
+#: src/operation-progress-dialog.blp:29
+#, fuzzy
+msgid "Preparing…"
 msgstr "Preparando…"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:15
 msgid "General"
 msgstr "Geral"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:20
 msgid "Behaviour when opening and loading repositories."
 msgstr "Comportamento ao abrir e carregar repositórios."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:23
 msgid "_Fetch on Open"
 msgstr "_Buscar ao abrir"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:24
 msgid "Run git fetch automatically when a repository is opened."
 msgstr "Executar git fetch automaticamente quando um repositório for aberto."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:29
 msgid "_Commits per Page"
 msgstr "_Commits por página"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:30
 msgid "Number of commits loaded in each batch."
 msgstr "Número de commits carregados em cada lote."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:42
 msgid "_Default Branch"
 msgstr "Branch _padrão"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:47
 msgid "Shallow Clone _Depth"
 msgstr "_Profundidade do clone raso"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:48
 msgid "Set to 0 to clone the full history."
 msgstr "Defina como 0 para clonar todo o histórico."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:61
 msgid "Date and Time"
 msgstr "Data e hora"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:62
 msgid "Choose how commit timestamps are displayed."
 msgstr "Escolha como os horários dos commits serão exibidos."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:65
 msgid "_Relative"
 msgstr "_Relativo"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:66
 msgid "e.g. \\\"3 days ago\\\""
 msgstr "ex.: \\\"há 3 dias\\\""
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:80
 msgid "_Short"
 msgstr "_Curto"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:81
 msgid "e.g. \\\"13 Jun 2026\\\""
 msgstr "ex.: \\\"13 jun 2026\\\""
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:96
 msgid "_ISO 8601"
 msgstr "_ISO 8601"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:97
 msgid "e.g. \\\"2026-06-13 14:30:00\\\""
 msgstr "ex.: \\\"2026-06-13 14:30:00\\\""
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:115
 msgid "Appearance"
 msgstr "Aparência"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:119
 msgid "Commit List"
 msgstr "Lista de commits"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:122
 msgid "_Default View"
 msgstr "Visualização _padrão"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:123
 msgid "Layout used when a repository is first opened."
 msgstr "Layout usado quando um repositório é aberto pela primeira vez."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:128
 msgid "List"
 msgstr "Lista"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:129
 msgid "Grid"
 msgstr "Grade"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:135
 msgid "Show _Author Avatars"
 msgstr "Mostrar avatares dos _autores"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:136
 msgid "Display Gravatar / Git author avatar in the commit list."
 msgstr "Exibir avatar do Gravatar / autor do Git na lista de commits."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:141
 msgid "_Dense Mode"
 msgstr "Modo _compacto"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:142
 msgid "Reduce row height for more commits on screen at once."
 msgstr ""
 "Reduzir a altura das linhas para mostrar mais commits na tela de uma vez."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:147
 msgid "Show Branch _Graph"
 msgstr "Mostrar _gráfico de branches"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:148
 msgid "Render the commit graph lines in the timeline."
 msgstr "Renderizar as linhas do gráfico de commits na linha do tempo."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:154
 msgid "Diff View"
 msgstr "Visualização de diff"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:157
 msgid "_Syntax Highlighting"
 msgstr "Realce de _sintaxe"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:158
 msgid "Highlight diff output using language-specific colours."
 msgstr "Realçar a saída do diff usando cores específicas da linguagem."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:163
 msgid "_Word-level Diff"
 msgstr "Diff por _palavra"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:164
 msgid "Highlight individual changed words within lines."
 msgstr "Realçar palavras alteradas individualmente dentro das linhas."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:169
 msgid "_Context Lines"
 msgstr "Linhas de _contexto"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:170
 msgid "Unchanged lines shown above and below each diff hunk."
 msgstr "Linhas sem alteração mostradas acima e abaixo de cada bloco de diff."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:185
 msgid "Advanced"
 msgstr "Avançado"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:189
 msgid "Git"
 msgstr "Git"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:192
 msgid "_Verify Commit Signatures"
 msgstr "_Verificar assinaturas dos commits"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:193
 msgid "Show GPG/SSH signature status in the commit detail."
 msgstr "Mostrar o status da assinatura GPG/SSH nos detalhes do commit."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:198
 msgid "_Follow Renames"
 msgstr "_Seguir renomeações"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:199
 msgid "Track file history across renames when loading diffs."
 msgstr ""
 "Rastrear o histórico de arquivos através de renomeações ao carregar diffs."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:204
 msgid "Include _Submodules"
 msgstr "Incluir _submódulos"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:205
 msgid "List commits from submodule repositories as well."
 msgstr "Listar também commits de repositórios de submódulos."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:210
 msgid "_Git Binary Path"
 msgstr "Caminho do binário do _Git"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:216
 msgid "Performance"
 msgstr "Desempenho"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:219
 msgid "_Background Fetch"
 msgstr "Busca em _segundo plano"
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:220
 msgid "Periodically refresh remote tracking branches in the background."
 msgstr ""
 "Atualizar periodicamente as branches remotas de rastreamento em segundo "
 "plano."
 
-#: src/preferences-dialog.blp
+#: src/preferences-dialog.blp:225
 msgid "Fetch _Interval (minutes)"
 msgstr "_Intervalo de busca (minutos)"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:33
 msgid "File Types"
 msgstr "Tipos de arquivo"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:48
 msgid "Audio"
 msgstr "Áudio"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:56
 msgid "Documents"
 msgstr "Documentos"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:64
 msgid "Folders"
 msgstr "Pastas"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:72
 msgid "Images"
 msgstr "Imagens"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:88
 msgid "Text"
 msgstr "Texto"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:96
 msgid "Videos"
 msgstr "Vídeos"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:102
 msgid "Specific Type"
 msgstr "Tipo específico"
 
-#: src/search-filter-popover.blp src/view-controls.blp
+#: src/search-filter-popover.blp:117 src/view-controls.blp:37
 msgid "Last Modified"
 msgstr "Última modificação"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:126
 msgid "Clear Date Filter"
 msgstr "Limpar filtro de data"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:138
 msgid "_Today"
 msgstr "_Hoje"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:144
 msgid "_Yesterday"
 msgstr "_Ontem"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:150
 msgid "Past _Week"
 msgstr "Última _semana"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:156
 msgid "Past _Month"
 msgstr "Último _mês"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:162
 msgid "Past Y_ear"
 msgstr "Último _ano"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:188
 msgid "Text Matching"
 msgstr "Correspondência de texto"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:200
 msgid "Content & Filename"
 msgstr "Conteúdo e nome do arquivo"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:201
 msgid "Search commit text and changed file names"
 msgstr "Pesquisar texto de commits e nomes de arquivos alterados"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:206
 msgid "Only Filename"
 msgstr "Somente nome do arquivo"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:207
 msgid "Filename-only search is not enabled yet"
 msgstr "A pesquisa somente por nome de arquivo ainda não está habilitada"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:233
 msgid "Clear Author Filter"
 msgstr "Limpar filtro de autor"
 
-#: src/search-filter-popover.blp
-msgid "Filter by author name or emailâ¦"
+#: src/search-filter-popover.blp:240
+#, fuzzy
+msgid "Filter by author name or email…"
 msgstr "Filtrar por nome do autor ou e-mail…"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:266
 msgid "Branch"
 msgstr "Branch"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:275
 msgid "Clear Branch Filter"
 msgstr "Limpar filtro de branch"
 
-#: src/search-filter-popover.blp
+#: src/search-filter-popover.blp:292
 msgid "Reset Filters"
 msgstr "Redefinir filtros"
 
-#: src/select-commits-by-pattern.blp
+#: src/select-commits-by-pattern.blp:18
 msgid "Select Commits by Pattern"
 msgstr "Selecionar commits por padrão"
 
-#: src/select-commits-by-pattern.blp
+#: src/select-commits-by-pattern.blp:36
 msgid "File Path Pattern"
 msgstr "Padrão de caminho de arquivo"
 
-#: src/select-commits-by-pattern.blp
+#: src/select-commits-by-pattern.blp:37
 msgid "Glob syntax: * matches any string, ** crosses directories."
 msgstr "Sintaxe glob: * corresponde a qualquer texto, ** atravessa diretórios."
 
-#: src/select-commits-by-pattern.blp
+#: src/select-commits-by-pattern.blp:40
 msgid "Pattern"
 msgstr "Padrão"
 
-#: src/select-commits-by-pattern.blp
+#: src/select-commits-by-pattern.blp:49
 msgid "Options"
 msgstr "Opções"
 
-#: src/select-commits-by-pattern.blp
+#: src/select-commits-by-pattern.blp:52
 msgid "Match mode"
 msgstr "Modo de correspondência"
 
-#: src/select-commits-by-pattern.blp
+#: src/select-commits-by-pattern.blp:55
 msgid "Any changed file matches"
 msgstr "Qualquer arquivo alterado corresponde"
 
-#: src/select-commits-by-pattern.blp
+#: src/select-commits-by-pattern.blp:56
 msgid "All changed files match"
 msgstr "Todos os arquivos alterados correspondem"
 
-#: src/select-commits-by-pattern.blp
+#: src/select-commits-by-pattern.blp:62
 msgid "Case insensitive"
 msgstr "Ignorar maiúsculas/minúsculas"
 
-#: src/select-commits-by-pattern.blp
+#: src/select-commits-by-pattern.blp:100
 msgid "Select Commits"
 msgstr "Selecionar commits"
 
-#: src/ssh-passphrase-dialog.blp
+#: src/ssh-passphrase-dialog.blp:5
 msgid "Authentication Required"
 msgstr "Autenticação necessária"
 
-#: src/ssh-passphrase-dialog.blp
+#: src/ssh-passphrase-dialog.blp:25
 msgid "Enter Passphrase"
 msgstr "Digite a frase secreta"
 
-#: src/ssh-passphrase-dialog.blp
+#: src/ssh-passphrase-dialog.blp:26
 msgid "This repository requires authentication."
 msgstr "Este repositório requer autenticação."
 
-#: src/ssh-passphrase-dialog.blp
+#: src/ssh-passphrase-dialog.blp:31
 msgid "Passphrase"
 msgstr "Frase secreta"
 
-#: src/ssh-passphrase-dialog.blp
+#: src/ssh-passphrase-dialog.blp:46
 msgid "Confirm"
 msgstr "Confirmar"
 
-#: src/toolbar.blp
+#: src/toolbar.blp:9
 msgid "Show Sidebar"
 msgstr "Mostrar barra lateral"
 
-#: src/toolbar.blp
-msgid "Type a path and press Enterâ¦"
+#: src/toolbar.blp:56
+#, fuzzy
+msgid "Type a path and press Enter…"
 msgstr "Digite um caminho e pressione Enter…"
 
-#: src/toolbar.blp src/window.blp
-msgid "Search commits, hash, dateâ¦"
+#: src/toolbar.blp:76 src/window.blp:45
+#, fuzzy
+msgid "Search commits, hash, date…"
 msgstr "Pesquisar commits, hash, data…"
 
-#: src/toolbar.blp src/window.blp
+#: src/toolbar.blp:81 src/window.blp:52
 msgid "Filters"
 msgstr "Filtros"
 
-#: src/toolbar.blp
+#: src/toolbar.blp:86
 msgid "Close Search"
 msgstr "Fechar pesquisa"
 
-#: src/toolbar.blp
+#: src/toolbar.blp:94
 msgid "Search Current Folder"
 msgstr "Pesquisar pasta atual"
 
-#: src/toolbar.blp
+#: src/toolbar.blp:108
 msgid "Main Menu"
 msgstr "Menu principal"
 
-#: src/toolbar.blp
+#: src/toolbar.blp:148
 msgid "Reload"
 msgstr "Recarregar"
 
-#: src/toolbar.blp src/view-controls.blp
-msgid "Captionsâ¦"
-msgstr "Legendas…"
-
-#: src/toolbar.blp
+#: src/toolbar.blp:204
 msgid "Preferences"
 msgstr "Preferências"
 
-#: src/toolbar.blp
+#: src/toolbar.blp:209
 msgid "Keyboard Shortcuts"
 msgstr "Atalhos de teclado"
 
-#: src/toolbar.blp
+#: src/toolbar.blp:214
 msgid "About Temporal Explorer"
 msgstr "Sobre o Temporal Explorer"
 
-#: src/view-controls.blp
+#: src/view-controls.blp:9
 msgid "Icon Size"
 msgstr "Tamanho do ícone"
 
-#: src/view-controls.blp
+#: src/view-controls.blp:22
 msgid "Sort"
 msgstr "Ordenar"
 
-#: src/view-controls.blp
+#: src/view-controls.blp:25
 msgid "A-Z"
 msgstr "A-Z"
 
-#: src/view-controls.blp
+#: src/view-controls.blp:31
 msgid "Z-A"
 msgstr "Z-A"
 
-#: src/view-controls.blp
+#: src/view-controls.blp:43
 msgid "First Modified"
 msgstr "Primeira modificação"
 
-#: src/view-controls.blp
+#: src/view-controls.blp:63
 msgid "Show _Hidden Files"
 msgstr "Mostrar arquivos _ocultos"
 
-#: src/view-controls.blp
+#: src/view-controls.blp:87
 msgid "View Options"
 msgstr "Opções de visualização"
 
-#: src/view-controls.blp
+#: src/view-controls.blp:97
 msgid "Zoom Out"
 msgstr "Reduzir zoom"
 
-#: src/view-controls.blp
+#: src/view-controls.blp:106
 msgid "Zoom In"
 msgstr "Aumentar zoom"
 
-#: src/window.blp
+#: src/window.blp:5 src/window.blp:123
 msgid "Temporal Explorer"
 msgstr "Temporal Explorer"
 
-#: src/window.blp
+#: src/window.blp:124
 msgid "No repository selected"
 msgstr "Nenhum repositório selecionado"
 
-#: src/window.blp
+#: src/window.blp:130
 msgid "No Snapshot Selected"
 msgstr "Nenhum snapshot selecionado"
 
-#: src/window.blp
+#: src/window.blp:131
 msgid ""
 "Open a Git repository and select a commit from the timeline to browse its "
 "file tree."
@@ -1503,17 +1506,20 @@ msgstr ""
 "Abra um repositório Git e selecione um commit na linha do tempo para navegar "
 "pela árvore de arquivos."
 
-#: src/window.blp
+#: src/window.blp:176
 msgid "_Preferences"
 msgstr "_Preferências"
 
-#: src/window.blp
+#: src/window.blp:180
 msgid "_Keyboard Shortcuts"
 msgstr "_Atalhos de teclado"
 
-#: src/window.blp
+#: src/window.blp:184
 msgid "_About Temporal Explorer"
 msgstr "_Sobre o Temporal Explorer"
+
+#~ msgid "Captionsâ¦"
+#~ msgstr "Legendas…"
 
 #~ msgid "Select All in grid view requires the GridView selection backend"
 #~ msgstr ""

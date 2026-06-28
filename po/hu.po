@@ -2,13 +2,14 @@ msgid ""
 msgstr ""
 "Project-Id-Version: temporal-explorer 0.1.0\n"
 "POT-Creation-Date: 2026-06-28 00:13-0300\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"PO-Revision-Date: 2026-06-28 00:06-0300\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: hu\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/application.rs:135
 msgid "translator-credits"
@@ -183,14 +184,12 @@ msgid "Type"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:227
-#: src/column-chooser.blp:37
-#: src/view-controls.blp:49
+#: src/column-chooser.blp:37 src/view-controls.blp:49
 msgid "Size"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:229
-#: src/node-properties-dialog.blp:149
-#: src/preferences-dialog.blp:19
+#: src/node-properties-dialog.blp:149 src/preferences-dialog.blp:19
 msgid "Repository"
 msgstr ""
 
@@ -458,8 +457,7 @@ msgid "applied to all"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2186
-#: src/toolbar.blp:118
-#: src/toolbar.blp:136
+#: src/toolbar.blp:118 src/toolbar.blp:136
 msgid "Open Repository"
 msgstr ""
 
@@ -503,8 +501,7 @@ msgid "Clear Selection"
 msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3144
-#: src/toolbar.blp:190
-#: src/view-controls.blp:71
+#: src/toolbar.blp:190 src/view-controls.blp:71
 msgid "Captions…"
 msgstr ""
 
@@ -526,8 +523,7 @@ msgstr ""
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3163
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3220
-#: src/node-properties-dialog.blp:5
-#: src/toolbar.blp:197
+#: src/node-properties-dialog.blp:5 src/toolbar.blp:197
 msgid "Properties"
 msgstr ""
 
@@ -724,10 +720,8 @@ msgstr ""
 msgid "Preview"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:182
-#: src/new-branch-dialog.blp:37
-#: src/select-commits-by-pattern.blp:95
-#: src/ssh-passphrase-dialog.blp:41
+#: src/batch-operations-dialog.blp:182 src/new-branch-dialog.blp:37
+#: src/select-commits-by-pattern.blp:95 src/ssh-passphrase-dialog.blp:41
 #: src/toolbar.blp:63
 msgid "Cancel"
 msgstr ""
@@ -768,8 +762,7 @@ msgstr ""
 msgid "Choose which columns to show in list view."
 msgstr ""
 
-#: src/column-chooser.blp:31
-#: src/file-grid-captions-dialog.blp:34
+#: src/column-chooser.blp:31 src/file-grid-captions-dialog.blp:34
 msgid "Status"
 msgstr ""
 
@@ -777,13 +770,11 @@ msgstr ""
 msgid "Added / Modified / Deleted"
 msgstr ""
 
-#: src/column-chooser.blp:42
-#: src/file-grid-captions-dialog.blp:39
+#: src/column-chooser.blp:42 src/file-grid-captions-dialog.blp:39
 msgid "Extension"
 msgstr ""
 
-#: src/column-chooser.blp:55
-#: src/file-grid-captions-dialog.blp:59
+#: src/column-chooser.blp:55 src/file-grid-captions-dialog.blp:59
 msgid "Apply"
 msgstr ""
 
@@ -791,8 +782,7 @@ msgstr ""
 msgid "Copy commit SHA"
 msgstr ""
 
-#: src/date-range-dialog.blp:28
-#: src/search-filter-popover.blp:174
+#: src/date-range-dialog.blp:28 src/search-filter-popover.blp:174
 msgid "Custom Date Range"
 msgstr ""
 
@@ -800,10 +790,8 @@ msgstr ""
 msgid "Filter by Date Range"
 msgstr ""
 
-#: src/date-range-dialog.blp:45
-#: src/filter-types-dialog.blp:28
-#: src/merge-conflict-dialog.blp:24
-#: src/operation-progress-dialog.blp:40
+#: src/date-range-dialog.blp:45 src/filter-types-dialog.blp:28
+#: src/merge-conflict-dialog.blp:24 src/operation-progress-dialog.blp:40
 msgid "_Cancel"
 msgstr ""
 
@@ -859,13 +847,11 @@ msgstr ""
 msgid "Date Modified"
 msgstr ""
 
-#: src/file-list-view.blp:38
-#: src/views/file-list-view.blp:38
+#: src/file-list-view.blp:38 src/views/file-list-view.blp:38
 msgid "No Files"
 msgstr ""
 
-#: src/file-list-view.blp:39
-#: src/views/file-list-view.blp:39
+#: src/file-list-view.blp:39 src/views/file-list-view.blp:39
 msgid "Select a commit to see its files."
 msgstr ""
 
@@ -901,8 +887,7 @@ msgstr ""
 msgid "Try a different search, or press Enter to add a custom extension."
 msgstr ""
 
-#: src/history-controls.blp:12
-#: src/window.blp:21
+#: src/history-controls.blp:12 src/window.blp:21
 msgid "Back"
 msgstr ""
 
@@ -910,8 +895,7 @@ msgstr ""
 msgid "Forward"
 msgstr ""
 
-#: src/merge-conflict-dialog.blp:11
-#: src/merge-conflict-dialog.blp:30
+#: src/merge-conflict-dialog.blp:11 src/merge-conflict-dialog.blp:30
 msgid "Merge Conflict"
 msgstr ""
 
@@ -939,19 +923,16 @@ msgstr ""
 msgid "Ours (HEAD)"
 msgstr ""
 
-#: src/merge-conflict-dialog.blp:93
-#: src/merge-conflict-dialog.blp:124
+#: src/merge-conflict-dialog.blp:93 src/merge-conflict-dialog.blp:124
 msgid "Commit"
 msgstr ""
 
-#: src/merge-conflict-dialog.blp:98
-#: src/merge-conflict-dialog.blp:129
+#: src/merge-conflict-dialog.blp:98 src/merge-conflict-dialog.blp:129
 #: src/search-filter-popover.blp:224
 msgid "Author"
 msgstr ""
 
-#: src/merge-conflict-dialog.blp:102
-#: src/merge-conflict-dialog.blp:133
+#: src/merge-conflict-dialog.blp:102 src/merge-conflict-dialog.blp:133
 msgid "Date"
 msgstr ""
 
@@ -979,9 +960,7 @@ msgstr ""
 msgid "Keep _Both"
 msgstr ""
 
-#: src/new-branch-dialog.blp:5
-#: src/toolbar.blp:126
-#: src/toolbar.blp:141
+#: src/new-branch-dialog.blp:5 src/toolbar.blp:126 src/toolbar.blp:141
 msgid "New Branch"
 msgstr ""
 
@@ -1033,8 +1012,7 @@ msgstr ""
 msgid "Copy Details"
 msgstr ""
 
-#: src/operation-progress-dialog.blp:5
-#: src/operation-progress-dialog.blp:16
+#: src/operation-progress-dialog.blp:5 src/operation-progress-dialog.blp:16
 msgid "Working"
 msgstr ""
 
@@ -1270,8 +1248,7 @@ msgstr ""
 msgid "Specific Type"
 msgstr ""
 
-#: src/search-filter-popover.blp:117
-#: src/view-controls.blp:37
+#: src/search-filter-popover.blp:117 src/view-controls.blp:37
 msgid "Last Modified"
 msgstr ""
 
@@ -1407,13 +1384,11 @@ msgstr ""
 msgid "Type a path and press Enter…"
 msgstr ""
 
-#: src/toolbar.blp:76
-#: src/window.blp:45
+#: src/toolbar.blp:76 src/window.blp:45
 msgid "Search commits, hash, date…"
 msgstr ""
 
-#: src/toolbar.blp:81
-#: src/window.blp:52
+#: src/toolbar.blp:81 src/window.blp:52
 msgid "Filters"
 msgstr ""
 
@@ -1481,8 +1456,7 @@ msgstr ""
 msgid "Zoom In"
 msgstr ""
 
-#: src/window.blp:5
-#: src/window.blp:123
+#: src/window.blp:5 src/window.blp:123
 msgid "Temporal Explorer"
 msgstr ""
 
@@ -1495,7 +1469,9 @@ msgid "No Snapshot Selected"
 msgstr ""
 
 #: src/window.blp:131
-msgid "Open a Git repository and select a commit from the timeline to browse its file tree."
+msgid ""
+"Open a Git repository and select a commit from the timeline to browse its "
+"file tree."
 msgstr ""
 
 #: src/window.blp:176
@@ -1509,4 +1485,3 @@ msgstr ""
 #: src/window.blp:184
 msgid "_About Temporal Explorer"
 msgstr ""
-

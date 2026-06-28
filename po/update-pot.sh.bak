@@ -30,128 +30,18 @@ LINGUAS_FILE="$PO_DIR/LINGUAS"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# ── Dependency check ─────────────────────────────────────────────────────────
-REQUIRED_CMDS=(
-    date
-    find
-    grep
-    mktemp
-    python3
-    sed
-    sort
-    xgettext
-    msginit
-    msgmerge
-)
-
-for cmd in "${REQUIRED_CMDS[@]}"; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
-        echo "Error: required command not found: $cmd" >&2
-        exit 1
-    fi
-done
-
-mkdir -p "$PO_DIR"
-[[ -f "$LINGUAS_FILE" ]] || touch "$LINGUAS_FILE"
-
 echo "=== Temporal Explorer — regenerating .pot ==="
 echo ""
 
 PKG_VER=$(grep -m1 '^version' "$ROOT/Cargo.toml" | sed 's/.*= *"//;s/"//')
 DATE=$(date +"%Y-%m-%d %H:%M%z")
 
-# ── Helpers ─────────────────────────────────────────────────────────────────
-count_po_entries() {
-    local file="$1"
-
-    [[ -s "$file" ]] || {
-        echo 0
-        return
-    }
-
-    python3 - "$file" << 'PYEOF'
-import ast
-import re
-import sys
-
-path = sys.argv[1]
-
-with open(path, encoding="utf-8", errors="replace") as f:
-    content = f.read().strip()
-
-if not content:
-    print(0)
-    raise SystemExit
-
-blocks = re.split(r"\n{2,}", content)
-count = 0
-
-def decode_po_literal(value: str) -> str:
-    try:
-        return ast.literal_eval(value)
-    except Exception:
-        return value.strip('"')
-
-for block in blocks:
-    lines = block.splitlines()
-
-    for i, line in enumerate(lines):
-        if not line.startswith("msgid "):
-            continue
-
-        parts = []
-        first = line[6:].strip()
-
-        if first.startswith('"'):
-            parts.append(first)
-
-        j = i + 1
-        while j < len(lines) and lines[j].startswith('"'):
-            parts.append(lines[j].strip())
-            j += 1
-
-        msgid = "".join(decode_po_literal(part) for part in parts)
-
-        # Do not count the PO/POT header.
-        if msgid != "":
-            count += 1
-
-        break
-
-print(count)
-PYEOF
-}
-
-clean_linguas_file() {
-    local file="$1"
-
-    [[ -f "$file" ]] || return 0
-
-    sed 's/#.*//' "$file" \
-        | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
-        | sed '/^$/d' \
-        | LC_ALL=C sort -u
-}
-
-write_sorted_linguas() {
-    local file="$1"
-    shift
-
-    {
-        echo "# Please keep this file sorted alphabetically."
-        echo ""
-        printf '%s\n' "$@" | sed '/^$/d' | LC_ALL=C sort -u
-    } > "$file"
-}
-
 # ── 1. Rust files ───────────────────────────────────────────────────────────────
 echo "[1/6] Scanning Rust files (.rs with gettext())..."
 mapfile -t RUST_FILES < <(
-    while IFS= read -r -d '' f; do
-        if grep -q -- 'gettext(' "$f"; then
-            printf '%s\n' "$f"
-        fi
-    done < <(find "$ROOT/src" -type f -name "*.rs" -print0) | LC_ALL=C sort
+    find "$ROOT/src" -name "*.rs" -type f \
+    | xargs grep -l 'gettext(' 2>/dev/null \
+    | sort
 )
 echo "   → ${#RUST_FILES[@]} .rs files found"
 
@@ -165,7 +55,7 @@ if [[ ${#RUST_FILES[@]} -gt 0 ]]; then
         --package-version="$PKG_VER" \
         --output="$TMP/rust.pot" \
         "${RUST_FILES[@]}" 2>/dev/null
-    RS_COUNT=$(count_po_entries "$TMP/rust.pot")
+    RS_COUNT=$(grep -c '^msgid ' "$TMP/rust.pot" 2>/dev/null || echo 0)
     echo "   → rust.pot: $RS_COUNT entries"
 else
     touch "$TMP/rust.pot"
@@ -174,16 +64,13 @@ fi
 # ── 2. Blueprint files (.blp) ───────────────────────────────────────────────────
 echo "[2/6] Scanning Blueprint files (.blp with _(\"...\"))..."
 mapfile -t BLP_FILES < <(
-    while IFS= read -r -d '' f; do
-        if grep -q -- '_("' "$f"; then
-            printf '%s\n' "$f"
-        fi
-    done < <(find "$ROOT/src" -type f -name "*.blp" -print0) | LC_ALL=C sort
+    find "$ROOT/src" -name "*.blp" -type f \
+    | xargs grep -l '_("' 2>/dev/null \
+    | sort
 )
 echo "   → ${#BLP_FILES[@]} .blp files found"
 
 python3 - "$ROOT" "${BLP_FILES[@]}" > "$TMP/blp.entries" << 'PYEOF'
-import ast
 import re
 import sys
 from pathlib import Path
@@ -212,28 +99,24 @@ for blp in files:
 
         # Decode Blueprint-style escapes, then re-escape for PO syntax.
         try:
-            decoded = ast.literal_eval(f'"{raw}"')
-        except Exception:
+            decoded = bytes(raw, "utf-8").decode("unicode_escape")
+        except UnicodeDecodeError:
             decoded = raw
 
-        line_no = content.count("\n", 0, match.start()) + 1
-
-        print(f"#: {rel}:{line_no}")
+        print(f"#: {rel}")
         print(f'msgid "{po_escape(decoded)}"')
         print('msgstr ""')
         print()
 PYEOF
-BLP_COUNT=$(count_po_entries "$TMP/blp.entries")
+BLP_COUNT=$(grep -c '^msgid ' "$TMP/blp.entries" 2>/dev/null || echo 0)
 echo "   → blp.entries: $BLP_COUNT entries"
 
 # ── 3. Native UI files (.ui with translatable="yes") ────────────────────────
 echo "[3/6] Scanning native UI files (.ui with translatable=\"yes\")..."
 mapfile -t UI_FILES < <(
-    while IFS= read -r -d '' f; do
-        if grep -q -- 'translatable="yes"' "$f"; then
-            printf '%s\n' "$f"
-        fi
-    done < <(find "$ROOT/src" -type f -name "*.ui" -print0) | LC_ALL=C sort
+    find "$ROOT/src" -name "*.ui" -type f \
+    | xargs grep -l 'translatable="yes"' 2>/dev/null \
+    | sort
 )
 echo "   → ${#UI_FILES[@]} .ui files found"
 
@@ -248,7 +131,7 @@ if [[ ${#UI_FILES[@]} -gt 0 ]]; then
         "${UI_FILES[@]}" 2>/dev/null || true
 fi
 [[ -f "$TMP/ui.pot" ]] || touch "$TMP/ui.pot"
-UI_COUNT=$(count_po_entries "$TMP/ui.pot")
+UI_COUNT=$(grep -c '^msgid ' "$TMP/ui.pot" 2>/dev/null || echo 0)
 echo "   → ui.pot: $UI_COUNT entries"
 
 # ── 4. Merge via Python (sem dependencia de msgcat) ────────────────────────────
@@ -321,7 +204,7 @@ with open(out_path, 'w', encoding='utf-8') as f:
 print(f'   → {out_path} written ({len(ordered)} total entries)')
 PYEOF
 
-TOTAL=$(count_po_entries "$OUT")
+TOTAL=$(grep -c '^msgid ' "$OUT" 2>/dev/null || echo 0)
 
 # ── 5. Update POTFILES.in ────────────────────────────────────────────────────────
 echo "[5/6] Updating POTFILES.in..."
@@ -344,12 +227,11 @@ echo "   → POTFILES.in updated ($PF_COUNT files)"
 echo "[6/6] Syncing LINGUAS <-> .po files..."
 
 declare -A LINGUAS_SET
-
-mapfile -t CLEAN_LANGS < <(clean_linguas_file "$LINGUAS_FILE")
-
-for lang in "${CLEAN_LANGS[@]}"; do
+while IFS= read -r lang || [[ -n "$lang" ]]; do
+    lang="$(echo "$lang" | tr -d '[:space:]')"
+    [[ -z "$lang" || "$lang" == \#* ]] && continue
     LINGUAS_SET["$lang"]=1
-done
+done < "$LINGUAS_FILE"
 
 ADDED_TO_LINGUAS=()
 CREATED_PO=()
@@ -359,6 +241,7 @@ for po_file in "$PO_DIR"/*.po; do
     lang=$(basename "$po_file" .po)
     if [[ -z "${LINGUAS_SET[$lang]:-}" ]]; then
         echo "   + LINGUAS: adding '$lang'"
+        echo "$lang" >> "$LINGUAS_FILE"
         LINGUAS_SET["$lang"]=1
         ADDED_TO_LINGUAS+=("$lang")
     fi
@@ -378,11 +261,8 @@ for lang in "${!LINGUAS_SET[@]}"; do
     fi
 done
 
-mapfile -t FINAL_LANGS < <(
-    printf '%s\n' "${!LINGUAS_SET[@]}" | sed '/^$/d' | LC_ALL=C sort -u
-)
-
-write_sorted_linguas "$LINGUAS_FILE" "${FINAL_LANGS[@]}"
+sort -u "$LINGUAS_FILE" > "$TMP/linguas_sorted"
+mv "$TMP/linguas_sorted" "$LINGUAS_FILE"
 
 [[ ${#ADDED_TO_LINGUAS[@]} -gt 0 ]] && echo "   → Added to LINGUAS: ${ADDED_TO_LINGUAS[*]}"
 [[ ${#CREATED_PO[@]}       -gt 0 ]] && echo "   → .po files created: ${CREATED_PO[*]}"
@@ -393,8 +273,7 @@ echo ""
 echo "✓ Generated : $OUT"
 echo "✓ Entries   : $TOTAL"
 echo "✓ Version   : temporal-explorer $PKG_VER"
-LANGUAGE_LIST="$(clean_linguas_file "$LINGUAS_FILE" | tr '\n' ' ' | xargs)"
-echo "✓ Languages : $LANGUAGE_LIST"
+echo "✓ Languages : $(tr '\n' ' ' < "$LINGUAS_FILE" | xargs)"
 
 # ── Update ALL .po files ───────────────────────────────────────────────────────────
 echo ""
@@ -405,13 +284,7 @@ for po in "$PO_DIR"/*.po; do
     printf "  → %-14s" "$lang.po"
     msgmerge --quiet --update --backup=none "$po" "$OUT"
     UNTRANSLATED=$(grep -c '^msgstr ""' "$po" 2>/dev/null || echo 0)
-    TOTAL_ENTRIES=$(count_po_entries "$po")
-
-    # Remove PO header from untranslated count.
-    if [[ "$UNTRANSLATED" -gt 0 ]]; then
-        UNTRANSLATED=$((UNTRANSLATED - 1))
-    fi
-
+    TOTAL_ENTRIES=$(grep -c '^msgid '   "$po" 2>/dev/null || echo 0)
     echo " ($UNTRANSLATED/$TOTAL_ENTRIES untranslated)"
 done
 echo "✓ All .po files updated!"
