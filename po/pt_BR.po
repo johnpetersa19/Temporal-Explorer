@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: temporal-explorer 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-06-28 00:13-0300\n"
-"PO-Revision-Date: 2026-06-24 00:00-0300\n"
+"PO-Revision-Date: 2026-06-28 00:20-0300\n"
 "Last-Translator: John Peter Sá <johnpetersa19@gmail.com>\n"
 "Language-Team: Brazilian Portuguese <pt_BR>\n"
 "Language: pt_BR\n"
@@ -379,9 +379,8 @@ msgid "No file view available"
 msgstr "Nenhuma visualização de arquivos disponível"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1069
-#, fuzzy
 msgid "Selection cleared"
-msgstr "Selecionado"
+msgstr "Seleção limpa"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1085
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3409
@@ -391,31 +390,26 @@ msgstr "Nenhum snapshot selecionado"
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1191
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1203
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1228
-#, fuzzy
 msgid "No commit selected"
-msgstr "Nenhum repositório selecionado"
+msgstr "Nenhum commit selecionado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1197
-#, fuzzy
 msgid "Commit SHA copied"
-msgstr "Copiar SHA do commit"
+msgstr "SHA do commit copiado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1213
-#, fuzzy
 msgid "Selected item is not a file"
-msgstr "Todos os itens foram selecionados"
+msgstr "O item selecionado não é um arquivo."
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1214
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1222
-#, fuzzy
 msgid "No file selected"
-msgstr "Nenhum repositório selecionado"
+msgstr "Nenhum arquivo selecionado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1286
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1301
-#, fuzzy
 msgid "No commits loaded"
-msgstr "Nenhum commit encontrado"
+msgstr "Nenhum commit carregado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1350
 msgid "No repository loaded."
@@ -507,16 +501,15 @@ msgstr "Selecionar tudo"
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3134
 #: src/toolbar.blp:179
 msgid "Invert Selection"
-msgstr ""
+msgstr "Inverter seleção"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3138
 #: src/toolbar.blp:185
 msgid "Clear Selection"
-msgstr ""
+msgstr "Limpar seleção"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3144
 #: src/toolbar.blp:190 src/view-controls.blp:71
-#, fuzzy
 msgid "Captions…"
 msgstr "Legendas…"
 
@@ -660,15 +653,15 @@ msgstr "Disponível somente no snapshot selecionado"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3872
 msgid "Marked as favorite"
-msgstr ""
+msgstr "Marcado como favorito"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3874
 msgid "Removed from favorites"
-msgstr ""
+msgstr "Removido dos favoritos"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3887
 msgid "Snapshot item icons cannot be edited"
-msgstr ""
+msgstr "Os ícones dos itens do snapshot não podem ser editados"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4052
 msgid "Error"
@@ -881,9 +874,8 @@ msgid "_Add"
 msgstr "_Adicionar"
 
 #: src/filter-types-dialog.blp:51
-#, fuzzy
 msgid "Search extensions, e.g. rs, py, ts…"
-msgstr "Extensões de pesquisa, por exemplo, rs, py, ts…"
+msgstr "Extensões de pesquisa, p. ex., rs, py, ts…"
 
 #: src/filter-types-dialog.blp:64
 msgid "Filter by File Type"
@@ -1039,7 +1031,6 @@ msgid "Working"
 msgstr "Trabalhando"
 
 #: src/operation-progress-dialog.blp:29
-#, fuzzy
 msgid "Preparing…"
 msgstr "Preparando…"
 
@@ -1328,9 +1319,8 @@ msgid "Clear Author Filter"
 msgstr "Limpar filtro de autor"
 
 #: src/search-filter-popover.blp:240
-#, fuzzy
 msgid "Filter by author name or email…"
-msgstr "Filtrar por nome do autor ou e-mail…"
+msgstr "Filtrar pelo nome ou e-mail do autor…"
 
 #: src/search-filter-popover.blp:266
 msgid "Branch"
@@ -1409,12 +1399,10 @@ msgid "Show Sidebar"
 msgstr "Mostrar barra lateral"
 
 #: src/toolbar.blp:56
-#, fuzzy
 msgid "Type a path and press Enter…"
 msgstr "Digite um caminho e pressione Enter…"
 
 #: src/toolbar.blp:76 src/window.blp:45
-#, fuzzy
 msgid "Search commits, hash, date…"
 msgstr "Pesquisar commits, hash, data…"
 
