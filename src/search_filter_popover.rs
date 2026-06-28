@@ -190,7 +190,9 @@ fn file_matches_type_filter(path: &str, filter: &FileTypeFilter) -> bool {
     // Git changed-files are file paths. A path containing a parent directory is
     // treated as matching "Folders" because the commit touched something inside
     // a folder.
-    let in_folder = path_obj.parent().is_some_and(|parent| !parent.as_os_str().is_empty());
+    let in_folder = path_obj
+        .parent()
+        .is_some_and(|parent| !parent.as_os_str().is_empty());
 
     let audio_ext = matches!(
         ext.as_str(),
@@ -211,11 +213,47 @@ fn file_matches_type_filter(path: &str, filter: &FileTypeFilter) -> bool {
 
     let text_ext = matches!(
         ext.as_str(),
-        "txt" | "md" | "markdown" | "rst" | "log" | "csv" | "json" | "jsonc" |
-        "yaml" | "yml" | "toml" | "xml" | "html" | "css" | "scss" | "js" |
-        "ts" | "jsx" | "tsx" | "rs" | "c" | "h" | "cpp" | "hpp" | "cc" |
-        "py" | "sh" | "bash" | "zsh" | "fish" | "go" | "java" | "kt" |
-        "swift" | "php" | "rb" | "lua" | "blp" | "ui" | "desktop" | "service"
+        "txt"
+            | "md"
+            | "markdown"
+            | "rst"
+            | "log"
+            | "csv"
+            | "json"
+            | "jsonc"
+            | "yaml"
+            | "yml"
+            | "toml"
+            | "xml"
+            | "html"
+            | "css"
+            | "scss"
+            | "js"
+            | "ts"
+            | "jsx"
+            | "tsx"
+            | "rs"
+            | "c"
+            | "h"
+            | "cpp"
+            | "hpp"
+            | "cc"
+            | "py"
+            | "sh"
+            | "bash"
+            | "zsh"
+            | "fish"
+            | "go"
+            | "java"
+            | "kt"
+            | "swift"
+            | "php"
+            | "rb"
+            | "lua"
+            | "blp"
+            | "ui"
+            | "desktop"
+            | "service"
     );
 
     let video_ext = matches!(
@@ -230,10 +268,9 @@ fn file_matches_type_filter(path: &str, filter: &FileTypeFilter) -> bool {
         || (filter.pdf && pdf_ext)
         || (filter.text && text_ext)
         || (filter.videos && video_ext)
-        || filter
-            .other_ext
-            .as_deref()
-            .map_or(false, |wanted| ext == wanted.trim_start_matches('.').to_lowercase())
+        || filter.other_ext.as_deref().map_or(false, |wanted| {
+            ext == wanted.trim_start_matches('.').to_lowercase()
+        })
 }
 
 // ── FilterState ────────────────────────────────────────────────────────────────
@@ -650,27 +687,31 @@ impl SearchFilterPopover {
             }
             "doc" | "docx" | "odt" | "ott" | "rtf" | "abw" | "pages" => {
                 state.files.documents = true;
-                imp.file_type_documents_button.add_css_class("suggested-action");
+                imp.file_type_documents_button
+                    .add_css_class("suggested-action");
             }
-            "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "tif" | "tiff" | "heic" | "avif" => {
+            "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "tif" | "tiff" | "heic"
+            | "avif" => {
                 state.files.images = true;
-                imp.file_type_images_button.add_css_class("suggested-action");
+                imp.file_type_images_button
+                    .add_css_class("suggested-action");
             }
             "pdf" => {
                 state.files.pdf = true;
                 imp.file_type_pdf_button.add_css_class("suggested-action");
             }
-            "txt" | "md" | "markdown" | "rst" | "log" | "csv" | "json" | "jsonc" |
-            "yaml" | "yml" | "toml" | "xml" | "html" | "css" | "scss" | "js" |
-            "ts" | "jsx" | "tsx" | "rs" | "c" | "h" | "cpp" | "hpp" | "cc" |
-            "py" | "sh" | "bash" | "zsh" | "fish" | "go" | "java" | "kt" |
-            "swift" | "php" | "rb" | "lua" | "blp" | "ui" | "desktop" | "service" => {
+            "txt" | "md" | "markdown" | "rst" | "log" | "csv" | "json" | "jsonc" | "yaml"
+            | "yml" | "toml" | "xml" | "html" | "css" | "scss" | "js" | "ts" | "jsx" | "tsx"
+            | "rs" | "c" | "h" | "cpp" | "hpp" | "cc" | "py" | "sh" | "bash" | "zsh" | "fish"
+            | "go" | "java" | "kt" | "swift" | "php" | "rb" | "lua" | "blp" | "ui" | "desktop"
+            | "service" => {
                 state.files.text = true;
                 imp.file_type_text_button.add_css_class("suggested-action");
             }
             "mp4" | "mkv" | "webm" | "mov" | "avi" | "m4v" | "flv" | "wmv" | "mpeg" | "mpg" => {
                 state.files.videos = true;
-                imp.file_type_videos_button.add_css_class("suggested-action");
+                imp.file_type_videos_button
+                    .add_css_class("suggested-action");
             }
             other => {
                 state.files.other_ext = Some(other.to_string());
@@ -841,7 +882,7 @@ impl SearchFilterPopover {
         });
     }
 
-    fn open_file_type_dialog(&self) {
+    pub fn open_file_type_dialog(&self) {
         let dialog = FilterTypesDialog::new();
 
         let popover = self.clone();
@@ -857,7 +898,7 @@ impl SearchFilterPopover {
         }
     }
 
-    fn open_date_range_dialog(&self) {
+    pub fn open_date_range_dialog(&self) {
         let imp = self.imp();
 
         // Reuse existing dialog or create a new one
@@ -933,7 +974,7 @@ impl SearchFilterPopover {
         self.emit_filters_changed();
     }
 
-    fn reset_all(&self) {
+    pub fn reset_all(&self) {
         *self.imp().filter_state.borrow_mut() = FilterState::default();
         let imp = self.imp();
 

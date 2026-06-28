@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+use adw::subclass::prelude::*;
 use gettextrs::gettext;
 use gtk::glib;
 use gtk::prelude::*;
-use gtk::subclass::prelude::*;
-use adw::subclass::prelude::*;
+use std::cell::Cell;
 use std::cell::RefCell;
+use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Default)]
 pub struct NodeProperties {
@@ -34,25 +35,46 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/node-properties-dialog.ui")]
     pub struct NodePropertiesDialog {
-        #[template_child] pub dialog_title: TemplateChild<adw::WindowTitle>,
-        #[template_child] pub icon_image: TemplateChild<gtk::Image>,
-        #[template_child] pub name_label: TemplateChild<gtk::Label>,
-        #[template_child] pub kind_label: TemplateChild<gtk::Label>,
-        #[template_child] pub summary_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub dialog_title: TemplateChild<adw::WindowTitle>,
+        #[template_child]
+        pub icon_image: TemplateChild<gtk::Image>,
+        #[template_child]
+        pub name_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub kind_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub summary_label: TemplateChild<gtk::Label>,
 
-        #[template_child] pub parent_folder_label: TemplateChild<gtk::Label>,
-        #[template_child] pub repository_label: TemplateChild<gtk::Label>,
-        #[template_child] pub modified_label: TemplateChild<gtk::Label>,
-        #[template_child] pub created_label: TemplateChild<gtk::Label>,
-        #[template_child] pub permissions_label: TemplateChild<gtk::Label>,
-        #[template_child] pub snapshot_label: TemplateChild<gtk::Label>,
-        #[template_child] pub object_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub parent_folder_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub repository_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub modified_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub created_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub permissions_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub snapshot_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub object_label: TemplateChild<gtk::Label>,
 
-        #[template_child] pub copy_path_button: TemplateChild<gtk::Button>,
-        #[template_child] pub copy_details_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub favorite_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub open_location_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub edit_icon_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub copy_path_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub copy_details_button: TemplateChild<gtk::Button>,
 
         pub details_text: RefCell<String>,
         pub path_text: RefCell<String>,
+        pub favorite_active: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -75,6 +97,27 @@ mod imp {
             self.parent_constructed();
 
             let obj = self.obj().clone();
+            let button = self.favorite_button.get();
+
+            button.connect_clicked(move |_| {
+                obj.toggle_favorite();
+            });
+
+            let obj = self.obj().clone();
+            let button = self.open_location_button.get();
+
+            button.connect_clicked(move |_| {
+                obj.emit_open_location_requested();
+            });
+
+            let obj = self.obj().clone();
+            let button = self.edit_icon_button.get();
+
+            button.connect_clicked(move |_| {
+                obj.emit_by_name::<()>("icon-edit-requested", &[]);
+            });
+
+            let obj = self.obj().clone();
             let button = self.copy_details_button.get();
 
             button.connect_clicked(move |_| {
@@ -87,6 +130,21 @@ mod imp {
             button.connect_clicked(move |_| {
                 obj.copy_path();
             });
+        }
+
+        fn signals() -> &'static [glib::subclass::Signal] {
+            static SIGNALS: OnceLock<Vec<glib::subclass::Signal>> = OnceLock::new();
+            SIGNALS.get_or_init(|| {
+                vec![
+                    glib::subclass::Signal::builder("favorite-toggled")
+                        .param_types([bool::static_type()])
+                        .build(),
+                    glib::subclass::Signal::builder("open-location-requested")
+                        .param_types([String::static_type()])
+                        .build(),
+                    glib::subclass::Signal::builder("icon-edit-requested").build(),
+                ]
+            })
         }
     }
 
@@ -123,31 +181,39 @@ impl NodePropertiesDialog {
         imp.name_label.set_tooltip_text(Some(&props.name));
 
         imp.kind_label.set_label(&props.kind);
-        imp.summary_label.set_label(&format!("{} · {}", props.size, props.snapshot_date));
+        imp.summary_label
+            .set_label(&format!("{} · {}", props.size, props.snapshot_date));
 
         imp.parent_folder_label.set_label(&props.parent_folder);
-        imp.parent_folder_label.set_tooltip_text(Some(&props.repository_path));
+        imp.parent_folder_label
+            .set_tooltip_text(Some(&props.repository_path));
 
         imp.repository_label.set_label(&props.repository);
-        imp.repository_label.set_tooltip_text(Some(&props.repository));
+        imp.repository_label
+            .set_tooltip_text(Some(&props.repository));
 
         // Git does not store a real per-file "modified" timestamp in the tree.
         // We display the selected snapshot commit date instead.
         imp.modified_label.set_label(&props.snapshot_date);
-        imp.modified_label.set_tooltip_text(Some(&props.full_commit));
+        imp.modified_label
+            .set_tooltip_text(Some(&props.full_commit));
 
         // Git snapshots do not store a real file creation timestamp.
-        imp.created_label.set_label(&gettext("Not available in Git snapshot"));
         imp.created_label
-            .set_tooltip_text(Some(&gettext("Git stores content snapshots, not filesystem creation time")));
+            .set_label(&gettext("Not available in Git snapshot"));
+        imp.created_label.set_tooltip_text(Some(&gettext(
+            "Git stores content snapshots, not filesystem creation time",
+        )));
 
         // Nautilus shows filesystem permissions here. For a Git snapshot,
         // the closest equivalent is the Git tree mode.
         imp.permissions_label.set_label(&props.git_mode);
         imp.snapshot_label.set_label(&props.snapshot_commit);
-        imp.snapshot_label.set_tooltip_text(Some(&props.full_commit));
+        imp.snapshot_label
+            .set_tooltip_text(Some(&props.full_commit));
 
-        imp.object_label.set_label(&shorten_middle(&props.git_object, 18));
+        imp.object_label
+            .set_label(&shorten_middle(&props.git_object, 18));
         imp.object_label.set_tooltip_text(Some(&props.git_object));
 
         *imp.path_text.borrow_mut() = props.repository_path.clone();
@@ -183,7 +249,9 @@ impl NodePropertiesDialog {
 
     fn copy_details(&self) {
         if let Some(display) = gtk::gdk::Display::default() {
-            display.clipboard().set_text(&self.imp().details_text.borrow());
+            display
+                .clipboard()
+                .set_text(&self.imp().details_text.borrow());
         }
     }
 
@@ -191,6 +259,60 @@ impl NodePropertiesDialog {
         if let Some(display) = gtk::gdk::Display::default() {
             display.clipboard().set_text(&self.imp().path_text.borrow());
         }
+    }
+
+    fn toggle_favorite(&self) {
+        let imp = self.imp();
+        let active = !imp.favorite_active.get();
+        imp.favorite_active.set(active);
+
+        let icon = if active {
+            "starred-symbolic"
+        } else {
+            "star-outline-thick-symbolic"
+        };
+        imp.favorite_button.set_icon_name(icon);
+        self.emit_by_name::<()>("favorite-toggled", &[&active]);
+    }
+
+    fn emit_open_location_requested(&self) {
+        let path = self.imp().path_text.borrow().clone();
+        self.emit_by_name::<()>("open-location-requested", &[&path]);
+    }
+
+    pub fn connect_favorite_toggled<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, bool) + 'static,
+    {
+        self.connect_local("favorite-toggled", false, move |values| {
+            let dialog = values[0].get::<NodePropertiesDialog>().unwrap();
+            let active = values[1].get::<bool>().unwrap_or(false);
+            f(&dialog, active);
+            None
+        })
+    }
+
+    pub fn connect_open_location_requested<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &str) + 'static,
+    {
+        self.connect_local("open-location-requested", false, move |values| {
+            let dialog = values[0].get::<NodePropertiesDialog>().unwrap();
+            let path = values[1].get::<String>().unwrap_or_default();
+            f(&dialog, &path);
+            None
+        })
+    }
+
+    pub fn connect_icon_edit_requested<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self) + 'static,
+    {
+        self.connect_local("icon-edit-requested", false, move |values| {
+            let dialog = values[0].get::<NodePropertiesDialog>().unwrap();
+            f(&dialog);
+            None
+        })
     }
 }
 

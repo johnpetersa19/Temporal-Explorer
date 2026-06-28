@@ -56,6 +56,12 @@
       <description>Saved grid caption bitmask.</description>
     </key>
 
+    <key name="show-hidden-files" type="b">
+      <default>false</default>
+      <summary>Show hidden files</summary>
+      <description>Show files and folders whose names start with a dot.</description>
+    </key>
+
     <key name="show-avatars" type="b">
       <default>false</default>
       <summary>Show author avatars</summary>
@@ -108,6 +114,12 @@
       <default>false</default>
       <summary>Include submodules</summary>
       <description>List commits from submodule repositories as well.</description>
+    </key>
+
+    <key name="git-binary-path" type="s">
+      <default>''</default>
+      <summary>Git binary path</summary>
+      <description>Optional path to the git executable used by external Git operations.</description>
     </key>
 
     <key name="background-fetch" type="b">

@@ -29,7 +29,9 @@ template $TemporalToolbar : Adw.Bin {
         StackPage {
           name: "pathbar";
           child: ScrolledWindow {
-            hscrollbar-policy: external;
+            hadjustment: Adjustment {};
+            vadjustment: Adjustment {};
+            hscrollbar-policy: automatic;
             vscrollbar-policy: never;
             propagate-natural-width: true;
             min-content-width: 360;
@@ -171,6 +173,17 @@ menu primary_menu {
       label: _("Select All");
       action: "win.select-all-files";
       accel: "<control>a";
+    }
+
+    item {
+      label: _("Invert Selection");
+      action: "win.invert-file-selection";
+      accel: "<control><shift>a";
+    }
+
+    item {
+      label: _("Clear Selection");
+      action: "win.unselect-all-files";
     }
 
     item {

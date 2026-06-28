@@ -59,9 +59,9 @@ use gtk::prelude::*;
 use gtk::{gio, glib};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::{HashMap, HashSet};
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
-use std::io::Write;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -85,26 +85,26 @@ use crate::timeline_filter;
 use crate::toolbar::TemporalToolbar;
 use crate::view_controls::FileSortMode;
 use crate::views::grid_view::{FileGridMetadata, GridZoom};
-use crate::views::grid_view::OnContextMenu;
 use crate::views::list_view::{OnEnterDir, OnOpenFile};
 use crate::views::{grid_view, list_view};
 
 // ── ViewMode ───────────────────────────────────────────────────────────────────
 
 enum SnapshotWriteMessage {
-    Progress {
-        fraction: f64,
-        status: String,
-    },
+    Progress { fraction: f64, status: String },
     Done(Result<PathBuf, String>),
 }
 
 enum SearchProgressMessage {
-    Progress {
-        current: usize,
-        total: usize,
-    },
+    Progress { current: usize, total: usize },
     Done(Option<(Vec<CommitInfo>, Vec<(String, Vec<String>)>)>),
+}
+
+#[derive(Debug, Clone, Copy)]
+enum FileSelectionCommand {
+    SelectAll,
+    UnselectAll,
+    Invert,
 }
 
 /// Whether the right panel renders files as a list or a grid.
@@ -223,6 +223,7 @@ mod imp {
         pub last_query: RefCell<String>,
         pub current_hash: RefCell<Option<String>>,
         pub current_dir: RefCell<PathBuf>,
+        pub current_nodes: RefCell<Vec<TreeNode>>,
         pub history_back: RefCell<Vec<PathBuf>>,
         pub history_forward: RefCell<Vec<PathBuf>>,
         pub view_mode: RefCell<ViewMode>,
@@ -236,6 +237,7 @@ mod imp {
         pub grid_zoom: RefCell<GridZoom>,
         pub grid_caption_flags: RefCell<CaptionFlags>,
         pub column_visibility: RefCell<ColumnVisibility>,
+        pub show_hidden_files: Cell<bool>,
 
         pub timeline_level: RefCell<TimelineLevel>,
         pub selected_year: Cell<i32>,
@@ -269,7 +271,9 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             self.settings
-                .set(gio::Settings::new("io.github.johnpetersa19.TemporalExplorer"))
+                .set(gio::Settings::new(
+                    "io.github.johnpetersa19.TemporalExplorer",
+                ))
                 .ok();
             self.obj().setup_callbacks();
             self.obj().setup_styles();
@@ -369,11 +373,47 @@ fn file_matches_search_category(path: &str, filter: &FileTypeFilter) -> bool {
 
     let text_ext = matches!(
         ext.as_str(),
-        "txt" | "md" | "markdown" | "rst" | "log" | "csv" | "json" | "jsonc" |
-        "yaml" | "yml" | "toml" | "xml" | "html" | "css" | "scss" | "js" |
-        "ts" | "jsx" | "tsx" | "rs" | "c" | "h" | "cpp" | "hpp" | "cc" |
-        "py" | "sh" | "bash" | "zsh" | "fish" | "go" | "java" | "kt" |
-        "swift" | "php" | "rb" | "lua" | "blp" | "ui" | "desktop" | "service"
+        "txt"
+            | "md"
+            | "markdown"
+            | "rst"
+            | "log"
+            | "csv"
+            | "json"
+            | "jsonc"
+            | "yaml"
+            | "yml"
+            | "toml"
+            | "xml"
+            | "html"
+            | "css"
+            | "scss"
+            | "js"
+            | "ts"
+            | "jsx"
+            | "tsx"
+            | "rs"
+            | "c"
+            | "h"
+            | "cpp"
+            | "hpp"
+            | "cc"
+            | "py"
+            | "sh"
+            | "bash"
+            | "zsh"
+            | "fish"
+            | "go"
+            | "java"
+            | "kt"
+            | "swift"
+            | "php"
+            | "rb"
+            | "lua"
+            | "blp"
+            | "ui"
+            | "desktop"
+            | "service"
     );
 
     let video_ext = matches!(
@@ -388,10 +428,9 @@ fn file_matches_search_category(path: &str, filter: &FileTypeFilter) -> bool {
         || (filter.pdf && pdf_ext)
         || (filter.text && text_ext)
         || (filter.videos && video_ext)
-        || filter
-            .other_ext
-            .as_deref()
-            .map_or(false, |wanted| ext == wanted.trim_start_matches('.').to_lowercase())
+        || filter.other_ext.as_deref().map_or(false, |wanted| {
+            ext == wanted.trim_start_matches('.').to_lowercase()
+        })
 }
 
 fn format_git_mode(mode: i32) -> String {
@@ -632,15 +671,17 @@ impl TemporalExplorerWindow {
         });
 
         let win = self.clone();
-        imp.toolbar.search_entry().connect_search_changed(move |entry| {
-            let query = entry.text().to_string();
+        imp.toolbar
+            .search_entry()
+            .connect_search_changed(move |entry| {
+                let query = entry.text().to_string();
 
-            if win.imp().commit_search_entry.text().as_str() != query {
-                win.imp().commit_search_entry.set_text(&query);
-            }
+                if win.imp().commit_search_entry.text().as_str() != query {
+                    win.imp().commit_search_entry.set_text(&query);
+                }
 
-            win.on_search_changed(query);
-        });
+                win.on_search_changed(query);
+            });
 
         let win = self.clone();
         imp.timeline_back_button.connect_clicked(move |_| {
@@ -697,10 +738,15 @@ impl TemporalExplorerWindow {
     fn setup_actions(&self) {
         let actions: &[(&str, fn(&TemporalExplorerWindow))] = &[
             ("select-all-files", Self::select_all_files),
+            ("unselect-all-files", Self::unselect_all_files),
+            ("invert-file-selection", Self::invert_file_selection),
             ("reload-repository", Self::reload_repository),
             ("open-repository-system", Self::open_repository_in_system),
             ("open-repository-console", Self::open_repository_in_console),
-            ("copy-current-repository-path", Self::copy_current_repository_path),
+            (
+                "copy-current-repository-path",
+                Self::copy_current_repository_path,
+            ),
             ("show-captions", Self::show_file_grid_captions_dialog),
             ("current-properties", Self::show_current_folder_properties),
             ("open-repository", Self::open_repo_dialog),
@@ -709,6 +755,34 @@ impl TemporalExplorerWindow {
             ("filter-file-type", Self::show_filter_types_dialog),
             ("show-column-chooser", Self::show_column_chooser),
             ("new-branch", Self::show_new_branch_dialog),
+            ("toggle-sidebar", Self::toggle_sidebar),
+            ("search-commits", Self::focus_commit_search),
+            ("toggle-filter-popover", Self::toggle_filter_popover),
+            ("open-date-range-dialog", Self::open_date_range_dialog),
+            ("clear-all-filters", Self::clear_all_filters),
+            ("list-view", Self::switch_to_list_view),
+            ("grid-view", Self::switch_to_grid_view),
+            ("zoom-in", Self::zoom_in),
+            ("zoom-out", Self::zoom_out),
+            ("reset-zoom", Self::reset_zoom),
+            ("copy-current-commit-sha", Self::copy_current_commit_sha),
+            (
+                "show-current-commit-details",
+                Self::show_current_commit_details,
+            ),
+            (
+                "preview-selected-file",
+                Self::preview_selected_file_from_action,
+            ),
+            ("open-context-menu", Self::open_context_menu_from_action),
+            (
+                "show-merge-conflicts",
+                Self::show_merge_conflicts_for_current,
+            ),
+            ("select-all-commits", Self::select_all_commits),
+            ("invert-commit-selection", Self::invert_commit_selection),
+            ("first-commit", Self::select_first_commit),
+            ("latest-commit", Self::select_latest_commit),
             ("context-open", Self::context_open_selected),
             ("context-open-with", Self::context_open_with_selected),
             ("context-export", Self::context_export_selected),
@@ -732,17 +806,45 @@ impl TemporalExplorerWindow {
         let toolbar = self.imp().toolbar.get();
 
         toolbar.insert_action_group("win", Some(self));
-        toolbar.main_menu_button().insert_action_group("win", Some(self));
+        toolbar
+            .main_menu_button()
+            .insert_action_group("win", Some(self));
 
         if let Some(app) = self.application() {
             toolbar.insert_action_group("app", Some(&app));
-            toolbar.main_menu_button().insert_action_group("app", Some(&app));
+            toolbar
+                .main_menu_button()
+                .insert_action_group("app", Some(&app));
 
             app.set_accels_for_action("win.reload-repository", &["F5"]);
             app.set_accels_for_action("win.select-all-files", &["<Control>a"]);
+            app.set_accels_for_action("win.invert-file-selection", &["<Control><Shift>a"]);
+            app.set_accels_for_action("win.open-repository", &["<Control>o"]);
+            app.set_accels_for_action("win.first-commit", &["<Control>Home"]);
+            app.set_accels_for_action("win.latest-commit", &["<Control>End"]);
+            app.set_accels_for_action("win.toggle-sidebar", &["F9"]);
+            app.set_accels_for_action("win.search-commits", &["<Control>f"]);
+            app.set_accels_for_action("win.toggle-filter-popover", &["<Control><Shift>f"]);
+            app.set_accels_for_action("win.open-date-range-dialog", &["<Control><Shift>d"]);
+            app.set_accels_for_action("win.filter-file-type", &["<Control><Shift>t"]);
+            app.set_accels_for_action("win.clear-all-filters", &["<Control>Escape"]);
+            app.set_accels_for_action("win.list-view", &["<Control>1"]);
+            app.set_accels_for_action("win.grid-view", &["<Control>2"]);
+            app.set_accels_for_action("win.zoom-in", &["<Control>plus", "<Control>KP_Add"]);
+            app.set_accels_for_action("win.zoom-out", &["<Control>minus", "<Control>KP_Subtract"]);
+            app.set_accels_for_action("win.reset-zoom", &["<Control>0"]);
+            app.set_accels_for_action("win.show-column-chooser", &["<Control><Shift>c"]);
+            app.set_accels_for_action("win.show-captions", &["<Control><Shift>g"]);
+            app.set_accels_for_action("win.copy-current-commit-sha", &["<Control>c"]);
+            app.set_accels_for_action("win.show-current-commit-details", &["<Control>i"]);
+            app.set_accels_for_action("win.preview-selected-file", &["space"]);
+            app.set_accels_for_action("win.open-context-menu", &["<Shift>F10"]);
+            app.set_accels_for_action("win.batch-operations", &["<Control><Shift>b"]);
+            app.set_accels_for_action("win.show-merge-conflicts", &["<Control><Shift>m"]);
+            app.set_accels_for_action("win.select-by-pattern", &["<Control>s"]);
+            app.set_accels_for_action("win.invert-commit-selection", &["<Control><Shift>i"]);
         }
     }
-
 
     // ── Folder / main menu actions ───────────────────────────────────────────
 
@@ -826,6 +928,26 @@ impl TemporalExplorerWindow {
         None
     }
 
+    fn find_grid_view(widget: &gtk::Widget) -> Option<gtk::GridView> {
+        if let Ok(grid) = widget.clone().downcast::<gtk::GridView>() {
+            return Some(grid);
+        }
+
+        let mut child = widget.first_child();
+
+        while let Some(w) = child {
+            let next = w.next_sibling();
+
+            if let Some(found) = Self::find_grid_view(&w) {
+                return Some(found);
+            }
+
+            child = next;
+        }
+
+        None
+    }
+
     fn find_list_box(widget: &gtk::Widget) -> Option<gtk::ListBox> {
         if let Ok(list) = widget.clone().downcast::<gtk::ListBox>() {
             return Some(list);
@@ -846,23 +968,116 @@ impl TemporalExplorerWindow {
         None
     }
 
-    fn select_all_files(&self) {
+    fn set_file_selection(&self, command: FileSelectionCommand) -> Option<usize> {
         let root = self.imp().right_panel_content.get();
 
         if let Some(list) = Self::find_list_box(root.upcast_ref()) {
-            list.select_all();
-            self.show_toast(&gettext("Selected all items"));
-            return;
+            return Some(Self::set_list_box_selection(&list, command));
         }
 
-        if Self::find_flow_box(root.upcast_ref()).is_some() {
-            self.show_toast(&gettext(
-                "Select All in grid view requires the GridView selection backend",
-            ));
-            return;
+        if let Some(grid) = Self::find_grid_view(root.upcast_ref()) {
+            let command = match command {
+                FileSelectionCommand::SelectAll => grid_view::GridSelectionCommand::SelectAll,
+                FileSelectionCommand::UnselectAll => grid_view::GridSelectionCommand::UnselectAll,
+                FileSelectionCommand::Invert => grid_view::GridSelectionCommand::Invert,
+            };
+            return Some(grid_view::set_grid_view_selection(&grid, command));
         }
 
-        self.show_toast(&gettext("No file view available"));
+        if let Some(flow) = Self::find_flow_box(root.upcast_ref()) {
+            return Some(Self::set_flow_box_selection(&flow, command));
+        }
+
+        None
+    }
+
+    fn set_list_box_selection(list: &gtk::ListBox, command: FileSelectionCommand) -> usize {
+        match command {
+            FileSelectionCommand::SelectAll => {
+                list.select_all();
+                list.selected_rows().len()
+            }
+            FileSelectionCommand::UnselectAll => {
+                list.unselect_all();
+                0
+            }
+            FileSelectionCommand::Invert => {
+                let mut selected = 0usize;
+                let mut child = list.first_child();
+
+                while let Some(widget) = child {
+                    child = widget.next_sibling();
+
+                    if let Ok(row) = widget.downcast::<gtk::ListBoxRow>() {
+                        if row.is_selected() {
+                            list.unselect_row(&row);
+                        } else {
+                            list.select_row(Some(&row));
+                            selected += 1;
+                        }
+                    }
+                }
+
+                selected
+            }
+        }
+    }
+
+    fn set_flow_box_selection(flow: &gtk::FlowBox, command: FileSelectionCommand) -> usize {
+        match command {
+            FileSelectionCommand::SelectAll => {
+                flow.select_all();
+                flow.selected_children().len()
+            }
+            FileSelectionCommand::UnselectAll => {
+                flow.unselect_all();
+                0
+            }
+            FileSelectionCommand::Invert => {
+                let mut selected = 0usize;
+                let mut child = flow.first_child();
+
+                while let Some(widget) = child {
+                    child = widget.next_sibling();
+
+                    if let Ok(flow_child) = widget.downcast::<gtk::FlowBoxChild>() {
+                        if flow_child.is_selected() {
+                            flow.unselect_child(&flow_child);
+                        } else {
+                            flow.select_child(&flow_child);
+                            selected += 1;
+                        }
+                    }
+                }
+
+                selected
+            }
+        }
+    }
+
+    fn select_all_files(&self) {
+        match self.set_file_selection(FileSelectionCommand::SelectAll) {
+            Some(count) => {
+                self.show_toast(&format!("{} {} item(s)", gettext("Selected"), count));
+            }
+            None => self.show_toast(&gettext("No file view available")),
+        }
+    }
+
+    fn unselect_all_files(&self) {
+        match self.set_file_selection(FileSelectionCommand::UnselectAll) {
+            Some(_) => self.show_toast(&gettext("Selection cleared")),
+            None => self.show_toast(&gettext("No file view available")),
+        }
+    }
+
+    fn invert_file_selection(&self) {
+        match self.set_file_selection(FileSelectionCommand::Invert) {
+            Some(count) => {
+                self.show_toast(&format!("{} {} item(s)", gettext("Selected"), count));
+            }
+            None => self.show_toast(&gettext("No file view available")),
+        }
     }
 
     fn show_current_folder_properties(&self) {
@@ -875,6 +1090,224 @@ impl TemporalExplorerWindow {
         self.show_node_properties(&TreeNode::Dir(current_dir));
     }
 
+    fn toggle_sidebar(&self) {
+        let current = self.imp().split_view.shows_sidebar();
+        self.imp().split_view.set_show_sidebar(!current);
+    }
+
+    fn focus_commit_search(&self) {
+        self.enter_search_mode();
+    }
+
+    fn toggle_filter_popover(&self) {
+        self.enter_search_mode();
+        let button = self.imp().toolbar.search_filter_button();
+        button.set_active(!button.is_active());
+    }
+
+    fn open_date_range_dialog(&self) {
+        self.enter_search_mode();
+        if let Some(ref popover) = *self.imp().filter_popover.borrow() {
+            popover.open_date_range_dialog();
+        }
+    }
+
+    fn clear_all_filters(&self) {
+        if let Some(ref popover) = *self.imp().filter_popover.borrow() {
+            popover.reset_all();
+        }
+        self.imp().commit_search_entry.set_text("");
+        self.imp().toolbar.set_search_text("");
+        self.on_search_changed(String::new());
+    }
+
+    fn switch_to_list_view(&self) {
+        self.set_view_mode_from_action(false);
+    }
+
+    fn switch_to_grid_view(&self) {
+        self.set_view_mode_from_action(true);
+    }
+
+    fn set_view_mode_from_action(&self, is_grid: bool) {
+        *self.imp().view_mode.borrow_mut() = if is_grid {
+            ViewMode::Grid
+        } else {
+            ViewMode::List
+        };
+        self.imp().toolbar.view_controls().set_view_mode(is_grid);
+
+        if let Some(settings) = self.imp().settings.get() {
+            settings
+                .set_string("default-view", if is_grid { "grid" } else { "list" })
+                .ok();
+        }
+
+        self.reload_current_dir_if_possible();
+    }
+
+    fn zoom_in(&self) {
+        let raw = match *self.imp().grid_zoom.borrow() {
+            GridZoom::Small => 1,
+            GridZoom::Normal => 2,
+            GridZoom::Large => 2,
+        };
+        self.set_grid_zoom_from_action(raw);
+    }
+
+    fn zoom_out(&self) {
+        let raw = match *self.imp().grid_zoom.borrow() {
+            GridZoom::Small => 0,
+            GridZoom::Normal => 0,
+            GridZoom::Large => 1,
+        };
+        self.set_grid_zoom_from_action(raw);
+    }
+
+    fn reset_zoom(&self) {
+        self.set_grid_zoom_from_action(1);
+    }
+
+    fn set_grid_zoom_from_action(&self, raw: u32) {
+        let raw = raw.min(2);
+        let zoom = match raw {
+            0 => GridZoom::Small,
+            2 => GridZoom::Large,
+            _ => GridZoom::Normal,
+        };
+
+        *self.imp().grid_zoom.borrow_mut() = zoom;
+        self.imp().toolbar.view_controls().set_zoom_level(raw);
+
+        if let Some(settings) = self.imp().settings.get() {
+            settings.set_uint("grid-zoom-level", raw).ok();
+        }
+
+        self.reload_current_dir_if_possible();
+    }
+
+    fn copy_current_commit_sha(&self) {
+        let Some(hash) = self.imp().current_hash.borrow().clone() else {
+            self.show_toast(&gettext("No commit selected"));
+            return;
+        };
+
+        if let Some(display) = gtk::gdk::Display::default() {
+            display.clipboard().set_text(&hash);
+            self.show_toast(&gettext("Commit SHA copied"));
+        }
+    }
+
+    fn show_current_commit_details(&self) {
+        if self.imp().current_hash.borrow().is_none() {
+            self.show_toast(&gettext("No commit selected"));
+            return;
+        }
+
+        self.show_current_folder_properties();
+    }
+
+    fn preview_selected_file_from_action(&self) {
+        match self.selected_file_view_node() {
+            Some(TreeNode::File(path)) => self.preview_file(&path),
+            Some(_) => self.show_toast(&gettext("Selected item is not a file")),
+            None => self.show_toast(&gettext("No file selected")),
+        }
+    }
+
+    fn open_context_menu_from_action(&self) {
+        if let Some((node, anchor)) = self.selected_file_view_node_and_anchor() {
+            self.show_file_context_menu(node, &anchor);
+        } else {
+            self.show_toast(&gettext("No file selected"));
+        }
+    }
+
+    fn show_merge_conflicts_for_current(&self) {
+        let Some(hash) = self.imp().current_hash.borrow().clone() else {
+            self.show_toast(&gettext("No commit selected"));
+            return;
+        };
+
+        self.try_show_merge_conflict_dialog(&hash);
+    }
+
+    fn select_all_commits(&self) {
+        let mut count = 0usize;
+        let mut row = self.imp().commit_list.first_child();
+
+        while let Some(widget) = row {
+            row = widget.next_sibling();
+            if let Ok(list_row) = widget.downcast::<gtk::ListBoxRow>() {
+                if !list_row.widget_name().is_empty() {
+                    list_row.add_css_class("pattern-match");
+                    count += 1;
+                }
+            }
+        }
+
+        self.show_toast(&format!("{} {} commit(s)", gettext("Selected"), count));
+    }
+
+    fn invert_commit_selection(&self) {
+        let mut count = 0usize;
+        let mut row = self.imp().commit_list.first_child();
+
+        while let Some(widget) = row {
+            row = widget.next_sibling();
+            if let Ok(list_row) = widget.downcast::<gtk::ListBoxRow>() {
+                if list_row.widget_name().is_empty() {
+                    continue;
+                }
+
+                if list_row.has_css_class("pattern-match") {
+                    list_row.remove_css_class("pattern-match");
+                } else {
+                    list_row.add_css_class("pattern-match");
+                    count += 1;
+                }
+            }
+        }
+
+        self.show_toast(&format!("{} {} commit(s)", gettext("Selected"), count));
+    }
+
+    fn select_first_commit(&self) {
+        let hash = self
+            .imp()
+            .all_commits
+            .borrow()
+            .last()
+            .map(|commit| commit.hash.clone());
+
+        if let Some(hash) = hash {
+            self.on_commit_selected(hash);
+        } else {
+            self.show_toast(&gettext("No commits loaded"));
+        }
+    }
+
+    fn select_latest_commit(&self) {
+        let hash = self
+            .imp()
+            .all_commits
+            .borrow()
+            .first()
+            .map(|commit| commit.hash.clone());
+
+        if let Some(hash) = hash {
+            self.on_commit_selected(hash);
+        } else {
+            self.show_toast(&gettext("No commits loaded"));
+        }
+    }
+
+    fn reload_current_dir_if_possible(&self) {
+        if self.imp().current_hash.borrow().is_some() {
+            let dir = self.imp().current_dir.borrow().clone();
+            self.navigate_to_dir(dir);
+        }
+    }
 
     // ── NewBranchDialog ───────────────────────────────────────────────────────
 
@@ -1206,7 +1639,11 @@ impl TemporalExplorerWindow {
 
         let saved_view = settings.string("default-view");
         let is_grid = saved_view.as_str() == "grid";
-        *imp.view_mode.borrow_mut() = if is_grid { ViewMode::Grid } else { ViewMode::List };
+        *imp.view_mode.borrow_mut() = if is_grid {
+            ViewMode::Grid
+        } else {
+            ViewMode::List
+        };
         imp.toolbar.view_controls().set_view_mode(is_grid);
 
         let zoom_level = settings.uint("grid-zoom-level").min(2);
@@ -1230,6 +1667,12 @@ impl TemporalExplorerWindow {
 
         *imp.grid_caption_flags.borrow_mut() =
             CaptionFlags::from_bits_truncate(settings.uint("grid-caption-flags"));
+
+        let show_hidden = settings.boolean("show-hidden-files");
+        imp.show_hidden_files.set(show_hidden);
+        imp.toolbar
+            .view_controls()
+            .set_show_hidden_files(show_hidden);
     }
 
     // ── ViewControls wiring ───────────────────────────────────────────────────
@@ -1313,6 +1756,23 @@ impl TemporalExplorerWindow {
                 }
                 None
             });
+
+        let win = self.clone();
+        self.imp().toolbar.view_controls().connect_local(
+            "hidden-files-changed",
+            false,
+            move |args| {
+                let show_hidden = args[1].get::<bool>().unwrap_or(false);
+                win.imp().show_hidden_files.set(show_hidden);
+
+                if let Some(settings) = win.imp().settings.get() {
+                    settings.set_boolean("show-hidden-files", show_hidden).ok();
+                }
+
+                win.reload_current_dir_if_possible();
+                None
+            },
+        );
 
         let win = self.clone();
         self.imp()
@@ -2004,10 +2464,7 @@ impl TemporalExplorerWindow {
         });
     }
 
-    fn visible_timeline_commits<'a>(
-        &'a self,
-        commits: &'a [CommitInfo],
-    ) -> Vec<&'a CommitInfo> {
+    fn visible_timeline_commits<'a>(&'a self, commits: &'a [CommitInfo]) -> Vec<&'a CommitInfo> {
         let filter = self.imp().filter_state.borrow().clone();
 
         commits
@@ -2308,6 +2765,7 @@ impl TemporalExplorerWindow {
         let grid_zoom = *imp.grid_zoom.borrow();
         let grid_caption_flags = *imp.grid_caption_flags.borrow();
         let hash = imp.current_hash.borrow().clone().unwrap_or_default();
+        let nodes = self.visible_nodes_for_current_settings(nodes);
 
         // Metadata can be expensive, especially First/Last Modified because it
         // scans commit history. Only build it when the active sort/captions need it.
@@ -2346,23 +2804,44 @@ impl TemporalExplorerWindow {
             }
             FileSortMode::LastModified => {
                 decorated.sort_by(|a, b| {
-                    let ma = metadata.get(a.0.path()).and_then(|m| m.last_modified).unwrap_or(i64::MIN);
-                    let mb = metadata.get(b.0.path()).and_then(|m| m.last_modified).unwrap_or(i64::MIN);
-                    b.0.is_dir().cmp(&a.0.is_dir()).then(mb.cmp(&ma)).then(a.1.cmp(&b.1))
+                    let ma = metadata
+                        .get(a.0.path())
+                        .and_then(|m| m.last_modified)
+                        .unwrap_or(i64::MIN);
+                    let mb = metadata
+                        .get(b.0.path())
+                        .and_then(|m| m.last_modified)
+                        .unwrap_or(i64::MIN);
+                    b.0.is_dir()
+                        .cmp(&a.0.is_dir())
+                        .then(mb.cmp(&ma))
+                        .then(a.1.cmp(&b.1))
                 });
             }
             FileSortMode::FirstModified => {
                 decorated.sort_by(|a, b| {
-                    let ma = metadata.get(a.0.path()).and_then(|m| m.first_modified).unwrap_or(i64::MAX);
-                    let mb = metadata.get(b.0.path()).and_then(|m| m.first_modified).unwrap_or(i64::MAX);
-                    b.0.is_dir().cmp(&a.0.is_dir()).then(ma.cmp(&mb)).then(a.1.cmp(&b.1))
+                    let ma = metadata
+                        .get(a.0.path())
+                        .and_then(|m| m.first_modified)
+                        .unwrap_or(i64::MAX);
+                    let mb = metadata
+                        .get(b.0.path())
+                        .and_then(|m| m.first_modified)
+                        .unwrap_or(i64::MAX);
+                    b.0.is_dir()
+                        .cmp(&a.0.is_dir())
+                        .then(ma.cmp(&mb))
+                        .then(a.1.cmp(&b.1))
                 });
             }
             FileSortMode::Size => {
                 decorated.sort_by(|a, b| {
                     let sa = metadata.get(a.0.path()).and_then(|m| m.size).unwrap_or(0);
                     let sb = metadata.get(b.0.path()).and_then(|m| m.size).unwrap_or(0);
-                    b.0.is_dir().cmp(&a.0.is_dir()).then(sb.cmp(&sa)).then(a.1.cmp(&b.1))
+                    b.0.is_dir()
+                        .cmp(&a.0.is_dir())
+                        .then(sb.cmp(&sa))
+                        .then(a.1.cmp(&b.1))
                 });
             }
             FileSortMode::Extension => {
@@ -2376,29 +2855,124 @@ impl TemporalExplorerWindow {
         }
 
         let nodes: Vec<TreeNode> = decorated.into_iter().map(|(node, _, _)| node).collect();
+        *imp.current_nodes.borrow_mut() = nodes.clone();
 
         let win1 = self.clone();
         let win2 = self.clone();
         let win3 = self.clone();
+        let win4 = self.clone();
+        let win5 = self.clone();
+        let win6 = self.clone();
         let on_enter_dir: OnEnterDir = Box::new(move |path: PathBuf| {
             win1.push_dir(path);
         });
         let on_open_file: OnOpenFile = Box::new(move |path: &std::path::Path, _h: &str| {
             win2.preview_file(path);
         });
-        let on_context_menu: OnContextMenu = Box::new(move |node: &TreeNode, anchor: &gtk::Widget| {
-            win3.show_file_context_menu(node.clone(), anchor);
-        });
+        let on_context_menu: grid_view::OnContextMenu =
+            Box::new(move |node: &TreeNode, anchor: &gtk::Widget| {
+                win3.show_file_context_menu(node.clone(), anchor);
+            });
+        let on_background_context_menu: grid_view::OnBackgroundContextMenu =
+            Box::new(move |anchor: &gtk::Widget, x, y| {
+                win4.show_file_background_context_menu(anchor, x, y);
+            });
+        let on_list_context_menu: list_view::OnContextMenu =
+            Box::new(move |node: &TreeNode, anchor: &gtk::Widget| {
+                win5.show_file_context_menu(node.clone(), anchor);
+            });
+        let on_list_background_context_menu: list_view::OnBackgroundContextMenu =
+            Box::new(move |anchor: &gtk::Widget, x, y| {
+                win6.show_file_background_context_menu(anchor, x, y);
+            });
 
         let widget: gtk::Widget = match mode {
-            ViewMode::List => {
-                list_view::build_list_view(&nodes, &hash, on_enter_dir, on_open_file).upcast()
-            }
-            ViewMode::Grid => {
-                grid_view::build_grid_view(&nodes, &hash, grid_zoom, grid_caption_flags, &metadata, on_enter_dir, on_open_file, on_context_menu).upcast()
-            }
+            ViewMode::List => list_view::build_list_view(
+                &nodes,
+                &hash,
+                on_enter_dir,
+                on_open_file,
+                on_list_context_menu,
+                on_list_background_context_menu,
+            )
+            .upcast(),
+            ViewMode::Grid => grid_view::build_grid_view(
+                &nodes,
+                &hash,
+                grid_zoom,
+                grid_caption_flags,
+                &metadata,
+                on_enter_dir,
+                on_open_file,
+                on_context_menu,
+                on_background_context_menu,
+            )
+            .upcast(),
         };
         self.replace_right_panel(widget);
+    }
+
+    fn visible_nodes_for_current_settings(&self, nodes: Vec<TreeNode>) -> Vec<TreeNode> {
+        if self.imp().show_hidden_files.get() {
+            return nodes;
+        }
+
+        nodes
+            .into_iter()
+            .filter(|node| {
+                node.path()
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .map_or(true, |name| !name.starts_with('.'))
+            })
+            .collect()
+    }
+
+    fn selected_file_view_node(&self) -> Option<TreeNode> {
+        self.selected_file_view_node_and_anchor()
+            .map(|(node, _)| node)
+    }
+
+    fn selected_file_view_node_and_anchor(&self) -> Option<(TreeNode, gtk::Widget)> {
+        let root = self.imp().right_panel_content.get();
+
+        if let Some(list) = Self::find_list_box(root.upcast_ref()) {
+            if let Some(row) = list.selected_rows().first() {
+                let idx = row.index();
+                if idx >= 0 {
+                    return self
+                        .imp()
+                        .current_nodes
+                        .borrow()
+                        .get(idx as usize)
+                        .cloned()
+                        .map(|node| (node, row.clone().upcast::<gtk::Widget>()));
+                }
+            }
+        }
+
+        if let Some(grid) = Self::find_grid_view(root.upcast_ref()) {
+            if let Some((item, anchor)) = grid_view::grid_view_selected_item(&grid) {
+                return Some((item.node, anchor));
+            }
+        }
+
+        if let Some(flow) = Self::find_flow_box(root.upcast_ref()) {
+            if let Some(child) = flow.selected_children().first() {
+                let idx = child.index();
+                if idx >= 0 {
+                    return self
+                        .imp()
+                        .current_nodes
+                        .borrow()
+                        .get(idx as usize)
+                        .cloned()
+                        .map(|node| (node, child.clone().upcast::<gtk::Widget>()));
+                }
+            }
+        }
+
+        None
     }
 
     // ── File grid metadata ────────────────────────────────────────────────────
@@ -2437,13 +3011,12 @@ impl TemporalExplorerWindow {
             .and_then(|commit| commit.tree().ok());
 
         let needs_size =
-            matches!(sort_mode, FileSortMode::Size)
-            || caption_flags.contains(CaptionFlags::SIZE);
+            matches!(sort_mode, FileSortMode::Size) || caption_flags.contains(CaptionFlags::SIZE);
 
-        // Git trees do not store per-file timestamps.
-        // Date metadata requires history scanning and must be implemented
-        // asynchronously with cache before enabling it in the UI.
-        let needs_dates = false;
+        let needs_dates = matches!(
+            sort_mode,
+            FileSortMode::LastModified | FileSortMode::FirstModified
+        ) || caption_flags.contains(CaptionFlags::DATE);
 
         for node in nodes {
             let mut meta = FileGridMetadata::default();
@@ -2535,12 +3108,14 @@ impl TemporalExplorerWindow {
                             // First hit is the last modification.
                             if meta.last_modified.is_none() {
                                 meta.last_modified = Some(commit_info.timestamp);
-                                meta.last_modified_label = Some(Self::format_timestamp(commit_info.timestamp));
+                                meta.last_modified_label =
+                                    Some(Self::format_timestamp(commit_info.timestamp));
                             }
 
                             // Keep updating; after the loop, this is the oldest hit.
                             meta.first_modified = Some(commit_info.timestamp);
-                            meta.first_modified_label = Some(Self::format_timestamp(commit_info.timestamp));
+                            meta.first_modified_label =
+                                Some(Self::format_timestamp(commit_info.timestamp));
                         }
                     }
                 }
@@ -2549,6 +3124,66 @@ impl TemporalExplorerWindow {
     }
 
     // ── File context menu ─────────────────────────────────────────────────────
+
+    fn show_file_background_context_menu(&self, anchor: &gtk::Widget, x: f64, y: f64) {
+        let menu = gio::Menu::new();
+
+        let selection_section = gio::Menu::new();
+        selection_section.append(Some(&gettext("Select All")), Some("win.select-all-files"));
+        selection_section.append(
+            Some(&gettext("Invert Selection")),
+            Some("win.invert-file-selection"),
+        );
+        selection_section.append(
+            Some(&gettext("Clear Selection")),
+            Some("win.unselect-all-files"),
+        );
+        menu.append_section(None, &selection_section);
+
+        let view_section = gio::Menu::new();
+        view_section.append(Some(&gettext("Captions…")), Some("win.show-captions"));
+        menu.append_section(None, &view_section);
+
+        let folder_section = gio::Menu::new();
+        folder_section.append(
+            Some(&gettext("Open Repository in System")),
+            Some("win.open-repository-system"),
+        );
+        folder_section.append(
+            Some(&gettext("Open in Console")),
+            Some("win.open-repository-console"),
+        );
+        folder_section.append(
+            Some(&gettext("Copy Repository Path")),
+            Some("win.copy-current-repository-path"),
+        );
+        menu.append_section(None, &folder_section);
+
+        let properties_section = gio::Menu::new();
+        properties_section.append(Some(&gettext("Properties")), Some("win.current-properties"));
+        menu.append_section(None, &properties_section);
+
+        let popover = gtk::PopoverMenu::from_model(Some(&menu));
+        popover.set_has_arrow(false);
+        popover.add_css_class("nautilus-context-menu");
+        popover.set_parent(anchor);
+        popover.set_pointing_to(Some(&gtk::gdk::Rectangle::new(
+            x.round() as i32,
+            y.round() as i32,
+            1,
+            1,
+        )));
+
+        popover.connect_closed(|p| {
+            let popover = p.clone();
+
+            glib::idle_add_local_once(move || {
+                popover.unparent();
+            });
+        });
+
+        popover.popup();
+    }
 
     fn show_file_context_menu(&self, node: TreeNode, anchor: &gtk::Widget) {
         *self.imp().context_node.borrow_mut() = Some(node.clone());
@@ -2564,12 +3199,21 @@ impl TemporalExplorerWindow {
 
         let edit_section = gio::Menu::new();
         edit_section.append(Some(&gettext("Export File…")), Some("win.context-export"));
-        edit_section.append(Some(&gettext("Copy Repository Path")), Some("win.context-copy-path"));
-        edit_section.append(Some(&gettext("Copy Content")), Some("win.context-copy-content"));
+        edit_section.append(
+            Some(&gettext("Copy Repository Path")),
+            Some("win.context-copy-path"),
+        );
+        edit_section.append(
+            Some(&gettext("Copy Content")),
+            Some("win.context-copy-content"),
+        );
         menu.append_section(None, &edit_section);
 
         let system_section = gio::Menu::new();
-        system_section.append(Some(&gettext("Show in System")), Some("win.context-show-system"));
+        system_section.append(
+            Some(&gettext("Show in System")),
+            Some("win.context-show-system"),
+        );
         menu.append_section(None, &system_section);
 
         let properties_section = gio::Menu::new();
@@ -2746,12 +3390,13 @@ impl TemporalExplorerWindow {
         title: &str,
         initial_status: &str,
         on_done: F,
-    )
-    where
+    ) where
         F: FnOnce(&Self, PathBuf) + 'static,
     {
         if node.is_dir() || node.is_submodule() {
-            self.show_toast(&gettext("Only files can be opened or exported from a snapshot"));
+            self.show_toast(&gettext(
+                "Only files can be opened or exported from a snapshot",
+            ));
             return;
         }
 
@@ -2841,39 +3486,37 @@ impl TemporalExplorerWindow {
         let callback = std::rc::Rc::new(std::cell::RefCell::new(Some(on_done)));
         let callback_ref = callback.clone();
 
-        glib::idle_add_local(move || {
-            loop {
-                match rx.try_recv() {
-                    Ok(SnapshotWriteMessage::Progress { fraction, status }) => {
-                        dialog.set_progress(fraction, &status);
-                    }
-                    Ok(SnapshotWriteMessage::Done(result)) => {
-                        dialog.finish_and_close();
+        glib::idle_add_local(move || loop {
+            match rx.try_recv() {
+                Ok(SnapshotWriteMessage::Progress { fraction, status }) => {
+                    dialog.set_progress(fraction, &status);
+                }
+                Ok(SnapshotWriteMessage::Done(result)) => {
+                    dialog.finish_and_close();
 
-                        match result {
-                            Ok(path) => {
-                                if let Some(callback) = callback_ref.borrow_mut().take() {
-                                    callback(&win, path);
-                                }
-                            }
-                            Err(msg) => {
-                                if msg != "Operation cancelled" {
-                                    win.show_error(&msg);
-                                } else {
-                                    win.show_toast(&gettext("Operation cancelled"));
-                                }
+                    match result {
+                        Ok(path) => {
+                            if let Some(callback) = callback_ref.borrow_mut().take() {
+                                callback(&win, path);
                             }
                         }
+                        Err(msg) => {
+                            if msg != "Operation cancelled" {
+                                win.show_error(&msg);
+                            } else {
+                                win.show_toast(&gettext("Operation cancelled"));
+                            }
+                        }
+                    }
 
-                        return glib::ControlFlow::Break;
-                    }
-                    Err(std::sync::mpsc::TryRecvError::Empty) => {
-                        return glib::ControlFlow::Continue;
-                    }
-                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                        dialog.finish_and_close();
-                        return glib::ControlFlow::Break;
-                    }
+                    return glib::ControlFlow::Break;
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    return glib::ControlFlow::Continue;
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    dialog.finish_and_close();
+                    return glib::ControlFlow::Break;
                 }
             }
         });
@@ -2899,7 +3542,9 @@ impl TemporalExplorerWindow {
     #[allow(dead_code)]
     fn materialize_snapshot_node_to_temp(&self, node: &TreeNode) -> Option<PathBuf> {
         if node.is_dir() || node.is_submodule() {
-            self.show_toast(&gettext("Only files can be opened or exported from a snapshot"));
+            self.show_toast(&gettext(
+                "Only files can be opened or exported from a snapshot",
+            ));
             return None;
         }
 
@@ -2920,9 +3565,7 @@ impl TemporalExplorerWindow {
             .unwrap_or("snapshot-file");
 
         let short = short_hash(&hash);
-        let target_dir = std::env::temp_dir()
-            .join("temporal-explorer")
-            .join(short);
+        let target_dir = std::env::temp_dir().join("temporal-explorer").join(short);
 
         std::fs::create_dir_all(&target_dir).ok()?;
 
@@ -2945,7 +3588,9 @@ impl TemporalExplorerWindow {
             |win, path| {
                 let uri = format!("file://{}", path.to_string_lossy());
 
-                if gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>).is_err() {
+                if gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>)
+                    .is_err()
+                {
                     win.show_error(&gettext("Could not open file with the default application"));
                 }
             },
@@ -2968,15 +3613,13 @@ impl TemporalExplorerWindow {
                 let file = gio::File::for_path(&path);
                 let launcher = gtk::FileLauncher::new(Some(&file));
                 launcher.set_always_ask(true);
-                launcher.launch(
-                    Some(&parent),
-                    None::<&gio::Cancellable>,
-                    move |result| {
-                        if result.is_err() {
-                            win.show_error(&gettext("Could not open file with the selected application"));
-                        }
+                launcher.launch(Some(&parent), None::<&gio::Cancellable>, move |result| {
+                    if result.is_err() {
+                        win.show_error(&gettext(
+                            "Could not open file with the selected application",
+                        ));
                     }
-                );
+                });
             },
         );
     }
@@ -3018,11 +3661,7 @@ impl TemporalExplorerWindow {
                 &gettext("Exporting File"),
                 &gettext("Exporting snapshot file…"),
                 move |win, path| {
-                    win.show_toast(&format!(
-                        "{}: {}",
-                        gettext("Exported"),
-                        path.display()
-                    ));
+                    win.show_toast(&format!("{}: {}", gettext("Exported"), path.display()));
                 },
             );
         });
@@ -3060,7 +3699,11 @@ impl TemporalExplorerWindow {
             .and_then(|commit| commit.tree().ok())
             .and_then(|tree| tree.get_path(node.path()).ok())
             .and_then(|entry| repo.find_blob(entry.id()).ok())
-            .and_then(|blob| std::str::from_utf8(blob.content()).ok().map(ToOwned::to_owned));
+            .and_then(|blob| {
+                std::str::from_utf8(blob.content())
+                    .ok()
+                    .map(ToOwned::to_owned)
+            });
 
         if let Some(text) = content {
             if let Some(display) = gtk::gdk::Display::default() {
@@ -3068,7 +3711,9 @@ impl TemporalExplorerWindow {
                 self.show_toast(&gettext("File content copied"));
             }
         } else {
-            self.show_toast(&gettext("This file is binary or could not be copied as text"));
+            self.show_toast(&gettext(
+                "This file is binary or could not be copied as text",
+            ));
         }
     }
 
@@ -3080,7 +3725,9 @@ impl TemporalExplorerWindow {
         let working_path = repo_path.join(node.path());
 
         if !working_path.exists() {
-            self.show_toast(&gettext("This file does not exist in the current working tree"));
+            self.show_toast(&gettext(
+                "This file does not exist in the current working tree",
+            ));
             return;
         }
 
@@ -3122,9 +3769,14 @@ impl TemporalExplorerWindow {
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
             .map(|parent| parent.display().to_string())
-            .unwrap_or_else(|| self.imp().repo_path.borrow().clone()
-                .map(|path| path.display().to_string())
-                .unwrap_or_else(|| gettext("Repository root")));
+            .unwrap_or_else(|| {
+                self.imp()
+                    .repo_path
+                    .borrow()
+                    .clone()
+                    .map(|path| path.display().to_string())
+                    .unwrap_or_else(|| gettext("Repository root"))
+            });
 
         let kind = if node.is_dir() {
             gettext("Folder")
@@ -3213,6 +3865,28 @@ impl TemporalExplorerWindow {
 
         let dialog = NodePropertiesDialog::new();
         dialog.set_properties(&props);
+
+        let win = self.clone();
+        dialog.connect_favorite_toggled(move |_, active| {
+            let msg = if active {
+                gettext("Marked as favorite")
+            } else {
+                gettext("Removed from favorites")
+            };
+            win.show_toast(&msg);
+        });
+
+        let win = self.clone();
+        let node_for_location = node.clone();
+        dialog.connect_open_location_requested(move |_, _| {
+            win.show_node_in_system(&node_for_location);
+        });
+
+        let win = self.clone();
+        dialog.connect_icon_edit_requested(move |_| {
+            win.show_toast(&gettext("Snapshot item icons cannot be edited"));
+        });
+
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
@@ -3399,7 +4073,8 @@ impl TemporalExplorerWindow {
                         visible.iter().map(|c| (*c).clone()).collect();
 
                     let year_has_commits =
-                        !timeline_filter::commits_for_year(&visible_owned, selected_year).is_empty();
+                        !timeline_filter::commits_for_year(&visible_owned, selected_year)
+                            .is_empty();
 
                     drop(commits);
 
@@ -3487,7 +4162,8 @@ impl TemporalExplorerWindow {
             imp.selected_year.set(0);
             imp.timeline_stack.set_visible_child_name("commits");
             imp.timeline_back_button.set_visible(true);
-            imp.timeline_header_title.set_title(&gettext("Search Results"));
+            imp.timeline_header_title
+                .set_title(&gettext("Search Results"));
             imp.timeline_header_title.set_subtitle("");
         }
 
@@ -3648,7 +4324,10 @@ impl TemporalExplorerWindow {
                 results.push(commit);
             }
 
-            let _ = tx.send(SearchProgressMessage::Done(Some((results, newly_cached_changed_files))));
+            let _ = tx.send(SearchProgressMessage::Done(Some((
+                results,
+                newly_cached_changed_files,
+            ))));
         });
 
         let win = self.clone();
@@ -3677,7 +4356,10 @@ impl TemporalExplorerWindow {
                         }
                     }
 
-                    Ok(SearchProgressMessage::Done(Some((results, newly_cached_changed_files)))) => {
+                    Ok(SearchProgressMessage::Done(Some((
+                        results,
+                        newly_cached_changed_files,
+                    )))) => {
                         if let Some(ref dialog) = progress_dialog {
                             dialog.finish_and_close();
                         }
@@ -3710,7 +4392,10 @@ impl TemporalExplorerWindow {
                                 }
                             }
 
-                            commit_controller::populate_commit_list(&win.imp().commit_list, &results);
+                            commit_controller::populate_commit_list(
+                                &win.imp().commit_list,
+                                &results,
+                            );
                         }
 
                         return glib::ControlFlow::Break;

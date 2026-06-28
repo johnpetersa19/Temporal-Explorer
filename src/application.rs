@@ -117,12 +117,11 @@ impl TemporalExplorerApplication {
             "/io/github/johnpetersa19/TemporalExplorer/shortcuts-dialog.ui",
         );
 
-        let Some(dialog) = builder.object::<gtk::ShortcutsWindow>("shortcuts_dialog") else {
+        let Some(dialog) = builder.object::<adw::Dialog>("shortcuts_dialog") else {
             return;
         };
 
-        dialog.set_transient_for(Some(&window));
-        dialog.present();
+        dialog.present(Some(&window));
     }
 
     fn show_about(&self) {

@@ -62,6 +62,8 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             StackPage {
               name: "years";
               child: ScrolledWindow {
+                hadjustment: Adjustment {};
+                vadjustment: Adjustment {};
                 vexpand: true;
                 hscrollbar-policy: never;
                 ListBox year_list {
@@ -74,6 +76,8 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             StackPage {
               name: "months";
               child: ScrolledWindow {
+                hadjustment: Adjustment {};
+                vadjustment: Adjustment {};
                 vexpand: true;
                 hscrollbar-policy: never;
                 ListBox month_list {
@@ -86,6 +90,8 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             StackPage {
               name: "commits";
               child: ScrolledWindow {
+                hadjustment: Adjustment {};
+                vadjustment: Adjustment {};
                 vexpand: true;
                 hscrollbar-policy: never;
                 ListBox commit_list {

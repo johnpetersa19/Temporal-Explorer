@@ -44,6 +44,7 @@ mod imp {
         pub zoom_level: Cell<u32>,
         pub is_grid: Cell<bool>,
         pub sort_action: RefCell<Option<gio::SimpleAction>>,
+        pub hidden_action: RefCell<Option<gio::SimpleAction>>,
     }
 
     #[glib::object_subclass]
@@ -87,6 +88,9 @@ mod imp {
                         .build(),
                     glib::subclass::Signal::builder("zoom-changed")
                         .param_types([u32::static_type()])
+                        .build(),
+                    glib::subclass::Signal::builder("hidden-files-changed")
+                        .param_types([bool::static_type()])
                         .build(),
                     glib::subclass::Signal::builder("captions-requested").build(),
                 ]
@@ -227,9 +231,24 @@ impl ViewControls {
         }
         group.add_action(&captions_action);
 
-        let hidden_action = gio::SimpleAction::new("show-hidden-files", None);
-        hidden_action.set_enabled(false);
+        let hidden_action =
+            gio::SimpleAction::new_stateful("show-hidden-files", None, &false.to_variant());
+        {
+            let obj = self.clone();
+
+            hidden_action.connect_activate(move |action, _| {
+                let current = action
+                    .state()
+                    .and_then(|state| state.get::<bool>())
+                    .unwrap_or(false);
+                let next = !current;
+
+                action.set_state(&next.to_variant());
+                obj.emit_by_name::<()>("hidden-files-changed", &[&next]);
+            });
+        }
         group.add_action(&hidden_action);
+        self.imp().hidden_action.replace(Some(hidden_action));
 
         self.insert_action_group("viewctrl", Some(&group));
     }
@@ -261,6 +280,12 @@ impl ViewControls {
         imp.zoom_level.set(level);
         imp.zoom_out_button.get().set_sensitive(level > 0);
         imp.zoom_in_button.get().set_sensitive(level < 2);
+    }
+
+    pub fn set_show_hidden_files(&self, show: bool) {
+        if let Some(action) = self.imp().hidden_action.borrow().as_ref() {
+            action.set_state(&show.to_variant());
+        }
     }
 
     /// Restore the selected sort option from saved settings.

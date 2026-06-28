@@ -1,233 +1,207 @@
 using Gtk 4.0;
+using Adw 1;
 
-Gtk.ShortcutsWindow shortcuts_dialog {
-
-  // ===== NAVIGATION =====
-  Gtk.ShortcutsSection {
+Adw.ShortcutsDialog shortcuts_dialog {
+  Adw.ShortcutsSection {
     title: C_("shortcuts dialog", "Navigation");
-    section-name: "navigation";
 
-    Gtk.ShortcutsGroup {
-      title: "";
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to Previous Commit");
+      accelerator: "<alt>Left";
+      direction: ltr;
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Go to Previous Commit");
-        accelerator: "<alt>Left";
-        direction: ltr;
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to Previous Commit");
+      accelerator: "<alt>Right";
+      direction: rtl;
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Go to Previous Commit");
-        accelerator: "<alt>Right";
-        direction: rtl;
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to Next Commit");
+      accelerator: "<alt>Right";
+      direction: ltr;
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Go to Next Commit");
-        accelerator: "<alt>Right";
-        direction: ltr;
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to Next Commit");
+      accelerator: "<alt>Left";
+      direction: rtl;
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Go to Next Commit");
-        accelerator: "<alt>Left";
-        direction: rtl;
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to First Commit");
+      action-name: "win.first-commit";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Go to First Commit");
-        accelerator: "<Primary>Home";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to Latest Commit (HEAD)");
+      action-name: "win.latest-commit";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Go to Latest Commit (HEAD)");
-        accelerator: "<Primary>End";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Open Repository");
+      action-name: "win.open-repository";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Open Repository");
-        accelerator: "<Primary>o";
-      }
-
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Refresh / Reload");
-        accelerator: "F5";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Refresh / Reload");
+      action-name: "win.reload-repository";
     }
   }
 
-  // ===== SEARCH & FILTER =====
-  Gtk.ShortcutsSection {
+  Adw.ShortcutsSection {
     title: C_("shortcuts dialog", "Search & Filter");
-    section-name: "search";
 
-    Gtk.ShortcutsGroup {
-      title: "";
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Search Commits");
+      action-name: "win.search-commits";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Search Commits");
-        accelerator: "<Primary>f";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Open Filter Popover");
+      action-name: "win.toggle-filter-popover";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Open Filter Popover");
-        accelerator: "<Primary><Shift>f";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Open Date Range Dialog");
+      action-name: "win.open-date-range-dialog";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Open Date Range Dialog");
-        accelerator: "<Primary><Shift>d";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Filter by File Type");
+      action-name: "win.filter-file-type";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Filter by File Type");
-        accelerator: "<Primary><Shift>t";
-      }
-
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Clear All Filters");
-        accelerator: "<Primary>Escape";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Clear All Filters");
+      action-name: "win.clear-all-filters";
     }
   }
 
-  // ===== VIEW =====
-  Gtk.ShortcutsSection {
+  Adw.ShortcutsSection {
     title: C_("shortcuts dialog", "View");
-    section-name: "view";
 
-    Gtk.ShortcutsGroup {
-      title: "";
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "List View");
+      action-name: "win.list-view";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "List View");
-        accelerator: "<Primary>1";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Grid View");
+      action-name: "win.grid-view";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Grid View");
-        accelerator: "<Primary>2";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Zoom In");
+      action-name: "win.zoom-in";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Zoom In");
-        accelerator: "<Primary>plus";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Zoom Out");
+      action-name: "win.zoom-out";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Zoom Out");
-        accelerator: "<Primary>minus";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Reset Zoom");
+      action-name: "win.reset-zoom";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Reset Zoom");
-        accelerator: "<Primary>0";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Show/Hide Sidebar");
+      action-name: "win.toggle-sidebar";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Show/Hide Sidebar");
-        action-name: "win.toggle-sidebar";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Choose Visible Columns");
+      action-name: "win.show-column-chooser";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Choose Visible Columns");
-        accelerator: "<Primary><Shift>c";
-      }
-
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "File Grid Captions");
-        accelerator: "<Primary><Shift>g";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "File Grid Captions");
+      action-name: "win.show-captions";
     }
   }
 
-  // ===== COMMIT ACTIONS =====
-  Gtk.ShortcutsSection {
+  Adw.ShortcutsSection {
     title: C_("shortcuts dialog", "Commit Actions");
-    section-name: "commits";
 
-    Gtk.ShortcutsGroup {
-      title: "";
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Copy Commit SHA");
+      action-name: "win.copy-current-commit-sha";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Copy Commit SHA");
-        accelerator: "<Primary>c";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Show Commit Details");
+      action-name: "win.show-current-commit-details";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Show Commit Details");
-        accelerator: "<Primary>i";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Preview Selected File");
+      action-name: "win.preview-selected-file";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Preview Selected File");
-        accelerator: "space";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Open Context Menu");
+      action-name: "win.open-context-menu";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Open Context Menu");
-        accelerator: "<Shift>F10";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Batch Operations on Commits");
+      action-name: "win.batch-operations";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Batch Operations on Commits");
-        accelerator: "<Primary><Shift>b";
-      }
-
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Show Merge Conflicts");
-        accelerator: "<Primary><Shift>m";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Show Merge Conflicts");
+      action-name: "win.show-merge-conflicts";
     }
   }
 
-  // ===== SELECTION =====
-  Gtk.ShortcutsSection {
+  Adw.ShortcutsSection {
     title: C_("shortcuts dialog", "Selection");
-    section-name: "selection";
 
-    Gtk.ShortcutsGroup {
-      title: "";
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Select All Files");
+      action-name: "win.select-all-files";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Select All Commits");
-        accelerator: "<Primary>a";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Invert File Selection");
+      action-name: "win.invert-file-selection";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Select Commits Matching Pattern");
-        accelerator: "<Primary>s";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Clear File Selection");
+      action-name: "win.unselect-all-files";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Invert Selection");
-        accelerator: "<Primary><Shift>i";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Select Commits Matching Pattern");
+      action-name: "win.select-by-pattern";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Invert Commit Selection");
+      action-name: "win.invert-commit-selection";
     }
   }
 
-  // ===== APP =====
-  Gtk.ShortcutsSection {
+  Adw.ShortcutsSection {
     title: C_("shortcuts dialog", "App");
-    section-name: "app";
 
-    Gtk.ShortcutsGroup {
-      title: "";
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Preferences");
+      action-name: "app.preferences";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Preferences");
-        action-name: "app.preferences";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Show Shortcuts");
+      action-name: "app.shortcuts";
+    }
 
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Show Shortcuts");
-        action-name: "app.shortcuts";
-      }
-
-      Gtk.ShortcutsShortcut {
-        title: C_("shortcuts dialog", "Quit");
-        action-name: "app.quit";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Quit");
+      action-name: "app.quit";
     }
   }
 }

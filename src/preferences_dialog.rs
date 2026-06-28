@@ -39,12 +39,10 @@
 //! prefs.present(Some(&window));
 //! ```
 
-use gtk::gio;
-use gtk::glib;
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
 use adw::prelude::*;
 use adw::subclass::prelude::*;
+use gtk::gio;
+use gtk::glib;
 
 // ── GObject subclass ───────────────────────────────────────────────────────────
 
@@ -56,29 +54,50 @@ mod imp {
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/preferences-dialog.ui")]
     pub struct PreferencesDialog {
         // ── General page ──
-        #[template_child] pub fetch_on_open_row:            TemplateChild<adw::SwitchRow>,
-        #[template_child] pub commits_per_page_row:         TemplateChild<adw::SpinRow>,
-        #[template_child] pub default_branch_row:           TemplateChild<adw::EntryRow>,
-        #[template_child] pub clone_depth_row:              TemplateChild<adw::SpinRow>,
-        #[template_child] pub date_format_relative_button:  TemplateChild<gtk::CheckButton>,
-        #[template_child] pub date_format_short_button:     TemplateChild<gtk::CheckButton>,
-        #[template_child] pub date_format_iso_button:       TemplateChild<gtk::CheckButton>,
+        #[template_child]
+        pub fetch_on_open_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub commits_per_page_row: TemplateChild<adw::SpinRow>,
+        #[template_child]
+        pub default_branch_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub clone_depth_row: TemplateChild<adw::SpinRow>,
+        #[template_child]
+        pub date_format_relative_button: TemplateChild<gtk::CheckButton>,
+        #[template_child]
+        pub date_format_short_button: TemplateChild<gtk::CheckButton>,
+        #[template_child]
+        pub date_format_iso_button: TemplateChild<gtk::CheckButton>,
 
         // ── Appearance page ──
-        #[template_child] pub default_view_row:             TemplateChild<adw::ComboRow>,
-        #[template_child] pub show_avatars_row:             TemplateChild<adw::SwitchRow>,
-        #[template_child] pub dense_mode_row:               TemplateChild<adw::SwitchRow>,
-        #[template_child] pub show_graph_row:               TemplateChild<adw::SwitchRow>,
-        #[template_child] pub syntax_highlight_row:         TemplateChild<adw::SwitchRow>,
-        #[template_child] pub word_diff_row:                TemplateChild<adw::SwitchRow>,
-        #[template_child] pub context_lines_row:            TemplateChild<adw::SpinRow>,
+        #[template_child]
+        pub default_view_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub show_avatars_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub dense_mode_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub show_graph_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub syntax_highlight_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub word_diff_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub context_lines_row: TemplateChild<adw::SpinRow>,
 
         // ── Advanced page ──
-        #[template_child] pub verify_signatures_row:        TemplateChild<adw::SwitchRow>,
-        #[template_child] pub follow_renames_row:           TemplateChild<adw::SwitchRow>,
-        #[template_child] pub include_submodules_row:       TemplateChild<adw::SwitchRow>,
-        #[template_child] pub background_fetch_row:         TemplateChild<adw::SwitchRow>,
-        #[template_child] pub background_fetch_interval_row: TemplateChild<adw::SpinRow>,
+        #[template_child]
+        pub verify_signatures_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub follow_renames_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub include_submodules_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub git_binary_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub background_fetch_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub background_fetch_interval_row: TemplateChild<adw::SpinRow>,
 
         pub settings: OnceCell<gio::Settings>,
     }
@@ -104,8 +123,8 @@ mod imp {
         }
     }
 
-    impl WidgetImpl              for PreferencesDialog {}
-    impl AdwDialogImpl           for PreferencesDialog {}
+    impl WidgetImpl for PreferencesDialog {}
+    impl AdwDialogImpl for PreferencesDialog {}
     impl PreferencesDialogImpl for PreferencesDialog {}
 }
 
@@ -132,10 +151,14 @@ impl PreferencesDialog {
         let s = imp.settings.get().unwrap();
 
         // ── General ──────────────────────────────────────────────────────
-        s.bind("fetch-on-open", &*imp.fetch_on_open_row, "active").build();
-        s.bind("commits-per-page", &*imp.commits_per_page_row, "value").build();
-        s.bind("default-branch", &*imp.default_branch_row, "text").build();
-        s.bind("clone-depth", &*imp.clone_depth_row, "value").build();
+        s.bind("fetch-on-open", &*imp.fetch_on_open_row, "active")
+            .build();
+        s.bind("commits-per-page", &*imp.commits_per_page_row, "value")
+            .build();
+        s.bind("default-branch", &*imp.default_branch_row, "text")
+            .build();
+        s.bind("clone-depth", &*imp.clone_depth_row, "value")
+            .build();
 
         // Date format radio buttons use action-name/action-target in the
         // .blp so they are driven by the "preferences.date-format" action.
@@ -160,12 +183,15 @@ impl PreferencesDialog {
         self.insert_action_group("preferences", Some(&action_group));
 
         // ── Appearance ───────────────────────────────────────────────────
-        s.bind("show-avatars",        &*imp.show_avatars_row,        "active").build();
-        s.bind("dense-mode",          &*imp.dense_mode_row,          "active").build();
-        s.bind("show-graph",          &*imp.show_graph_row,          "active").build();
-        s.bind("syntax-highlight",    &*imp.syntax_highlight_row,    "active").build();
-        s.bind("word-diff",           &*imp.word_diff_row,           "active").build();
-        s.bind("context-lines",       &*imp.context_lines_row,       "value").build();
+        s.bind("show-avatars", &*imp.show_avatars_row, "active")
+            .build();
+        s.bind("dense-mode", &*imp.dense_mode_row, "active").build();
+        s.bind("show-graph", &*imp.show_graph_row, "active").build();
+        s.bind("syntax-highlight", &*imp.syntax_highlight_row, "active")
+            .build();
+        s.bind("word-diff", &*imp.word_diff_row, "active").build();
+        s.bind("context-lines", &*imp.context_lines_row, "value")
+            .build();
 
         // default-view combo: 0 = list, 1 = grid
         let view_action = gio::SimpleAction::new_stateful(
@@ -188,7 +214,11 @@ impl PreferencesDialog {
         // Sync ComboRow to GSettings string via index
         {
             let row = imp.default_view_row.get();
-            let idx: u32 = if s.string("default-view") == "grid" { 1 } else { 0 };
+            let idx: u32 = if s.string("default-view") == "grid" {
+                1
+            } else {
+                0
+            };
             row.set_selected(idx);
             let s2 = s.clone();
             row.connect_selected_notify(move |r| {
@@ -198,11 +228,22 @@ impl PreferencesDialog {
         }
 
         // ── Advanced ─────────────────────────────────────────────────────
-        s.bind("verify-signatures",      &*imp.verify_signatures_row,         "active").build();
-        s.bind("follow-renames",         &*imp.follow_renames_row,            "active").build();
-        s.bind("include-submodules",     &*imp.include_submodules_row,        "active").build();
-        s.bind("background-fetch",       &*imp.background_fetch_row,          "active").build();
-        s.bind("background-fetch-interval", &*imp.background_fetch_interval_row, "value").build();
+        s.bind("verify-signatures", &*imp.verify_signatures_row, "active")
+            .build();
+        s.bind("follow-renames", &*imp.follow_renames_row, "active")
+            .build();
+        s.bind("include-submodules", &*imp.include_submodules_row, "active")
+            .build();
+        s.bind("git-binary-path", &*imp.git_binary_row, "text")
+            .build();
+        s.bind("background-fetch", &*imp.background_fetch_row, "active")
+            .build();
+        s.bind(
+            "background-fetch-interval",
+            &*imp.background_fetch_interval_row,
+            "value",
+        )
+        .build();
 
         // Show/hide interval row based on background-fetch switch
         {
