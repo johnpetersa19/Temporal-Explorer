@@ -14,10 +14,14 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/file-grid-cell.ui")]
     pub struct FileGridCell {
-        #[template_child] pub grid_cell_icon:       TemplateChild<gtk::Image>,
-        #[template_child] pub grid_cell_name_label: TemplateChild<gtk::Label>,
-        #[template_child] pub captions_box:         TemplateChild<gtk::Box>,
-        #[template_child] pub emblems_box:          TemplateChild<gtk::Box>,
+        #[template_child]
+        pub grid_cell_icon: TemplateChild<gtk::Image>,
+        #[template_child]
+        pub grid_cell_name_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub captions_box: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub emblems_box: TemplateChild<gtk::Box>,
     }
 
     #[glib::object_subclass]

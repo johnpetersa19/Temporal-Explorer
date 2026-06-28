@@ -6,6 +6,7 @@ blueprints = custom_target('blueprints',
   input: files(
     'batch-operations-dialog.blp',
     'branch-sidebar-row.blp',
+    'clone-repository-dialog.blp',
     'column-chooser.blp',
     'commit-name-cell.blp',
     'commit-row.blp',

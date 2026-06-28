@@ -269,9 +269,15 @@ impl NodePropertiesDialog {
         let icon = if active {
             "starred-symbolic"
         } else {
-            "star-outline-thick-symbolic"
+            "non-starred-symbolic"
         };
         imp.favorite_button.set_icon_name(icon);
+        let tooltip = if active {
+            gettext("Unstar")
+        } else {
+            gettext("Star")
+        };
+        imp.favorite_button.set_tooltip_text(Some(&tooltip));
         self.emit_by_name::<()>("favorite-toggled", &[&active]);
     }
 

@@ -16,17 +16,24 @@ template $FileGridCaptionsDialog : Adw.Dialog {
 
   child: Adw.ToolbarView {
     [top]
-    Adw.HeaderBar {}
+    Adw.HeaderBar {
+      title-widget: Adw.WindowTitle {
+        title: _("Grid View Captions");
+      };
 
-    content: ScrolledWindow {
-      hscrollbar-policy: never;
-      vexpand: true;
+      [end]
+      Button apply_button {
+        label: _("_Apply");
+        use-underline: true;
+        can-shrink: true;
+        clicked => $on_apply_clicked() swapped;
 
-      child: Adw.PreferencesGroup {
-        margin-top: 12;
-        margin-bottom: 12;
-        margin-start: 12;
-        margin-end: 12;
+        styles ["suggested-action"]
+      }
+    }
+
+    content: Adw.PreferencesPage {
+      Adw.PreferencesGroup {
         title: _("Visible Captions");
         description: _("Choose which information appears below each file in grid view.");
 
@@ -46,21 +53,7 @@ template $FileGridCaptionsDialog : Adw.Dialog {
         Adw.SwitchRow caption_date_row {
           title: _("Date Modified");
         }
-      };
-    };
-
-    [bottom]
-    Adw.Bin {
-      margin-bottom: 12;
-      margin-start: 12;
-      margin-end: 12;
-
-      Button apply_button {
-        label: _("Apply");
-        halign: end;
-
-        styles ["suggested-action"]
       }
-    }
+    };
   };
 }

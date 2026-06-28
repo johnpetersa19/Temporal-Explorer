@@ -7,11 +7,9 @@
  * Emits `captions-changed` with a `CaptionFlags` bitmask when Apply is clicked.
  */
 
-use gtk::glib;
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
 use adw::prelude::*;
 use adw::subclass::prelude::*;
+use gtk::glib;
 use std::sync::OnceLock;
 
 // ── Caption flags bitmask ─────────────────────────────────────────────────
@@ -32,11 +30,16 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/file-grid-captions-dialog.ui")]
     pub struct FileGridCaptionsDialog {
-        #[template_child] pub caption_status_row:    TemplateChild<adw::SwitchRow>,
-        #[template_child] pub caption_extension_row: TemplateChild<adw::SwitchRow>,
-        #[template_child] pub caption_size_row:      TemplateChild<adw::SwitchRow>,
-        #[template_child] pub caption_date_row:      TemplateChild<adw::SwitchRow>,
-        #[template_child] pub apply_button:          TemplateChild<gtk::Button>,
+        #[template_child]
+        pub caption_status_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub caption_extension_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub caption_size_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub caption_date_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub apply_button: TemplateChild<gtk::Button>,
     }
 
     #[glib::object_subclass]
@@ -58,15 +61,15 @@ mod imp {
     impl ObjectImpl for FileGridCaptionsDialog {
         fn signals() -> &'static [glib::subclass::Signal] {
             static SIGNALS: OnceLock<Vec<glib::subclass::Signal>> = OnceLock::new();
-            SIGNALS.get_or_init(|| vec![
-                glib::subclass::Signal::builder("captions-changed")
+            SIGNALS.get_or_init(|| {
+                vec![glib::subclass::Signal::builder("captions-changed")
                     .param_types([u32::static_type()])
-                    .build(),
-            ])
+                    .build()]
+            })
         }
     }
 
-    impl WidgetImpl    for FileGridCaptionsDialog {}
+    impl WidgetImpl for FileGridCaptionsDialog {}
     impl AdwDialogImpl for FileGridCaptionsDialog {}
 
     #[gtk::template_callbacks]
@@ -88,7 +91,9 @@ glib::wrapper! {
 }
 
 impl Default for FileGridCaptionsDialog {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FileGridCaptionsDialog {
@@ -99,29 +104,44 @@ impl FileGridCaptionsDialog {
     /// Pre-fill toggles from stored settings before presenting.
     pub fn set_flags(&self, flags: CaptionFlags) {
         let imp = self.imp();
-        imp.caption_status_row.set_active(flags.contains(CaptionFlags::STATUS));
-        imp.caption_extension_row.set_active(flags.contains(CaptionFlags::EXTENSION));
-        imp.caption_size_row.set_active(flags.contains(CaptionFlags::SIZE));
-        imp.caption_date_row.set_active(flags.contains(CaptionFlags::DATE));
+        imp.caption_status_row
+            .set_active(flags.contains(CaptionFlags::STATUS));
+        imp.caption_extension_row
+            .set_active(flags.contains(CaptionFlags::EXTENSION));
+        imp.caption_size_row
+            .set_active(flags.contains(CaptionFlags::SIZE));
+        imp.caption_date_row
+            .set_active(flags.contains(CaptionFlags::DATE));
     }
 
     /// Read current flags from the toggle state.
     pub fn current_flags(&self) -> CaptionFlags {
         let imp = self.imp();
         let mut f = CaptionFlags::empty();
-        if imp.caption_status_row.is_active()    { f |= CaptionFlags::STATUS; }
-        if imp.caption_extension_row.is_active() { f |= CaptionFlags::EXTENSION; }
-        if imp.caption_size_row.is_active()      { f |= CaptionFlags::SIZE; }
-        if imp.caption_date_row.is_active()      { f |= CaptionFlags::DATE; }
+        if imp.caption_status_row.is_active() {
+            f |= CaptionFlags::STATUS;
+        }
+        if imp.caption_extension_row.is_active() {
+            f |= CaptionFlags::EXTENSION;
+        }
+        if imp.caption_size_row.is_active() {
+            f |= CaptionFlags::SIZE;
+        }
+        if imp.caption_date_row.is_active() {
+            f |= CaptionFlags::DATE;
+        }
         f
     }
 
     pub fn connect_captions_changed<F>(&self, f: F) -> glib::SignalHandlerId
-    where F: Fn(&Self, CaptionFlags) + 'static {
+    where
+        F: Fn(&Self, CaptionFlags) + 'static,
+    {
         self.connect_local("captions-changed", false, move |v| {
-            let dlg   = v[0].get::<FileGridCaptionsDialog>().unwrap();
+            let dlg = v[0].get::<FileGridCaptionsDialog>().unwrap();
             let flags = CaptionFlags::from_bits_truncate(v[1].get::<u32>().unwrap());
-            f(&dlg, flags); None
+            f(&dlg, flags);
+            None
         })
     }
 

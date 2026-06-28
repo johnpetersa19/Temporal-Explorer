@@ -14,14 +14,14 @@ template $NodePropertiesDialog : Adw.Dialog {
 
       [start]
       Button favorite_button {
-        icon-name: "star-outline-thick-symbolic";
-        tooltip-text: _("Favorite");
+        icon-name: "non-starred-symbolic";
+        tooltip-text: _("Star");
         styles ["flat"]
       }
 
       [end]
       Button open_location_button {
-        icon-name: "open-in-new-symbolic";
+        icon-name: "external-link-symbolic";
         tooltip-text: _("Open Location");
         styles ["flat"]
       }
@@ -61,7 +61,8 @@ template $NodePropertiesDialog : Adw.Dialog {
             [overlay]
             Button edit_icon_button {
               icon-name: "document-edit-symbolic";
-              tooltip-text: _("Snapshot item");
+              tooltip-text: _("Snapshot item icons cannot be edited");
+              sensitive: false;
               halign: end;
               valign: end;
               styles ["circular", "osd"]

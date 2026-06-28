@@ -24,8 +24,8 @@
 //! * **General** — date format (relative/short/ISO), commits per page,
 //!                 default branch, shallow clone depth, fetch on open.
 //! * **Appearance** — default view (list/grid), author avatars, dense mode,
-//!                    branch graph, diff syntax highlight, word diff,
-//!                    context lines.
+//!                    file sort, grid zoom/captions, branch graph,
+//!                    diff syntax highlight, word diff, context lines.
 //! * **Advanced** — verify signatures, follow renames, submodules,
 //!                  background fetch + interval.
 //!
@@ -72,6 +72,20 @@ mod imp {
         // ── Appearance page ──
         #[template_child]
         pub default_view_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub grid_zoom_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub file_sort_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub show_hidden_files_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub caption_status_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub caption_extension_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub caption_size_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub caption_date_row: TemplateChild<adw::SwitchRow>,
         #[template_child]
         pub show_avatars_row: TemplateChild<adw::SwitchRow>,
         #[template_child]
@@ -183,6 +197,8 @@ impl PreferencesDialog {
         self.insert_action_group("preferences", Some(&action_group));
 
         // ── Appearance ───────────────────────────────────────────────────
+        s.bind("show-hidden-files", &*imp.show_hidden_files_row, "active")
+            .build();
         s.bind("show-avatars", &*imp.show_avatars_row, "active")
             .build();
         s.bind("dense-mode", &*imp.dense_mode_row, "active").build();
@@ -227,6 +243,41 @@ impl PreferencesDialog {
             });
         }
 
+        {
+            let row = imp.grid_zoom_row.get();
+            row.set_selected(s.uint("grid-zoom-level").min(2));
+            let s2 = s.clone();
+            row.connect_selected_notify(move |r| {
+                s2.set_uint("grid-zoom-level", r.selected().min(2)).ok();
+            });
+        }
+
+        {
+            let row = imp.file_sort_row.get();
+            row.set_selected(match s.string("file-sort-mode").as_str() {
+                "name-desc" => 1,
+                "last-modified" => 2,
+                "first-modified" => 3,
+                "size" => 4,
+                "type" => 5,
+                _ => 0,
+            });
+            let s2 = s.clone();
+            row.connect_selected_notify(move |r| {
+                let key = match r.selected() {
+                    1 => "name-desc",
+                    2 => "last-modified",
+                    3 => "first-modified",
+                    4 => "size",
+                    5 => "type",
+                    _ => "name",
+                };
+                s2.set_string("file-sort-mode", key).ok();
+            });
+        }
+
+        self.bind_caption_flags();
+
         // ── Advanced ─────────────────────────────────────────────────────
         s.bind("verify-signatures", &*imp.verify_signatures_row, "active")
             .build();
@@ -254,5 +305,40 @@ impl PreferencesDialog {
                 interval_row.set_sensitive(r.is_active());
             });
         }
+    }
+
+    fn bind_caption_flags(&self) {
+        const STATUS: u32 = 0b0001;
+        const EXTENSION: u32 = 0b0010;
+        const SIZE: u32 = 0b0100;
+        const DATE: u32 = 0b1000;
+
+        let imp = self.imp();
+        let s = imp.settings.get().unwrap();
+        let flags = s.uint("grid-caption-flags");
+
+        imp.caption_status_row.set_active(flags & STATUS != 0);
+        imp.caption_extension_row.set_active(flags & EXTENSION != 0);
+        imp.caption_size_row.set_active(flags & SIZE != 0);
+        imp.caption_date_row.set_active(flags & DATE != 0);
+
+        self.connect_caption_row(&imp.caption_status_row, STATUS);
+        self.connect_caption_row(&imp.caption_extension_row, EXTENSION);
+        self.connect_caption_row(&imp.caption_size_row, SIZE);
+        self.connect_caption_row(&imp.caption_date_row, DATE);
+    }
+
+    fn connect_caption_row(&self, row: &adw::SwitchRow, bit: u32) {
+        let settings = self.imp().settings.get().unwrap().clone();
+
+        row.connect_active_notify(move |row| {
+            let mut flags = settings.uint("grid-caption-flags");
+            if row.is_active() {
+                flags |= bit;
+            } else {
+                flags &= !bit;
+            }
+            settings.set_uint("grid-caption-flags", flags).ok();
+        });
     }
 }

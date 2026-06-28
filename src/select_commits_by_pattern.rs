@@ -298,8 +298,7 @@ impl SelectCommitsByPattern {
         let label = if count == 0 {
             gettext("No commits match")
         } else if count == total {
-            gettext("All {count} commits match")
-                .replace("{count}", &total.to_string())
+            gettext("All {count} commits match").replace("{count}", &total.to_string())
         } else {
             gettext("{count} of {total} commits match")
                 .replace("{count}", &count.to_string())

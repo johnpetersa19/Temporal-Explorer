@@ -35,11 +35,9 @@
 //! dialog.present(Some(&window));
 //! ```
 
-use gtk::glib;
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
 use adw::prelude::*;
 use adw::subclass::prelude::*;
+use gtk::glib;
 use std::cell::RefCell;
 use std::sync::OnceLock;
 
@@ -64,14 +62,14 @@ pub struct ConflictInfo {
     pub file_path: String,
 
     // Ours (HEAD)
-    pub ours_sha:    String,
+    pub ours_sha: String,
     pub ours_author: String,
-    pub ours_date:   String,
+    pub ours_date: String,
 
     // Theirs (incoming)
-    pub theirs_sha:    String,
+    pub theirs_sha: String,
     pub theirs_author: String,
-    pub theirs_date:   String,
+    pub theirs_date: String,
 
     /// Raw unified diff string (optional — empty hides the expander).
     pub diff_text: String,
@@ -86,34 +84,48 @@ mod imp {
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/merge-conflict-dialog.ui")]
     pub struct MergeConflictDialog {
         // Header
-        #[template_child] pub conflict_banner:   TemplateChild<adw::Banner>,
+        #[template_child]
+        pub conflict_banner: TemplateChild<adw::Banner>,
 
         // File info
-        #[template_child] pub file_path_row:     TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub file_path_row: TemplateChild<adw::ActionRow>,
 
         // Ours
-        #[template_child] pub ours_commit_row:   TemplateChild<adw::ActionRow>,
-        #[template_child] pub ours_author_row:   TemplateChild<adw::ActionRow>,
-        #[template_child] pub ours_date_row:     TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub ours_commit_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub ours_author_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub ours_date_row: TemplateChild<adw::ActionRow>,
 
         // Theirs
-        #[template_child] pub theirs_commit_row: TemplateChild<adw::ActionRow>,
-        #[template_child] pub theirs_author_row: TemplateChild<adw::ActionRow>,
-        #[template_child] pub theirs_date_row:   TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub theirs_commit_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub theirs_author_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub theirs_date_row: TemplateChild<adw::ActionRow>,
 
         // Diff
-        #[template_child] pub diff_expander:     TemplateChild<gtk::Expander>,
-        #[template_child] pub diff_view:         TemplateChild<gtk::TextView>,
+        #[template_child]
+        pub diff_expander: TemplateChild<gtk::Expander>,
+        #[template_child]
+        pub diff_view: TemplateChild<gtk::TextView>,
 
         // Footer
-        #[template_child] pub apply_to_all_check: TemplateChild<gtk::CheckButton>,
-        #[template_child] pub use_ours_button:    TemplateChild<gtk::Button>,
-        #[template_child] pub use_theirs_button:  TemplateChild<gtk::Button>,
-        #[template_child] pub use_both_button:    TemplateChild<gtk::Button>,
+        #[template_child]
+        pub apply_to_all_check: TemplateChild<gtk::CheckButton>,
+        #[template_child]
+        pub use_ours_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub use_theirs_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub use_both_button: TemplateChild<gtk::Button>,
 
         // State
         pub conflict_info: RefCell<ConflictInfo>,
-        pub apply_to_all:  RefCell<bool>,
+        pub apply_to_all: RefCell<bool>,
     }
 
     #[glib::object_subclass]
@@ -125,12 +137,21 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
             klass.bind_template_callbacks();
-            klass.install_action("dialog.use-ours",   None, |d, _, _| d.resolve(ConflictResolution::Ours));
-            klass.install_action("dialog.use-theirs", None, |d, _, _| d.resolve(ConflictResolution::Theirs));
-            klass.install_action("dialog.use-both",   None, |d, _, _| d.resolve(ConflictResolution::Both));
-            klass.install_action("dialog.show-diff",  None, |d, _, _| {
+            klass.install_action("dialog.use-ours", None, |d, _, _| {
+                d.resolve(ConflictResolution::Ours)
+            });
+            klass.install_action("dialog.use-theirs", None, |d, _, _| {
+                d.resolve(ConflictResolution::Theirs)
+            });
+            klass.install_action("dialog.use-both", None, |d, _, _| {
+                d.resolve(ConflictResolution::Both)
+            });
+            klass.install_action("dialog.show-diff", None, |d, _, _| {
                 let exp = d.imp().diff_expander.get();
                 exp.set_expanded(!exp.is_expanded());
+            });
+            klass.install_action("dialog.close", None, |d, _, _| {
+                d.close();
             });
         }
 
@@ -147,18 +168,16 @@ mod imp {
         fn signals() -> &'static [glib::subclass::Signal] {
             static SIGNALS: OnceLock<Vec<glib::subclass::Signal>> = OnceLock::new();
             SIGNALS.get_or_init(|| {
-                vec![
-                    glib::subclass::Signal::builder("conflict-resolved")
-                        .param_types([
-                            // resolution: "ours" | "theirs" | "both"
-                            String::static_type(),
-                            // file_path
-                            String::static_type(),
-                            // apply_to_all
-                            bool::static_type(),
-                        ])
-                        .build(),
-                ]
+                vec![glib::subclass::Signal::builder("conflict-resolved")
+                    .param_types([
+                        // resolution: "ours" | "theirs" | "both"
+                        String::static_type(),
+                        // file_path
+                        String::static_type(),
+                        // apply_to_all
+                        bool::static_type(),
+                    ])
+                    .build()]
             })
         }
     }
@@ -175,8 +194,7 @@ mod imp {
 
         #[template_callback]
         fn on_apply_to_all_toggled(&self) {
-            *self.apply_to_all.borrow_mut() =
-                self.apply_to_all_check.is_active();
+            *self.apply_to_all.borrow_mut() = self.apply_to_all_check.is_active();
         }
     }
 }
@@ -190,7 +208,9 @@ glib::wrapper! {
 }
 
 impl Default for MergeConflictDialog {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MergeConflictDialog {
@@ -210,13 +230,21 @@ impl MergeConflictDialog {
         imp.file_path_row.set_title("Path");
 
         // Ours
-        let short_ours = if info.ours_sha.len() >= 8 { &info.ours_sha[..8] } else { &info.ours_sha };
+        let short_ours = if info.ours_sha.len() >= 8 {
+            &info.ours_sha[..8]
+        } else {
+            &info.ours_sha
+        };
         imp.ours_commit_row.set_subtitle(short_ours);
         imp.ours_author_row.set_subtitle(&info.ours_author);
         imp.ours_date_row.set_subtitle(&info.ours_date);
 
         // Theirs
-        let short_theirs = if info.theirs_sha.len() >= 8 { &info.theirs_sha[..8] } else { &info.theirs_sha };
+        let short_theirs = if info.theirs_sha.len() >= 8 {
+            &info.theirs_sha[..8]
+        } else {
+            &info.theirs_sha
+        };
         imp.theirs_commit_row.set_subtitle(short_theirs);
         imp.theirs_author_row.set_subtitle(&info.theirs_author);
         imp.theirs_date_row.set_subtitle(&info.theirs_date);
@@ -242,7 +270,7 @@ impl MergeConflictDialog {
                 // Locate line in buffer and apply tag
                 if let Some(start_offset) = text.find(line) {
                     let start = buf.iter_at_offset(start_offset as i32);
-                    let end   = buf.iter_at_offset((start_offset + line.len()) as i32);
+                    let end = buf.iter_at_offset((start_offset + line.len()) as i32);
                     if line.starts_with('+') && !line.starts_with("+++") {
                         buf.apply_tag_by_name("add", &start, &end);
                     } else if line.starts_with('-') && !line.starts_with("---") {
@@ -263,10 +291,10 @@ impl MergeConflictDialog {
         F: Fn(&Self, &str, &str, bool) + 'static,
     {
         self.connect_local("conflict-resolved", false, move |values| {
-            let dialog     = values[0].get::<MergeConflictDialog>().unwrap();
+            let dialog = values[0].get::<MergeConflictDialog>().unwrap();
             let resolution = values[1].get::<String>().unwrap();
-            let file_path  = values[2].get::<String>().unwrap();
-            let apply_all  = values[3].get::<bool>().unwrap();
+            let file_path = values[2].get::<String>().unwrap();
+            let apply_all = values[3].get::<bool>().unwrap();
             f(&dialog, &resolution, &file_path, apply_all);
             None
         })
@@ -280,14 +308,18 @@ impl MergeConflictDialog {
         let apply_all = *imp.apply_to_all.borrow();
 
         let label = match resolution {
-            ConflictResolution::Ours   => "ours",
+            ConflictResolution::Ours => "ours",
             ConflictResolution::Theirs => "theirs",
-            ConflictResolution::Both   => "both",
+            ConflictResolution::Both => "both",
         };
 
         self.emit_by_name::<()>(
             "conflict-resolved",
-            &[&label.to_value(), &info.file_path.to_value(), &apply_all.to_value()],
+            &[
+                &label.to_value(),
+                &info.file_path.to_value(),
+                &apply_all.to_value(),
+            ],
         );
 
         self.close();

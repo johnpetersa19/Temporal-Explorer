@@ -7,7 +7,27 @@ template $NewBranchDialog : Adw.Dialog {
 
   Adw.ToolbarView {
     [top]
-    Adw.HeaderBar {}
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      [start]
+      Button cancel_button {
+        label: _("_Cancel");
+        use-underline: true;
+        can-shrink: true;
+      }
+
+      [end]
+      Button create_button {
+        label: _("_Create");
+        use-underline: true;
+        can-shrink: true;
+        sensitive: false;
+
+        styles ["suggested-action"]
+      }
+    }
 
     content: Adw.Clamp {
       maximum-size: 400;
@@ -25,23 +45,6 @@ template $NewBranchDialog : Adw.Dialog {
 
           Adw.EntryRow branch_name_entry {
             title: _("Branch Name");
-          }
-        }
-
-        Box button_box {
-          orientation: horizontal;
-          spacing: 8;
-          homogeneous: true;
-
-          Button cancel_button {
-            label: _("Cancel");
-            styles ["pill"]
-          }
-
-          Button create_button {
-            label: _("Create Branch");
-            sensitive: false;
-            styles ["pill", "suggested-action"]
           }
         }
       }

@@ -2,6 +2,7 @@ mod address_bar;
 mod application;
 mod batch_operations_dialog;
 mod branch_sidebar_row;
+mod clone_repository_dialog;
 mod column_chooser;
 mod commit_controller;
 mod commit_name_cell;
@@ -92,8 +93,7 @@ fn load_app_resources() {
 fn main() -> glib::ExitCode {
     // Initialise translations
     gettextrs::setlocale(gettextrs::LocaleCategory::LcAll, "");
-    gettextrs::bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR)
-        .expect("Unable to bind the text domain");
+    gettextrs::bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR).expect("Unable to bind the text domain");
     gettextrs::textdomain(GETTEXT_PACKAGE).expect("Unable to switch to the text domain");
 
     // Load resources

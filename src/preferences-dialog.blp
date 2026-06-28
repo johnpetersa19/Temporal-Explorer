@@ -116,7 +116,7 @@ template $PreferencesDialog : Adw.PreferencesDialog {
     icon-name: "applications-graphics-symbolic";
 
     Adw.PreferencesGroup {
-      title: _("Commit List");
+      title: _("File Browser");
 
       Adw.ComboRow default_view_row {
         title: _("_Default View");
@@ -130,6 +130,76 @@ template $PreferencesDialog : Adw.PreferencesDialog {
           ]
         };
       }
+
+      Adw.ComboRow grid_zoom_row {
+        title: _("Default _Grid Zoom");
+        subtitle: _("Icon size used by the grid view.");
+        use-underline: true;
+
+        model: StringList {
+          strings [
+            _("Small"),
+            _("Normal"),
+            _("Large"),
+          ]
+        };
+      }
+
+      Adw.ComboRow file_sort_row {
+        title: _("Default _Sort Order");
+        subtitle: _("How files and folders are ordered when browsing a snapshot.");
+        use-underline: true;
+
+        model: StringList {
+          strings [
+            _("A-Z"),
+            _("Z-A"),
+            _("Last Modified"),
+            _("First Modified"),
+            _("Size"),
+            _("Type"),
+          ]
+        };
+      }
+
+      Adw.SwitchRow show_hidden_files_row {
+        title: _("Show _Hidden Files");
+        subtitle: _("Show files and folders whose names start with a dot.");
+        use-underline: true;
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Grid Captions");
+      description: _("Information shown under items in grid view.");
+
+      Adw.SwitchRow caption_status_row {
+        title: _("_Status");
+        subtitle: _("Show Git status below grid items.");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow caption_extension_row {
+        title: _("File _Extension");
+        subtitle: _("Show file extensions below grid items.");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow caption_size_row {
+        title: _("_Size");
+        subtitle: _("Show object size below grid items.");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow caption_date_row {
+        title: _("_Date");
+        subtitle: _("Show snapshot date below grid items.");
+        use-underline: true;
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Commit List");
 
       Adw.SwitchRow show_avatars_row {
         title: _("Show _Author Avatars");

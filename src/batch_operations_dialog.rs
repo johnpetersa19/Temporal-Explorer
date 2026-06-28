@@ -23,14 +23,12 @@
  *   CopyShas { short: bool }
  */
 
-use gtk::glib;
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
 use adw::prelude::*;
 use adw::subclass::prelude::*;
+use gtk::glib;
 use std::cell::RefCell;
-use std::sync::OnceLock;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 use gettextrs::gettext;
 
@@ -51,9 +49,9 @@ impl BatchOp {
     #[allow(dead_code)]
     fn index(&self) -> u32 {
         match self {
-            Self::CherryPick    { .. } => 0,
+            Self::CherryPick { .. } => 0,
             Self::ExportPatches { .. } => 1,
-            Self::CopyShas      { .. } => 2,
+            Self::CopyShas { .. } => 2,
         }
     }
 }
@@ -66,24 +64,37 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/batch-operations-dialog.ui")]
     pub struct BatchOperationsDialog {
-        #[template_child] pub commit_count_label: TemplateChild<gtk::Label>,
-        #[template_child] pub commit_list:        TemplateChild<gtk::ListBox>,
-        #[template_child] pub operation_row:      TemplateChild<adw::ComboRow>,
-        #[template_child] pub export_path_row:    TemplateChild<adw::ActionRow>,
-        #[template_child] pub export_path_button: TemplateChild<gtk::Button>,
-        #[template_child] pub export_path_label:  TemplateChild<gtk::Label>,
-        #[template_child] pub signoff_row:        TemplateChild<adw::SwitchRow>,
-        #[template_child] pub short_sha_row:      TemplateChild<adw::SwitchRow>,
-        #[template_child] pub preview_group:      TemplateChild<adw::PreferencesGroup>,
-        #[template_child] pub preview_text:       TemplateChild<gtk::TextView>,
-        #[template_child] pub operation_progress: TemplateChild<gtk::ProgressBar>,
-        #[template_child] pub run_button:         TemplateChild<gtk::Button>,
-        #[template_child] pub cancel_button:      TemplateChild<gtk::Button>,
+        #[template_child]
+        pub commit_count_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub commit_list: TemplateChild<gtk::ListBox>,
+        #[template_child]
+        pub operation_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub export_path_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub export_path_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub export_path_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub signoff_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub short_sha_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub preview_group: TemplateChild<adw::PreferencesGroup>,
+        #[template_child]
+        pub preview_text: TemplateChild<gtk::TextView>,
+        #[template_child]
+        pub operation_progress: TemplateChild<gtk::ProgressBar>,
+        #[template_child]
+        pub run_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub cancel_button: TemplateChild<gtk::Button>,
 
         /// Full list of commits to operate on.
-        pub commits:   RefCell<Vec<CommitInfo>>,
+        pub commits: RefCell<Vec<CommitInfo>>,
         /// Chosen export directory for ExportPatches.
-        pub dest_dir:  RefCell<Option<PathBuf>>,
+        pub dest_dir: RefCell<Option<PathBuf>>,
     }
 
     #[glib::object_subclass]
@@ -110,22 +121,24 @@ mod imp {
 
         fn signals() -> &'static [glib::subclass::Signal] {
             static SIGNALS: OnceLock<Vec<glib::subclass::Signal>> = OnceLock::new();
-            SIGNALS.get_or_init(|| vec![
-                // Carries (op_index: u32, shas: Vec<String>) — caller decodes
-                // op_index back into BatchOp using current dialog state.
-                glib::subclass::Signal::builder("operation-requested")
-                    .param_types([
-                        u32::static_type(),
-                        // Vec<String> is not a GType; we serialise SHAs as
-                        // newline-joined string and split on the other side.
-                        String::static_type(),
-                    ])
-                    .build(),
-            ])
+            SIGNALS.get_or_init(|| {
+                vec![
+                    // Carries (op_index: u32, shas: Vec<String>) — caller decodes
+                    // op_index back into BatchOp using current dialog state.
+                    glib::subclass::Signal::builder("operation-requested")
+                        .param_types([
+                            u32::static_type(),
+                            // Vec<String> is not a GType; we serialise SHAs as
+                            // newline-joined string and split on the other side.
+                            String::static_type(),
+                        ])
+                        .build(),
+                ]
+            })
         }
     }
 
-    impl WidgetImpl    for BatchOperationsDialog {}
+    impl WidgetImpl for BatchOperationsDialog {}
     impl AdwDialogImpl for BatchOperationsDialog {}
 
     #[gtk::template_callbacks]
@@ -151,7 +164,9 @@ glib::wrapper! {
 }
 
 impl Default for BatchOperationsDialog {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BatchOperationsDialog {
@@ -167,7 +182,8 @@ impl BatchOperationsDialog {
         *imp.commits.borrow_mut() = commits.to_vec();
 
         // Update count chip
-        imp.commit_count_label.set_label(&format!("{}", commits.len()));
+        imp.commit_count_label
+            .set_label(&format!("{}", commits.len()));
 
         // Rebuild list rows
         while let Some(child) = imp.commit_list.first_child() {
@@ -191,8 +207,8 @@ impl BatchOperationsDialog {
         F: Fn(&Self, BatchOp, Vec<String>) + 'static,
     {
         self.connect_local("operation-requested", false, move |v| {
-            let dlg   = v[0].get::<BatchOperationsDialog>().unwrap();
-            let idx   = v[1].get::<u32>().unwrap();
+            let dlg = v[0].get::<BatchOperationsDialog>().unwrap();
+            let idx = v[1].get::<u32>().unwrap();
             let shas_str = v[2].get::<String>().unwrap();
             let shas: Vec<String> = shas_str
                 .lines()
@@ -268,7 +284,8 @@ impl BatchOperationsDialog {
         let text = match idx {
             0 => {
                 // Cherry-pick: list git cherry-pick commands
-                commits.iter()
+                commits
+                    .iter()
                     .map(|c| format!("git cherry-pick {}", &c.hash[..7.min(c.hash.len())]))
                     .collect::<Vec<_>>()
                     .join("\n")
@@ -276,23 +293,40 @@ impl BatchOperationsDialog {
             1 => {
                 // Export patches: list output file names
                 let dir = imp.dest_dir.borrow();
-                let prefix = dir.as_ref()
+                let prefix = dir
+                    .as_ref()
                     .map(|d| d.display().to_string())
                     .unwrap_or_else(|| gettext("Choose a directory"));
-                commits.iter().enumerate()
-                    .map(|(i, c)| format!("{}/{:04}-{}.patch",
-                        prefix, i + 1,
-                        c.summary.chars().take(40).collect::<String>()
-                            .replace(|ch: char| !ch.is_alphanumeric(), "-")
-                    ))
+                commits
+                    .iter()
+                    .enumerate()
+                    .map(|(i, c)| {
+                        format!(
+                            "{}/{:04}-{}.patch",
+                            prefix,
+                            i + 1,
+                            c.summary
+                                .chars()
+                                .take(40)
+                                .collect::<String>()
+                                .replace(|ch: char| !ch.is_alphanumeric(), "-")
+                        )
+                    })
                     .collect::<Vec<_>>()
                     .join("\n")
             }
             _ => {
                 // Copy SHAs
                 let short = imp.short_sha_row.is_active();
-                commits.iter()
-                    .map(|c| if short { c.hash[..7.min(c.hash.len())].to_string() } else { c.hash.clone() })
+                commits
+                    .iter()
+                    .map(|c| {
+                        if short {
+                            c.hash[..7.min(c.hash.len())].to_string()
+                        } else {
+                            c.hash.clone()
+                        }
+                    })
                     .collect::<Vec<_>>()
                     .join("\n")
             }
@@ -314,9 +348,7 @@ impl BatchOperationsDialog {
                 if let Ok(file) = res {
                     if let Some(path) = file.path() {
                         let imp = dlg.imp();
-                        imp.export_path_label.set_label(
-                            &path.display().to_string()
-                        );
+                        imp.export_path_label.set_label(&path.display().to_string());
                         *imp.dest_dir.borrow_mut() = Some(path);
                         dlg.refresh_preview();
                     }
@@ -332,9 +364,11 @@ impl BatchOperationsDialog {
                 signoff: imp.signoff_row.is_active(),
             },
             1 => BatchOp::ExportPatches {
-                dest_dir: imp.dest_dir.borrow()
+                dest_dir: imp
+                    .dest_dir
+                    .borrow()
                     .clone()
-                    .unwrap_or_else(|| PathBuf::from("."))
+                    .unwrap_or_else(|| PathBuf::from(".")),
             },
             _ => BatchOp::CopyShas {
                 short: imp.short_sha_row.is_active(),
@@ -344,16 +378,14 @@ impl BatchOperationsDialog {
 
     fn emit_operation_requested(&self) {
         let imp = self.imp();
-        let idx  = imp.operation_row.selected();
+        let idx = imp.operation_row.selected();
         let commits = imp.commits.borrow();
-        let shas = commits.iter()
+        let shas = commits
+            .iter()
             .map(|c| c.hash.clone())
             .collect::<Vec<_>>()
             .join("\n");
         drop(commits);
-        self.emit_by_name::<()>("operation-requested", &[
-            &idx.to_value(),
-            &shas.to_value(),
-        ]);
+        self.emit_by_name::<()>("operation-requested", &[&idx.to_value(), &shas.to_value()]);
     }
 }

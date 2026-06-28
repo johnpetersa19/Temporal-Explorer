@@ -1,0 +1,79 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $CloneRepositoryDialog : Adw.Dialog {
+  title: _("Clone Repository");
+  content-width: 460;
+
+  Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      [start]
+      Button cancel_button {
+        label: _("_Cancel");
+        use-underline: true;
+        can-shrink: true;
+      }
+
+      [end]
+      Button clone_button {
+        label: _("_Clone");
+        use-underline: true;
+        can-shrink: true;
+        sensitive: false;
+
+        styles ["suggested-action"]
+      }
+
+      title-widget: Adw.WindowTitle {
+        title: _("Clone Repository");
+      };
+    }
+
+    content: Adw.Clamp {
+      maximum-size: 460;
+      margin-top: 12;
+      margin-bottom: 24;
+      margin-start: 12;
+      margin-end: 12;
+
+      Box {
+        orientation: vertical;
+        spacing: 18;
+
+        Adw.PreferencesGroup {
+          title: _("Repository");
+          description: _("Clone the Git repository locally, then load its history in Temporal Explorer.");
+
+          Adw.EntryRow url_entry {
+            title: _("Repository _URL");
+            use-underline: true;
+            input-purpose: url;
+          }
+        }
+
+        Adw.PreferencesGroup {
+          title: _("Destination");
+
+          Adw.EntryRow destination_entry {
+            title: _("_Local Folder");
+            use-underline: true;
+          }
+
+          Adw.ActionRow {
+            title: _("Choose where the repository will be cloned.");
+
+            [suffix]
+            Button choose_destination_button {
+              label: _("Choose…");
+              valign: center;
+            }
+          }
+        }
+      }
+    };
+  }
+}

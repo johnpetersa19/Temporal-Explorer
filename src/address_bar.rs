@@ -77,7 +77,11 @@ pub fn rebuild_address_bar(
     for comp in dir.components() {
         let s = comp.as_os_str().to_string_lossy().to_string();
         acc.push(&s);
-        segs.push(Seg { label: s, icon: None, target: acc.clone() });
+        segs.push(Seg {
+            label: s,
+            icon: None,
+            target: acc.clone(),
+        });
     }
 
     let total = segs.len();
@@ -93,7 +97,9 @@ pub fn rebuild_address_bar(
         let btn = gtk::Button::new();
         btn.add_css_class("flat");
         btn.add_css_class("nautilus-path-button");
-        if is_current { btn.add_css_class("current-dir"); }
+        if is_current {
+            btn.add_css_class("current-dir");
+        }
 
         let row = gtk::Box::new(gtk::Orientation::Horizontal, 4);
         if let Some(ic) = seg.icon {

@@ -26,10 +26,9 @@
 //! `TemplateChild` field silently leaves it unwired (no panic, but the
 //! widget is invisible to Rust code).
 
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
-use gtk::{glib, CompositeTemplate};
 use adw::subclass::prelude::*;
+use gtk::prelude::*;
+use gtk::{glib, CompositeTemplate};
 
 use crate::history_controls::HistoryControls;
 use crate::view_controls::ViewControls;
@@ -73,12 +72,6 @@ mod imp {
         pub location_entry: TemplateChild<gtk::Entry>,
         #[template_child]
         pub location_cancel_btn: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub search_entry: TemplateChild<gtk::SearchEntry>,
-        #[template_child]
-        pub search_filter_button: TemplateChild<gtk::ToggleButton>,
-        #[template_child]
-        pub search_close_btn: TemplateChild<gtk::Button>,
 
         // ── End-slot widgets ──────────────────────────────────────────────────
         #[template_child]
@@ -162,18 +155,6 @@ impl TemporalToolbar {
         &self.imp().location_cancel_btn
     }
 
-    pub fn search_entry(&self) -> &gtk::SearchEntry {
-        &self.imp().search_entry
-    }
-
-    pub fn search_filter_button(&self) -> &gtk::ToggleButton {
-        &self.imp().search_filter_button
-    }
-
-    pub fn search_close_btn(&self) -> &gtk::Button {
-        &self.imp().search_close_btn
-    }
-
     pub fn search_button(&self) -> &gtk::ToggleButton {
         &self.imp().search_button
     }
@@ -198,34 +179,7 @@ impl TemporalToolbar {
     }
 
     pub fn is_location_mode(&self) -> bool {
-        self.imp()
-            .toolbar_switcher
-            .visible_child_name()
-            .as_deref()
-            == Some("location")
-    }
-
-    /// Switch from pathbar/location to the inline search-entry, or back.
-    pub fn set_search_mode(&self, search_mode: bool) {
-        let page = if search_mode { "search" } else { "pathbar" };
-        self.imp().toolbar_switcher.set_visible_child_name(page);
-        self.imp().search_button.set_active(search_mode);
-
-        if search_mode {
-            self.imp().search_entry.grab_focus();
-        }
-    }
-
-    pub fn is_search_mode(&self) -> bool {
-        self.imp()
-            .toolbar_switcher
-            .visible_child_name()
-            .as_deref()
-            == Some("search")
-    }
-
-    pub fn set_search_text(&self, text: &str) {
-        self.imp().search_entry.set_text(text);
+        self.imp().toolbar_switcher.visible_child_name().as_deref() == Some("location")
     }
 }
 

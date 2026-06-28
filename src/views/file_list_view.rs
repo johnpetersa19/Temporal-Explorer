@@ -25,10 +25,9 @@
 //! - Exposed `connect_item_activated` so `window.rs` can attach a single
 //!   handler for both views without duplicating the signal connection.
 
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
-use gtk::{gio, glib, CompositeTemplate};
 use adw::subclass::prelude::*;
+use gtk::prelude::*;
+use gtk::{gio, glib, CompositeTemplate};
 use std::cell::RefCell;
 
 // ── GObject boilerplate ───────────────────────────────────────────────────────
@@ -178,8 +177,12 @@ impl FileListView {
         F: Fn(u32) + Clone + 'static,
     {
         let f_grid = f.clone();
-        self.imp().file_list_view.connect_activate(move |_, pos| f(pos));
-        self.imp().file_grid_view.connect_activate(move |_, pos| f_grid(pos));
+        self.imp()
+            .file_list_view
+            .connect_activate(move |_, pos| f(pos));
+        self.imp()
+            .file_grid_view
+            .connect_activate(move |_, pos| f_grid(pos));
     }
 }
 

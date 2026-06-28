@@ -4,6 +4,8 @@ src/application.rs
 src/batch-operations-dialog.blp
 src/batch_operations_dialog.rs
 src/branch-sidebar-row.blp
+src/clone-repository-dialog.blp
+src/clone_repository_dialog.rs
 src/column-chooser.blp
 src/commit_controller.rs
 src/commit-name-cell.blp

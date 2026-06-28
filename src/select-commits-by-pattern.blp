@@ -21,7 +21,29 @@ template $SelectCommitsByPattern : Adw.Dialog {
 
   child: Adw.ToolbarView {
     [top]
-    Adw.HeaderBar {}
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      [start]
+      Button cancel_button {
+        label: _("_Cancel");
+        use-underline: true;
+        can-shrink: true;
+        clicked => $on_cancel_clicked() swapped;
+      }
+
+      [end]
+      Button select_button {
+        label: _("_Select");
+        use-underline: true;
+        can-shrink: true;
+        sensitive: false;
+        clicked => $on_select_clicked() swapped;
+
+        styles ["suggested-action"]
+      }
+    }
 
     content: Box {
       orientation: vertical;
@@ -70,7 +92,7 @@ template $SelectCommitsByPattern : Adw.Dialog {
         spacing: 6;
 
         Image {
-          icon-name: "system-search-symbolic";
+          icon-name: "edit-find-symbolic";
           pixel-size: 16;
 
           styles ["dim-label"]
@@ -85,25 +107,6 @@ template $SelectCommitsByPattern : Adw.Dialog {
 
       Box { vexpand: true; }
 
-      // Action row
-      Box {
-        orientation: horizontal;
-        halign: end;
-        spacing: 8;
-
-        Button cancel_button {
-          label: _("Cancel");
-          clicked => $on_cancel_clicked() swapped;
-        }
-
-        Button select_button {
-          label: _("Select Commits");
-          sensitive: false;
-          clicked => $on_select_clicked() swapped;
-
-          styles ["suggested-action"]
-        }
-      }
     };
   };
 }

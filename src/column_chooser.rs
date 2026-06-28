@@ -19,15 +19,20 @@ use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ColumnVisibility {
-    pub name:      bool,
-    pub status:    bool,
-    pub size:      bool,
+    pub name: bool,
+    pub status: bool,
+    pub size: bool,
     pub extension: bool,
 }
 
 impl Default for ColumnVisibility {
     fn default() -> Self {
-        Self { name: true, status: true, size: false, extension: false }
+        Self {
+            name: true,
+            status: true,
+            size: false,
+            extension: false,
+        }
     }
 }
 
@@ -39,11 +44,16 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/column-chooser.ui")]
     pub struct ColumnChooser {
-        #[template_child] pub col_name_row:   gtk::TemplateChild<adw::SwitchRow>,
-        #[template_child] pub col_status_row: gtk::TemplateChild<adw::SwitchRow>,
-        #[template_child] pub col_size_row:   gtk::TemplateChild<adw::SwitchRow>,
-        #[template_child] pub col_ext_row:    gtk::TemplateChild<adw::SwitchRow>,
-        #[template_child] pub apply_button:   gtk::TemplateChild<gtk::Button>,
+        #[template_child]
+        pub col_name_row: gtk::TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub col_status_row: gtk::TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub col_size_row: gtk::TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub col_ext_row: gtk::TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub apply_button: gtk::TemplateChild<gtk::Button>,
     }
 
     #[glib::object_subclass]
@@ -63,9 +73,7 @@ mod imp {
     impl ObjectImpl for ColumnChooser {
         fn signals() -> &'static [Signal] {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
-            SIGNALS.get_or_init(|| {
-                vec![Signal::builder("columns-changed").build()]
-            })
+            SIGNALS.get_or_init(|| vec![Signal::builder("columns-changed").build()])
         }
 
         fn constructed(&self) {
@@ -99,9 +107,9 @@ impl ColumnChooser {
     pub fn visibility(&self) -> ColumnVisibility {
         let imp = self.imp();
         ColumnVisibility {
-            name:      imp.col_name_row.is_active(),
-            status:    imp.col_status_row.is_active(),
-            size:      imp.col_size_row.is_active(),
+            name: imp.col_name_row.is_active(),
+            status: imp.col_status_row.is_active(),
+            size: imp.col_size_row.is_active(),
             extension: imp.col_ext_row.is_active(),
         }
     }
@@ -117,5 +125,7 @@ impl ColumnChooser {
 }
 
 impl Default for ColumnChooser {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }

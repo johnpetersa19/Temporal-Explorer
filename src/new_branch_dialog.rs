@@ -29,9 +29,12 @@ mod imp {
     #[derive(Debug, Default, CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/new-branch-dialog.ui")]
     pub struct NewBranchDialog {
-        #[template_child] pub branch_name_entry: TemplateChild<adw::EntryRow>,
-        #[template_child] pub cancel_button:     TemplateChild<gtk::Button>,
-        #[template_child] pub create_button:     TemplateChild<gtk::Button>,
+        #[template_child]
+        pub branch_name_entry: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub cancel_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub create_button: TemplateChild<gtk::Button>,
 
         /// Cached branch name so signal handlers can borrow it.
         pub branch_name: RefCell<String>,
@@ -71,12 +74,11 @@ mod imp {
 
             // Wire entry ::changed → sensitivity callback.
             let obj_weak = self.obj().downgrade();
-            self.branch_name_entry
-                .connect_changed(move |entry| {
-                    if let Some(obj) = obj_weak.upgrade() {
-                        obj.imp().on_entry_changed(entry);
-                    }
-                });
+            self.branch_name_entry.connect_changed(move |entry| {
+                if let Some(obj) = obj_weak.upgrade() {
+                    obj.imp().on_entry_changed(entry);
+                }
+            });
 
             // Cancel button: close and emit ::cancelled.
             let obj_weak = self.obj().downgrade();
@@ -92,7 +94,9 @@ mod imp {
             self.create_button.connect_clicked(move |_| {
                 if let Some(obj) = obj_weak.upgrade() {
                     let name = obj.imp().branch_name.borrow().clone();
-                    if name.is_empty() { return; }
+                    if name.is_empty() {
+                        return;
+                    }
                     obj.close();
                     obj.emit_by_name::<()>("branch-created", &[&name]);
                 }
@@ -100,16 +104,15 @@ mod imp {
 
             // Allow pressing Enter in the entry to trigger Create.
             let obj_weak = self.obj().downgrade();
-            self.branch_name_entry
-                .connect_entry_activated(move |_| {
-                    if let Some(obj) = obj_weak.upgrade() {
-                        let name = obj.imp().branch_name.borrow().clone();
-                        if !name.is_empty() {
-                            obj.close();
-                            obj.emit_by_name::<()>("branch-created", &[&name]);
-                        }
+            self.branch_name_entry.connect_entry_activated(move |_| {
+                if let Some(obj) = obj_weak.upgrade() {
+                    let name = obj.imp().branch_name.borrow().clone();
+                    if !name.is_empty() {
+                        obj.close();
+                        obj.emit_by_name::<()>("branch-created", &[&name]);
                     }
-                });
+                }
+            });
         }
 
         fn signals() -> &'static [glib::subclass::Signal] {
@@ -120,8 +123,7 @@ mod imp {
                     glib::subclass::Signal::builder("branch-created")
                         .param_types([String::static_type()])
                         .build(),
-                    glib::subclass::Signal::builder("cancelled")
-                        .build(),
+                    glib::subclass::Signal::builder("cancelled").build(),
                 ]
             })
         }
@@ -157,7 +159,7 @@ impl NewBranchDialog {
     {
         self.connect_local("branch-created", false, move |args| {
             let dialog = args[0].get::<NewBranchDialog>().unwrap();
-            let name   = args[1].get::<String>().unwrap_or_default();
+            let name = args[1].get::<String>().unwrap_or_default();
             f(&dialog, &name);
             None
         })

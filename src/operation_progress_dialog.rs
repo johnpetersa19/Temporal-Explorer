@@ -1,8 +1,7 @@
-use gtk::glib;
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
 use adw::prelude::AdwDialogExt;
 use adw::subclass::prelude::*;
+use gtk::glib;
+use gtk::prelude::*;
 use std::cell::RefCell;
 use std::sync::{
     atomic::{AtomicBool, Ordering},

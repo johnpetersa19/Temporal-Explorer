@@ -7,49 +7,46 @@
 
 //! `FilterTypesDialog` — file-extension picker for the search filter popover.
 
-use gtk::glib;
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
 use adw::prelude::*;
 use adw::subclass::prelude::*;
+use gettextrs::gettext;
+use gtk::glib;
 use std::cell::RefCell;
 use std::sync::OnceLock;
-use gettextrs::gettext;
 
 // ── Known file types ─────────────────────────────────────────────────────────────────────────
 
 /// (extension, human label, mime-type icon-name)
 const KNOWN_TYPES: &[(&str, &str, &str)] = &[
-    ("rs",    "Rust source",              "text-x-rust"),
-    ("toml",  "TOML config",              "text-x-toml"),
-    ("blp",   "Blueprint UI",             "text-xml"),
-    ("py",    "Python script",            "text-x-python"),
-    ("js",    "JavaScript",               "text-x-javascript"),
-    ("ts",    "TypeScript",               "text-x-typescript"),
-    ("c",     "C source",                 "text-x-csrc"),
-    ("cpp",   "C++ source",               "text-x-c++src"),
-    ("h",     "C/C++ header",             "text-x-chdr"),
-    ("go",    "Go source",                "text-x-go"),
-    ("java",  "Java source",              "text-x-java"),
-    ("kt",    "Kotlin source",            "text-x-kotlin"),
-    ("swift", "Swift source",             "text-x-swift"),
-    ("sh",    "Shell script",             "text-x-script"),
-    ("md",    "Markdown",                 "text-x-markdown"),
-    ("json",  "JSON data",                "text-x-json"),
-    ("yaml",  "YAML config",              "text-x-yaml"),
-    ("xml",   "XML document",             "text-xml"),
-    ("sql",   "SQL query",                "text-x-sql"),
-    ("html",  "HTML document",            "text-html"),
-    ("css",   "CSS stylesheet",           "text-css"),
-    ("txt",   "Plain text",               "text-plain"),
-    ("lock",  "Lock file (Cargo/npm)",    "text-plain"),
-    ("png",   "PNG image",               "image-png"),
-    ("svg",   "SVG vector image",        "image-svg+xml"),
+    ("rs", "Rust source", "text-x-rust"),
+    ("toml", "TOML config", "text-x-toml"),
+    ("blp", "Blueprint UI", "text-xml"),
+    ("py", "Python script", "text-x-python"),
+    ("js", "JavaScript", "text-x-javascript"),
+    ("ts", "TypeScript", "text-x-typescript"),
+    ("c", "C source", "text-x-csrc"),
+    ("cpp", "C++ source", "text-x-c++src"),
+    ("h", "C/C++ header", "text-x-chdr"),
+    ("go", "Go source", "text-x-go"),
+    ("java", "Java source", "text-x-java"),
+    ("kt", "Kotlin source", "text-x-kotlin"),
+    ("swift", "Swift source", "text-x-swift"),
+    ("sh", "Shell script", "text-x-script"),
+    ("md", "Markdown", "text-x-markdown"),
+    ("json", "JSON data", "text-x-json"),
+    ("yaml", "YAML config", "text-x-yaml"),
+    ("xml", "XML document", "text-xml"),
+    ("sql", "SQL query", "text-x-sql"),
+    ("html", "HTML document", "text-html"),
+    ("css", "CSS stylesheet", "text-css"),
+    ("txt", "Plain text", "text-plain"),
+    ("lock", "Lock file (Cargo/npm)", "text-plain"),
+    ("png", "PNG image", "image-png"),
+    ("svg", "SVG vector image", "image-svg+xml"),
 ];
 
 /// Extensions shown on the start state as quick chips.
 const COMMON_EXTENSIONS: &[&str] = &["rs", "toml", "blp", "py", "js", "md", "json", "sh"];
-
 
 fn translated_file_type_label(label: &str) -> String {
     match label {
@@ -90,12 +87,18 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/filter-types-dialog.ui")]
     pub struct FilterTypesDialog {
-        #[template_child] pub search_entry:      TemplateChild<gtk::SearchEntry>,
-        #[template_child] pub search_stack:      TemplateChild<gtk::Stack>,
-        #[template_child] pub common_types_box:  TemplateChild<gtk::FlowBox>,
-        #[template_child] pub results_list:      TemplateChild<gtk::ListView>,
-        #[template_child] pub add_button:        TemplateChild<gtk::Button>,
-        #[template_child] pub cancel_button:     TemplateChild<gtk::Button>,
+        #[template_child]
+        pub search_entry: TemplateChild<gtk::SearchEntry>,
+        #[template_child]
+        pub search_stack: TemplateChild<gtk::Stack>,
+        #[template_child]
+        pub common_types_box: TemplateChild<gtk::FlowBox>,
+        #[template_child]
+        pub results_list: TemplateChild<gtk::ListView>,
+        #[template_child]
+        pub add_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub cancel_button: TemplateChild<gtk::Button>,
 
         /// Currently selected extension (drives `add_button` sensitivity).
         pub selected_ext: RefCell<Option<String>>,
@@ -132,16 +135,14 @@ mod imp {
         fn signals() -> &'static [glib::subclass::Signal] {
             static SIGNALS: OnceLock<Vec<glib::subclass::Signal>> = OnceLock::new();
             SIGNALS.get_or_init(|| {
-                vec![
-                    glib::subclass::Signal::builder("file-type-selected")
-                        .param_types([String::static_type()])
-                        .build(),
-                ]
+                vec![glib::subclass::Signal::builder("file-type-selected")
+                    .param_types([String::static_type()])
+                    .build()]
             })
         }
     }
 
-    impl WidgetImpl    for FilterTypesDialog {}
+    impl WidgetImpl for FilterTypesDialog {}
     impl AdwDialogImpl for FilterTypesDialog {}
 
     #[gtk::template_callbacks]
@@ -170,7 +171,7 @@ mod imp {
                 self.obj().emit_selected();
             } else {
                 let query = self.search_entry.text().to_string();
-                let ext   = query.trim_start_matches('.');
+                let ext = query.trim_start_matches('.');
                 if !ext.is_empty() {
                     self.obj().emit_by_name::<()>(
                         "file-type-selected",
@@ -196,10 +197,8 @@ mod imp {
             if let Some(btn) = child.child().and_downcast::<gtk::Button>() {
                 if let Some(ext) = btn.label() {
                     let ext_str = ext.trim_start_matches('.').to_string();
-                    self.obj().emit_by_name::<()>(
-                        "file-type-selected",
-                        &[&ext_str.to_value()],
-                    );
+                    self.obj()
+                        .emit_by_name::<()>("file-type-selected", &[&ext_str.to_value()]);
                     self.obj().close();
                 }
             }
@@ -216,7 +215,9 @@ glib::wrapper! {
 }
 
 impl Default for FilterTypesDialog {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FilterTypesDialog {
@@ -230,7 +231,7 @@ impl FilterTypesDialog {
     {
         self.connect_local("file-type-selected", false, move |values| {
             let dialog = values[0].get::<FilterTypesDialog>().unwrap();
-            let ext    = values[1].get::<String>().unwrap();
+            let ext = values[1].get::<String>().unwrap();
             f(&dialog, &ext);
             None
         })
@@ -265,9 +266,7 @@ impl FilterTypesDialog {
         factory.connect_setup(|_, list_item| {
             let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
 
-            let row_icon = gtk::Image::builder()
-                .pixel_size(32)
-                .build();
+            let row_icon = gtk::Image::builder().pixel_size(32).build();
 
             let row_description = gtk::Label::builder()
                 .halign(gtk::Align::Start)
@@ -322,7 +321,9 @@ impl FilterTypesDialog {
             let pos = list_item.position() as usize;
 
             let filtered = filtered_ref.borrow();
-            let Some(&(ext, label, icon)) = filtered.get(pos) else { return };
+            let Some(&(ext, label, icon)) = filtered.get(pos) else {
+                return;
+            };
 
             let hbox = list_item.child().and_downcast::<gtk::Box>().unwrap();
 
@@ -357,10 +358,7 @@ impl FilterTypesDialog {
                 .and_then(|w| w.next_sibling())
                 .and_downcast::<gtk::Image>()
             {
-                let is_selected = selected_ref
-                    .borrow()
-                    .as_deref()
-                    .map_or(false, |s| s == ext);
+                let is_selected = selected_ref.borrow().as_deref().map_or(false, |s| s == ext);
                 checkmark.set_visible(is_selected);
             }
         });
@@ -375,9 +373,7 @@ impl FilterTypesDialog {
                 .label(&format!(".{ext}"))
                 .css_classes(["chip"])
                 .build();
-            let child = gtk::FlowBoxChild::builder()
-                .child(&btn)
-                .build();
+            let child = gtk::FlowBoxChild::builder().child(&btn).build();
             flow.append(&child);
         }
     }
@@ -388,11 +384,17 @@ impl FilterTypesDialog {
         let matches: Vec<_> = if query.is_empty() {
             KNOWN_TYPES.iter().copied().collect()
         } else {
-            KNOWN_TYPES.iter().copied().filter(|(ext, label, _)| {
-                ext.contains(query)
-                    || label.to_lowercase().contains(query)
-                    || translated_file_type_label(label).to_lowercase().contains(query)
-            }).collect()
+            KNOWN_TYPES
+                .iter()
+                .copied()
+                .filter(|(ext, label, _)| {
+                    ext.contains(query)
+                        || label.to_lowercase().contains(query)
+                        || translated_file_type_label(label)
+                            .to_lowercase()
+                            .contains(query)
+                })
+                .collect()
         };
 
         *imp.filtered.borrow_mut() = matches.clone();

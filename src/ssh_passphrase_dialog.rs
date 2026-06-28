@@ -8,7 +8,7 @@ mod imp {
     use gtk::CompositeTemplate;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/temporal_explorer/ssh-passphrase-dialog.ui")]
+    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/ssh-passphrase-dialog.ui")]
     pub struct SshPassphraseDialog {
         #[template_child]
         pub passphrase_entry: TemplateChild<adw::PasswordEntryRow>,
@@ -75,33 +75,41 @@ impl SshPassphraseDialog {
         let imp = self.imp();
 
         // Enable confirm button only when entry is non-empty
-        imp.passphrase_entry.connect_changed(
-            glib::clone!(#[weak(rename_to = dialog)] self, move |entry| {
+        imp.passphrase_entry.connect_changed(glib::clone!(
+            #[weak(rename_to = dialog)]
+            self,
+            move |entry| {
                 let text = entry.text();
                 dialog.imp().confirm_button.set_sensitive(!text.is_empty());
-            })
-        );
+            }
+        ));
         imp.confirm_button.set_sensitive(false);
 
         // Enter key in password entry triggers confirm
-        imp.passphrase_entry.connect_entry_activated(
-            glib::clone!(#[weak(rename_to = dialog)] self, move |_| {
+        imp.passphrase_entry.connect_entry_activated(glib::clone!(
+            #[weak(rename_to = dialog)]
+            self,
+            move |_| {
                 dialog.on_confirm();
-            })
-        );
+            }
+        ));
 
-        imp.confirm_button.connect_clicked(
-            glib::clone!(#[weak(rename_to = dialog)] self, move |_| {
+        imp.confirm_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = dialog)]
+            self,
+            move |_| {
                 dialog.on_confirm();
-            })
-        );
+            }
+        ));
 
-        imp.cancel_button.connect_clicked(
-            glib::clone!(#[weak(rename_to = dialog)] self, move |_| {
+        imp.cancel_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = dialog)]
+            self,
+            move |_| {
                 dialog.emit_by_name::<()>("cancelled", &[]);
                 dialog.force_close();
-            })
-        );
+            }
+        ));
     }
 
     fn on_confirm(&self) {

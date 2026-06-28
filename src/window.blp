@@ -15,6 +15,9 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
       sidebar: Adw.ToolbarView {
         [top]
         Adw.HeaderBar {
+          show-start-title-buttons: true;
+          show-end-title-buttons: true;
+
           [start]
           Button timeline_back_button {
             icon-name: "go-previous-symbolic";
@@ -47,8 +50,7 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
             }
 
             ToggleButton filter_button {
-              visible: false;
-              icon-name: "funnel-symbolic";
+              icon-name: "nautilus-search-filters-symbolic";
               tooltip-text: _("Filters");
               styles ["flat"]
             }

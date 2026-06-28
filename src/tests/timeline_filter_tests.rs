@@ -24,12 +24,8 @@
 #[cfg(test)]
 mod timeline_filter_tests {
     use crate::git_engine::CommitInfo;
-    use crate::timeline_filter::{
-        commits_for_month, month_name, months_for_year, years_in_range,
-    };
-    use crate::search_filter_popover::{
-        FilterState, FilterDateRange, FileTypeFilter,
-    };
+    use crate::search_filter_popover::{FileTypeFilter, FilterDateRange, FilterState};
+    use crate::timeline_filter::{commits_for_month, month_name, months_for_year, years_in_range};
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -66,9 +62,9 @@ mod timeline_filter_tests {
     fn years_multiple_commits_same_year_count_correctly() {
         // Both timestamps fall in 2024.
         let commits = [
-            make_commit("a1", "Alice", "first",  1_700_000_000), // Nov 2023 UTC
-            make_commit("a2", "Bob",   "second", 1_710_460_800), // Mar 2024 UTC
-            make_commit("a3", "Carol", "third",  1_720_000_000), // Jul 2024 UTC
+            make_commit("a1", "Alice", "first", 1_700_000_000), // Nov 2023 UTC
+            make_commit("a2", "Bob", "second", 1_710_460_800),  // Mar 2024 UTC
+            make_commit("a3", "Carol", "third", 1_720_000_000), // Jul 2024 UTC
         ];
         let years = years_in_range(&commits);
         // Exact year depends on the local timezone of the test runner;
@@ -86,8 +82,8 @@ mod timeline_filter_tests {
     #[test]
     fn years_sorted_newest_first() {
         let commits = [
-            make_commit("a1", "Alice", "old",    1_000_000_000), // 2001
-            make_commit("a2", "Bob",   "newer",  1_500_000_000), // 2017
+            make_commit("a1", "Alice", "old", 1_000_000_000), // 2001
+            make_commit("a2", "Bob", "newer", 1_500_000_000), // 2017
             make_commit("a3", "Carol", "newest", 1_700_000_000), // 2023
         ];
         let years = years_in_range(&commits);
@@ -161,7 +157,7 @@ mod timeline_filter_tests {
     #[test]
     fn commits_for_month_wrong_month_returns_empty() {
         let commits = [make_commit("a1", "Alice", "init", 1_710_460_800)]; // Mar 2024 UTC
-        // Month 99 is guaranteed to match nothing.
+                                                                           // Month 99 is guaranteed to match nothing.
         assert!(commits_for_month(&commits, 2024, 99).is_empty());
     }
 
@@ -170,9 +166,9 @@ mod timeline_filter_tests {
         // Three commits with ascending timestamps; `list_commits` returns
         // newest-first, but `commits_for_month` must preserve whatever
         // order it receives.
-        let c1 = make_commit("h1", "Alice", "first",  1_673_308_800);
-        let c2 = make_commit("h2", "Bob",   "second", 1_673_395_200);
-        let c3 = make_commit("h3", "Carol", "third",  1_673_481_600);
+        let c1 = make_commit("h1", "Alice", "first", 1_673_308_800);
+        let c2 = make_commit("h2", "Bob", "second", 1_673_395_200);
+        let c3 = make_commit("h3", "Carol", "third", 1_673_481_600);
         let input = [c3.clone(), c2.clone(), c1.clone()]; // newest-first
 
         let all_years = years_in_range(&input);
@@ -206,7 +202,7 @@ mod timeline_filter_tests {
 
     #[test]
     fn month_name_invalid_returns_question_mark() {
-        assert_eq!(month_name(0),  "?");
+        assert_eq!(month_name(0), "?");
         assert_eq!(month_name(13), "?");
         assert_eq!(month_name(99), "?");
     }
@@ -216,10 +212,10 @@ mod timeline_filter_tests {
     /// Build a default (no-op) `FilterState`.
     fn empty_filter() -> FilterState {
         FilterState {
-            date:   FilterDateRange::default(),
+            date: FilterDateRange::default(),
             author: None,
             branch: None,
-            files:  FileTypeFilter::default(),
+            files: FileTypeFilter::default(),
         }
     }
 
@@ -246,22 +242,24 @@ mod timeline_filter_tests {
     #[test]
     fn filter_state_apply_author_filter() {
         let commits = [
-            make_commit("a1", "Alice", "first",  1_000),
-            make_commit("a2", "Bob",   "second", 2_000),
-            make_commit("a3", "alice", "third",  3_000), // lowercase — case-insensitive
+            make_commit("a1", "Alice", "first", 1_000),
+            make_commit("a2", "Bob", "second", 2_000),
+            make_commit("a3", "alice", "third", 3_000), // lowercase — case-insensitive
         ];
         let mut f = empty_filter();
         f.author = Some("alice".to_owned());
         let result = f.apply(&commits);
         assert_eq!(result.len(), 2);
-        assert!(result.iter().all(|c| c.author.to_lowercase().contains("alice")));
+        assert!(result
+            .iter()
+            .all(|c| c.author.to_lowercase().contains("alice")));
     }
 
     #[test]
     fn filter_state_apply_empty_filter_returns_all() {
         let commits = [
             make_commit("x1", "Alice", "a", 1_000),
-            make_commit("x2", "Bob",   "b", 2_000),
+            make_commit("x2", "Bob", "b", 2_000),
         ];
         let result = empty_filter().apply(&commits);
         assert_eq!(result.len(), 2);

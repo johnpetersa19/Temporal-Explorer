@@ -33,9 +33,9 @@
 //! All functions are pure (no GTK side-effects) so they can be tested
 //! without a display connection.
 
-use gtk::glib;
-use gettextrs::gettext;
 use crate::git_engine::CommitInfo;
+use gettextrs::gettext;
+use gtk::glib;
 
 /// Decode a Unix timestamp into (year, month_1_12) in local time.
 ///
@@ -136,18 +136,18 @@ pub fn commits_for_month<'a>(
 /// to be used in GTK label setters.
 pub fn month_name(month: u32) -> String {
     match month {
-        1  => gettext("January"),
-        2  => gettext("February"),
-        3  => gettext("March"),
-        4  => gettext("April"),
-        5  => gettext("May"),
-        6  => gettext("June"),
-        7  => gettext("July"),
-        8  => gettext("August"),
-        9  => gettext("September"),
+        1 => gettext("January"),
+        2 => gettext("February"),
+        3 => gettext("March"),
+        4 => gettext("April"),
+        5 => gettext("May"),
+        6 => gettext("June"),
+        7 => gettext("July"),
+        8 => gettext("August"),
+        9 => gettext("September"),
         10 => gettext("October"),
         11 => gettext("November"),
         12 => gettext("December"),
-        _  => String::from("?"),
+        _ => String::from("?"),
     }
 }

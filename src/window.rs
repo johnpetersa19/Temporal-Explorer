@@ -69,6 +69,7 @@ use std::sync::{
 
 use crate::address_bar;
 use crate::batch_operations_dialog::{BatchOp, BatchOperationsDialog};
+use crate::clone_repository_dialog::CloneRepositoryDialog;
 use crate::column_chooser::{ColumnChooser, ColumnVisibility};
 use crate::commit_controller;
 use crate::file_grid_captions_dialog::{CaptionFlags, FileGridCaptionsDialog};
@@ -96,8 +97,23 @@ enum SnapshotWriteMessage {
 }
 
 enum SearchProgressMessage {
-    Progress { current: usize, total: usize },
-    Done(Option<(Vec<CommitInfo>, Vec<(String, Vec<String>)>)>),
+    Progress {
+        indexed: usize,
+        total: usize,
+        cache_hits: usize,
+        matches: usize,
+    },
+    Done(SearchRunResult),
+    Cancelled,
+    Error(String),
+}
+
+struct SearchRunResult {
+    results: Vec<CommitInfo>,
+    newly_cached_changed_files: Vec<(String, Vec<String>)>,
+    indexed: usize,
+    cache_hits: usize,
+    diff_errors: usize,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -591,6 +607,49 @@ fn matches_calendar(ts: i64, q: &str) -> bool {
     iso_date.contains(q) || year_month.contains(q) || human.contains(q)
 }
 
+fn commit_matches_lightweight_filters(
+    commit: &CommitInfo,
+    filter: &FilterState,
+    branch_hashes: Option<&HashSet<String>>,
+    q: &str,
+) -> bool {
+    if let Some(ref author) = filter.author {
+        let wanted_author = author.to_lowercase();
+        if !commit.author.to_lowercase().contains(&wanted_author) {
+            return false;
+        }
+    }
+
+    if let Some(hashes) = branch_hashes {
+        if !hashes.contains(&commit.hash) {
+            return false;
+        }
+    }
+
+    if let Some(since) = filter.date.from {
+        if commit.timestamp < since {
+            return false;
+        }
+    }
+
+    if let Some(until) = filter.date.to {
+        if commit.timestamp > until {
+            return false;
+        }
+    }
+
+    if !q.is_empty()
+        && !commit.summary.to_lowercase().contains(q)
+        && !commit.hash.starts_with(q)
+        && !commit.author.to_lowercase().contains(q)
+        && !matches_calendar(commit.timestamp, q)
+    {
+        return false;
+    }
+
+    true
+}
+
 // ── Short-hash helpers ─────────────────────────────────────────────────────────
 
 const SHORT_HASH_LEN: usize = 8;
@@ -605,6 +664,33 @@ fn short_hash(hash: &str) -> &str {
 #[inline]
 fn display_hash(hash: &str) -> &str {
     short_hash(hash)
+}
+
+fn clone_git_repository(
+    url: String,
+    destination: PathBuf,
+    cancel: Arc<AtomicBool>,
+) -> Result<PathBuf, String> {
+    let mut callbacks = git2::RemoteCallbacks::new();
+    let cancel_for_transfer = cancel.clone();
+    callbacks.transfer_progress(move |_| !cancel_for_transfer.load(Ordering::Relaxed));
+
+    let mut fetch_options = git2::FetchOptions::new();
+    fetch_options.remote_callbacks(callbacks);
+
+    let mut builder = git2::build::RepoBuilder::new();
+    builder.fetch_options(fetch_options);
+
+    builder
+        .clone(&url, &destination)
+        .map(|_| destination)
+        .map_err(|err| {
+            if cancel.load(Ordering::Relaxed) {
+                gettext("Clone operation cancelled")
+            } else {
+                format!("{}: {err}", gettext("Failed to clone repository"))
+            }
+        })
 }
 
 // ── TemporalExplorerWindow impl ────────────────────────────────────────────────
@@ -660,28 +746,10 @@ impl TemporalExplorerWindow {
         imp.toolbar.search_button().connect_toggled(move |button| {
             if button.is_active() {
                 win.enter_search_mode();
-            } else if win.imp().toolbar.is_search_mode() {
+            } else if !win.imp().commit_search_entry.text().is_empty() {
                 win.leave_search_mode();
             }
         });
-
-        let win = self.clone();
-        imp.toolbar.search_close_btn().connect_clicked(move |_| {
-            win.leave_search_mode();
-        });
-
-        let win = self.clone();
-        imp.toolbar
-            .search_entry()
-            .connect_search_changed(move |entry| {
-                let query = entry.text().to_string();
-
-                if win.imp().commit_search_entry.text().as_str() != query {
-                    win.imp().commit_search_entry.set_text(&query);
-                }
-
-                win.on_search_changed(query);
-            });
 
         let win = self.clone();
         imp.timeline_back_button.connect_clicked(move |_| {
@@ -719,10 +787,6 @@ impl TemporalExplorerWindow {
             .connect_search_changed(move |entry| {
                 let query = entry.text().to_string();
 
-                if win.imp().toolbar.search_entry().text().as_str() != query {
-                    win.imp().toolbar.set_search_text(&query);
-                }
-
                 win.on_search_changed(query);
             });
 
@@ -730,6 +794,7 @@ impl TemporalExplorerWindow {
         self.setup_history_controls();
         self.setup_view_controls();
         self.setup_saved_view_preferences();
+        self.setup_settings_change_listeners();
         self.setup_actions();
     }
 
@@ -750,6 +815,7 @@ impl TemporalExplorerWindow {
             ("show-captions", Self::show_file_grid_captions_dialog),
             ("current-properties", Self::show_current_folder_properties),
             ("open-repository", Self::open_repo_dialog),
+            ("clone-repository", Self::show_clone_repository_dialog),
             ("batch-operations", Self::show_batch_operations_dialog),
             ("select-by-pattern", Self::show_select_by_pattern_dialog),
             ("filter-file-type", Self::show_filter_types_dialog),
@@ -1101,7 +1167,7 @@ impl TemporalExplorerWindow {
 
     fn toggle_filter_popover(&self) {
         self.enter_search_mode();
-        let button = self.imp().toolbar.search_filter_button();
+        let button = &self.imp().filter_button;
         button.set_active(!button.is_active());
     }
 
@@ -1117,7 +1183,6 @@ impl TemporalExplorerWindow {
             popover.reset_all();
         }
         self.imp().commit_search_entry.set_text("");
-        self.imp().toolbar.set_search_text("");
         self.on_search_changed(String::new());
     }
 
@@ -1675,6 +1740,86 @@ impl TemporalExplorerWindow {
             .set_show_hidden_files(show_hidden);
     }
 
+    fn setup_settings_change_listeners(&self) {
+        let Some(settings) = self.imp().settings.get() else {
+            return;
+        };
+
+        let win = self.clone();
+        settings.connect_changed(Some("default-view"), move |settings, _| {
+            let is_grid = settings.string("default-view").as_str() == "grid";
+            let next = if is_grid {
+                ViewMode::Grid
+            } else {
+                ViewMode::List
+            };
+
+            if *win.imp().view_mode.borrow() != next {
+                *win.imp().view_mode.borrow_mut() = next;
+                win.imp().toolbar.view_controls().set_view_mode(is_grid);
+                win.reload_current_dir_if_possible();
+            }
+        });
+
+        let win = self.clone();
+        settings.connect_changed(Some("grid-zoom-level"), move |settings, _| {
+            let raw = settings.uint("grid-zoom-level").min(2);
+            let next = match raw {
+                0 => GridZoom::Small,
+                2 => GridZoom::Large,
+                _ => GridZoom::Normal,
+            };
+
+            if *win.imp().grid_zoom.borrow() != next {
+                *win.imp().grid_zoom.borrow_mut() = next;
+                win.imp().toolbar.view_controls().set_zoom_level(raw);
+                win.reload_current_dir_if_possible();
+            }
+        });
+
+        let win = self.clone();
+        settings.connect_changed(Some("file-sort-mode"), move |settings, _| {
+            let next = match settings.string("file-sort-mode").as_str() {
+                "name-desc" => FileSortMode::NameDescending,
+                "last-modified" => FileSortMode::LastModified,
+                "first-modified" => FileSortMode::FirstModified,
+                "size" => FileSortMode::Size,
+                "type" => FileSortMode::Extension,
+                _ => FileSortMode::Name,
+            };
+
+            if *win.imp().sort_mode.borrow() != next {
+                *win.imp().sort_mode.borrow_mut() = next;
+                win.imp().toolbar.view_controls().set_sort_mode(next);
+                win.reload_current_dir_if_possible();
+            }
+        });
+
+        let win = self.clone();
+        settings.connect_changed(Some("grid-caption-flags"), move |settings, _| {
+            let next = CaptionFlags::from_bits_truncate(settings.uint("grid-caption-flags"));
+
+            if *win.imp().grid_caption_flags.borrow() != next {
+                *win.imp().grid_caption_flags.borrow_mut() = next;
+                win.reload_current_dir_if_possible();
+            }
+        });
+
+        let win = self.clone();
+        settings.connect_changed(Some("show-hidden-files"), move |settings, _| {
+            let next = settings.boolean("show-hidden-files");
+
+            if win.imp().show_hidden_files.get() != next {
+                win.imp().show_hidden_files.set(next);
+                win.imp()
+                    .toolbar
+                    .view_controls()
+                    .set_show_hidden_files(next);
+                win.reload_current_dir_if_possible();
+            }
+        });
+    }
+
     // ── ViewControls wiring ───────────────────────────────────────────────────
 
     fn setup_view_controls(&self) {
@@ -2122,25 +2267,6 @@ impl TemporalExplorerWindow {
     // ── FilterTypesDialog ─────────────────────────────────────────────────────
 
     pub fn show_filter_types_dialog(&self) {
-        // Ensure changed_files is populated for every commit before opening the
-        // dialog so that extension filtering works correctly on the first open.
-        // load_changed_files is idempotent — subsequent calls are no-ops.
-        if let Some(ref repo_wrapper) = *self.imp().repository.borrow() {
-            // Open a dedicated handle so we do not hold a borrow on `repository`
-            // across the mutable borrow of `all_commits` below.
-            let repo_path = self.imp().repo_path.borrow().clone();
-            if let Some(path) = repo_path {
-                if let Ok(repo) = git2::Repository::open(&path) {
-                    let _ = repo_wrapper; // keep lint happy; real work uses `repo`
-                    for commit in self.imp().all_commits.borrow_mut().iter_mut() {
-                        if !commit.has_changed_files_loaded() {
-                            commit.load_changed_files(&repo);
-                        }
-                    }
-                }
-            }
-        }
-
         let dialog = FilterTypesDialog::new();
 
         let win = self.clone();
@@ -2196,6 +2322,104 @@ impl TemporalExplorerWindow {
         });
     }
 
+    fn show_clone_repository_dialog(&self) {
+        let dialog = CloneRepositoryDialog::new();
+
+        let win = self.clone();
+        dialog.connect_clone_requested(move |_, url, destination| {
+            win.clone_repository(url.to_string(), PathBuf::from(destination));
+        });
+
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
+    }
+
+    fn clone_repository(&self, url: String, destination: PathBuf) {
+        let url = url.trim().to_string();
+
+        if url.is_empty() {
+            self.show_error(&gettext("Repository URL is required"));
+            return;
+        }
+
+        if destination.exists() {
+            if !destination.is_dir() {
+                self.show_error(&gettext("Clone destination must be a folder"));
+                return;
+            }
+
+            match std::fs::read_dir(&destination) {
+                Ok(entries) => {
+                    if entries.into_iter().next().is_some() {
+                        self.show_error(&gettext("Clone destination must be empty"));
+                        return;
+                    }
+                }
+                Err(e) => {
+                    self.show_error(&format!(
+                        "{}: {e}",
+                        gettext("Cannot read clone destination")
+                    ));
+                    return;
+                }
+            }
+        } else if let Some(parent) = destination.parent() {
+            if !parent.exists() {
+                self.show_error(&gettext("Parent folder does not exist"));
+                return;
+            }
+        }
+
+        let cancel = Arc::new(AtomicBool::new(false));
+        let progress = OperationProgressDialog::new();
+        progress.setup(
+            &gettext("Cloning Repository"),
+            &gettext("Connecting to remote repository…"),
+            cancel.clone(),
+        );
+        AdwDialogExt::present(&progress, Some(self.upcast_ref::<gtk::Widget>()));
+
+        let worker_url = url.clone();
+        let worker_destination = destination.clone();
+        let worker_cancel = cancel.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        std::thread::spawn(move || {
+            let result = clone_git_repository(worker_url, worker_destination, worker_cancel);
+            tx.send(result).ok();
+        });
+
+        let win = self.clone();
+        glib::timeout_add_local(std::time::Duration::from_millis(150), move || {
+            match rx.try_recv() {
+                Ok(Ok(path)) => {
+                    progress.finish_and_close();
+                    win.show_toast(&gettext("Repository cloned"));
+                    win.load_repository(path);
+                    glib::ControlFlow::Break
+                }
+                Ok(Err(message)) => {
+                    progress.finish_and_close();
+                    win.show_error(&message);
+                    glib::ControlFlow::Break
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    let status = if cancel.load(Ordering::Relaxed) {
+                        gettext("Cancelling clone…")
+                    } else {
+                        gettext("Cloning repository…")
+                    };
+                    progress.pulse(&status);
+                    glib::ControlFlow::Continue
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    progress.finish_and_close();
+                    win.show_error(&gettext("Clone operation stopped unexpectedly"));
+                    glib::ControlFlow::Break
+                }
+            }
+        });
+    }
+
     pub fn load_repository(&self, path: PathBuf) {
         let cancel = Arc::new(AtomicBool::new(false));
         if let Some(prev) = self.imp().load_cancel.borrow_mut().take() {
@@ -2243,18 +2467,14 @@ impl TemporalExplorerWindow {
     // ── Search mode ────────────────────────────────────────────────────────────
 
     fn enter_search_mode(&self) {
-        self.imp().toolbar.set_search_mode(true);
-
-        let sidebar_query = self.imp().commit_search_entry.text().to_string();
-        if self.imp().toolbar.search_entry().text().as_str() != sidebar_query {
-            self.imp().toolbar.set_search_text(&sidebar_query);
-        }
-
-        self.imp().toolbar.search_entry().grab_focus();
+        self.imp().split_view.set_show_sidebar(true);
+        self.imp().toolbar.search_button().set_active(true);
+        self.imp().commit_search_entry.grab_focus();
     }
 
     fn leave_search_mode(&self) {
-        self.imp().toolbar.set_search_mode(false);
+        self.imp().commit_search_entry.set_text("");
+        self.imp().filter_button.set_active(false);
         self.imp().toolbar.search_button().set_active(false);
     }
 
@@ -2674,11 +2894,17 @@ impl TemporalExplorerWindow {
 
                     if let Some(commit) = commit {
                         commit.load_changed_files(&repo);
+                        imp.changed_files_cache
+                            .borrow_mut()
+                            .insert(commit.hash.clone(), commit.changed_files.clone());
                     } else if let Some(commit) = commits
                         .iter_mut()
                         .find(|c| c.hash.starts_with(short_hash(&hash)))
                     {
                         commit.load_changed_files(&repo);
+                        imp.changed_files_cache
+                            .borrow_mut()
+                            .insert(commit.hash.clone(), commit.changed_files.clone());
                     }
                 }
             }
@@ -3129,6 +3355,7 @@ impl TemporalExplorerWindow {
         let menu = gio::Menu::new();
 
         let selection_section = gio::Menu::new();
+        selection_section.append(Some(&gettext("Reload")), Some("win.reload-repository"));
         selection_section.append(Some(&gettext("Select All")), Some("win.select-all-files"));
         selection_section.append(
             Some(&gettext("Invert Selection")),
@@ -3141,7 +3368,15 @@ impl TemporalExplorerWindow {
         menu.append_section(None, &selection_section);
 
         let view_section = gio::Menu::new();
+        view_section.append(
+            Some(&gettext("Visible Columns…")),
+            Some("win.show-column-chooser"),
+        );
         view_section.append(Some(&gettext("Captions…")), Some("win.show-captions"));
+        view_section.append(
+            Some(&gettext("Select Commits by Pattern…")),
+            Some("win.select-by-pattern"),
+        );
         menu.append_section(None, &view_section);
 
         let folder_section = gio::Menu::new();
@@ -4096,10 +4331,9 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         let popover = SearchFilterPopover::new();
 
-        // Nautilus-like behavior:
-        // the search filter popover is anchored to the search field in the top
-        // toolbar, not to the timeline/sidebar search entry.
-        let filter_button = imp.toolbar.search_filter_button().clone();
+        // The popover refines the commit search in the timeline sidebar, so it
+        // belongs to the filter button beside that SearchEntry.
+        let filter_button = imp.filter_button.get();
 
         popover.set_parent(&filter_button);
 
@@ -4144,6 +4378,10 @@ impl TemporalExplorerWindow {
         *self.imp().last_query.borrow_mut() = query.clone();
 
         let trimmed = query.trim().to_string();
+        let has_query = !trimmed.is_empty();
+        if self.imp().toolbar.search_button().is_active() != has_query {
+            self.imp().toolbar.search_button().set_active(has_query);
+        }
 
         if trimmed.is_empty() {
             // Search cleared: restore the normal timeline view using the already
@@ -4193,17 +4431,38 @@ impl TemporalExplorerWindow {
         let cancel = Arc::new(AtomicBool::new(false));
         *self.imp().search_cancel.borrow_mut() = Some(cancel.clone());
 
-        let all_commits = self.imp().all_commits.borrow().clone();
         let filter = self.imp().filter_state.borrow().clone();
         let repo_path = self.imp().repo_path.borrow().clone();
-        let changed_files_cache_snapshot = self.imp().changed_files_cache.borrow().clone();
         let branch_hashes = filter
             .branch
             .as_ref()
             .and_then(|branch| self.imp().branch_commit_index.borrow().get(branch).cloned());
         let q = query.to_lowercase();
-
         let file_filter_active = filter.files.is_active();
+        let candidates: Vec<CommitInfo> = {
+            let commits = self.imp().all_commits.borrow();
+            commits
+                .iter()
+                .filter(|commit| {
+                    commit_matches_lightweight_filters(commit, &filter, branch_hashes.as_ref(), &q)
+                })
+                .cloned()
+                .collect()
+        };
+
+        let changed_files_cache_snapshot = if file_filter_active {
+            let cache = self.imp().changed_files_cache.borrow();
+            candidates
+                .iter()
+                .filter_map(|commit| {
+                    cache
+                        .get(&commit.hash)
+                        .map(|files| (commit.hash.clone(), files.clone()))
+                })
+                .collect::<HashMap<_, _>>()
+        } else {
+            HashMap::new()
+        };
 
         let progress_dialog = if file_filter_active {
             let dialog = OperationProgressDialog::new();
@@ -4218,84 +4477,75 @@ impl TemporalExplorerWindow {
             None
         };
 
-        let total_commits = all_commits.len().max(1);
+        let total_commits = candidates.len().max(1);
         let (tx, rx) = std::sync::mpsc::sync_channel::<SearchProgressMessage>(32);
         let worker_cancel = cancel.clone();
 
         std::thread::spawn(move || {
             let mut results = Vec::new();
-            let mut changed_files_cache = changed_files_cache_snapshot;
             let mut newly_cached_changed_files: Vec<(String, Vec<String>)> = Vec::new();
+            let mut cache_hits = 0usize;
+            let mut diff_errors = 0usize;
+            let mut indexed = 0usize;
 
             // For file-type filters, open the repository only once in this worker.
             // Changed files are cached by commit hash for the lifetime of the app.
             let repo_for_file_filter = if filter.files.is_active() {
-                repo_path
-                    .as_ref()
-                    .and_then(|path| git2::Repository::open(path).ok())
+                match repo_path.as_ref() {
+                    Some(path) => match git2::Repository::open(path) {
+                        Ok(repo) => Some(repo),
+                        Err(e) => {
+                            let _ = tx.send(SearchProgressMessage::Error(format!(
+                                "{}: {e}",
+                                gettext("Cannot open repository")
+                            )));
+                            return;
+                        }
+                    },
+                    None => {
+                        let _ = tx.send(SearchProgressMessage::Error(gettext(
+                            "No repository loaded",
+                        )));
+                        return;
+                    }
+                }
             } else {
                 None
             };
 
-            for (idx, commit) in all_commits.into_iter().enumerate() {
+            for mut commit in candidates {
                 if worker_cancel.load(Ordering::Relaxed) {
-                    let _ = tx.send(SearchProgressMessage::Done(None));
+                    let _ = tx.send(SearchProgressMessage::Cancelled);
                     return;
-                }
-
-                if file_filter_active && idx % 25 == 0 {
-                    let _ = tx.send(SearchProgressMessage::Progress {
-                        current: idx + 1,
-                        total: total_commits,
-                    });
-                }
-
-                // ── Author filter ─────────────────────────────────────────
-                if let Some(ref author) = filter.author {
-                    let wanted_author = author.to_lowercase();
-                    if !commit.author.to_lowercase().contains(&wanted_author) {
-                        continue;
-                    }
-                }
-
-                // ── Branch filter ─────────────────────────────────────────
-                if let Some(ref hashes) = branch_hashes {
-                    if !hashes.contains(&commit.hash) {
-                        continue;
-                    }
-                }
-
-                // ── Date range filter ─────────────────────────────────────
-                if let Some(since) = filter.date.from {
-                    if commit.timestamp < since {
-                        continue;
-                    }
-                }
-
-                if let Some(until) = filter.date.to {
-                    if commit.timestamp > until {
-                        continue;
-                    }
                 }
 
                 // ── File-type / extension filter ──────────────────────────
                 if filter.files.is_active() {
-                    let mut commit = commit;
-
-                    // changed_files is loaded lazily in the UI. For file filters,
-                    // load it inside the worker so the filter has real data.
-                    if commit.changed_files.is_empty() {
-                        if let Some(cached_files) = changed_files_cache.get(&commit.hash) {
-                            commit.changed_files = cached_files.clone();
+                    if !commit.has_changed_files_loaded() {
+                        if let Some(cached_files) = changed_files_cache_snapshot.get(&commit.hash) {
+                            commit.set_changed_files_loaded(cached_files.clone());
+                            cache_hits += 1;
                         } else if let Some(ref repo) = repo_for_file_filter {
-                            commit.load_changed_files(repo);
-
-                            changed_files_cache
-                                .insert(commit.hash.clone(), commit.changed_files.clone());
-
-                            newly_cached_changed_files
-                                .push((commit.hash.clone(), commit.changed_files.clone()));
+                            match commit.load_changed_files_result(repo) {
+                                Ok(()) => {
+                                    newly_cached_changed_files
+                                        .push((commit.hash.clone(), commit.changed_files.clone()));
+                                }
+                                Err(_) => {
+                                    diff_errors += 1;
+                                }
+                            }
                         }
+                    }
+
+                    indexed += 1;
+                    if indexed == 1 || indexed % 25 == 0 || indexed == total_commits {
+                        let _ = tx.send(SearchProgressMessage::Progress {
+                            indexed,
+                            total: total_commits,
+                            cache_hits,
+                            matches: results.len(),
+                        });
                     }
 
                     let has_file_match = commit
@@ -4311,23 +4561,16 @@ impl TemporalExplorerWindow {
                     continue;
                 }
 
-                // ── Text query ────────────────────────────────────────────
-                if !q.is_empty()
-                    && !commit.summary.to_lowercase().contains(&q)
-                    && !commit.hash.starts_with(&q)
-                    && !commit.author.to_lowercase().contains(&q)
-                    && !matches_calendar(commit.timestamp, &q)
-                {
-                    continue;
-                }
-
                 results.push(commit);
             }
 
-            let _ = tx.send(SearchProgressMessage::Done(Some((
+            let _ = tx.send(SearchProgressMessage::Done(SearchRunResult {
                 results,
                 newly_cached_changed_files,
-            ))));
+                indexed,
+                cache_hits,
+                diff_errors,
+            }));
         });
 
         let win = self.clone();
@@ -4341,31 +4584,53 @@ impl TemporalExplorerWindow {
 
             loop {
                 match rx.try_recv() {
-                    Ok(SearchProgressMessage::Progress { current, total }) => {
+                    Ok(SearchProgressMessage::Progress {
+                        indexed,
+                        total,
+                        cache_hits,
+                        matches,
+                    }) => {
                         if let Some(ref dialog) = progress_dialog {
-                            let fraction = current as f64 / total.max(1) as f64;
+                            let fraction = indexed as f64 / total.max(1) as f64;
                             dialog.set_progress(
                                 fraction,
                                 &format!(
-                                    "{} {}/{}",
-                                    gettext("Reading changed-file metadata…"),
-                                    current,
-                                    total
+                                    "{} {}/{} · {} {} · {} {}",
+                                    gettext("Indexed"),
+                                    indexed,
+                                    total,
+                                    cache_hits,
+                                    gettext("cached"),
+                                    matches,
+                                    gettext("matches")
                                 ),
                             );
                         }
                     }
 
-                    Ok(SearchProgressMessage::Done(Some((
+                    Ok(SearchProgressMessage::Done(SearchRunResult {
                         results,
                         newly_cached_changed_files,
-                    )))) => {
+                        indexed,
+                        cache_hits,
+                        diff_errors,
+                    })) => {
                         if let Some(ref dialog) = progress_dialog {
+                            dialog.set_progress(
+                                1.0,
+                                &format!(
+                                    "{} {} · {} {}",
+                                    gettext("Indexed"),
+                                    indexed,
+                                    cache_hits,
+                                    gettext("cached")
+                                ),
+                            );
                             dialog.finish_and_close();
                         }
 
                         if !cancel.load(Ordering::Relaxed) {
-                            if !newly_cached_changed_files.is_empty() {
+                            if !newly_cached_changed_files.is_empty() || cache_hits > 0 {
                                 let imp = win.imp();
 
                                 {
@@ -4383,9 +4648,7 @@ impl TemporalExplorerWindow {
                                     for (hash, files) in cache.iter() {
                                         if let Some(idx) = index.get(hash) {
                                             if let Some(commit) = commits.get_mut(*idx) {
-                                                if commit.changed_files.is_empty() {
-                                                    commit.changed_files = files.clone();
-                                                }
+                                                commit.set_changed_files_loaded(files.clone());
                                             }
                                         }
                                     }
@@ -4396,15 +4659,31 @@ impl TemporalExplorerWindow {
                                 &win.imp().commit_list,
                                 &results,
                             );
+
+                            if diff_errors > 0 {
+                                win.show_toast(&format!(
+                                    "{} {} commit(s)",
+                                    gettext("Could not read changed files for"),
+                                    diff_errors
+                                ));
+                            }
                         }
 
                         return glib::ControlFlow::Break;
                     }
 
-                    Ok(SearchProgressMessage::Done(None)) => {
+                    Ok(SearchProgressMessage::Cancelled) => {
                         if let Some(ref dialog) = progress_dialog {
                             dialog.finish_and_close();
                         }
+                        return glib::ControlFlow::Break;
+                    }
+
+                    Ok(SearchProgressMessage::Error(message)) => {
+                        if let Some(ref dialog) = progress_dialog {
+                            dialog.finish_and_close();
+                        }
+                        win.show_error(&message);
                         return glib::ControlFlow::Break;
                     }
 

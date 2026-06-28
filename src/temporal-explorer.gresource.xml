@@ -3,6 +3,7 @@
   <gresource prefix="/io/github/johnpetersa19/TemporalExplorer">
     <file compressed="true">batch-operations-dialog.ui</file>
     <file compressed="true">branch-sidebar-row.ui</file>
+    <file compressed="true">clone-repository-dialog.ui</file>
     <file compressed="true">column-chooser.ui</file>
     <file compressed="true">commit-name-cell.ui</file>
     <file compressed="true">commit-row.ui</file>
@@ -28,6 +29,15 @@
     <file compressed="true">view-controls.ui</file>
     <file compressed="true">window.ui</file>
     <file compressed="true">year-row.ui</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/emblem-symbolic-link-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/funnel-outline-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/external-link-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/image-print-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/nautilus-folder-search-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/nautilus-search-filters-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/paper-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/quotation-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/rich-text-symbolic.svg</file>
     <!-- style.css: alias usado pelo GTK para carregamento automático via resource-base-path -->
     <file compressed="true" alias="style.css">temporal-explorer.css</file>
     <!-- temporal-explorer.css: caminho explícito para evitar o warning do tema GTK,

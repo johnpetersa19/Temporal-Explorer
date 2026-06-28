@@ -3,6 +3,9 @@ using Adw 1;
 
 template $TemporalToolbar : Adw.Bin {
   Adw.HeaderBar header_bar {
+    show-start-title-buttons: true;
+    show-end-title-buttons: true;
+
     [start]
     ToggleButton show_sidebar_button {
       icon-name: "sidebar-show-symbolic";
@@ -65,33 +68,11 @@ template $TemporalToolbar : Adw.Bin {
           };
         }
 
-        StackPage {
-          name: "search";
-          child: Box {
-            orientation: horizontal;
-            styles ["linked", "toolbar-search-bar"]
-
-            SearchEntry search_entry {
-              hexpand: true;
-              placeholder-text: _("Search commits, hash, date…");
-            }
-
-            ToggleButton search_filter_button {
-              icon-name: "funnel-symbolic";
-              tooltip-text: _("Filters");
-            }
-
-            Button search_close_btn {
-              icon-name: "window-close-symbolic";
-              tooltip-text: _("Close Search");
-            }
-          };
-        }
       }
 
       ToggleButton search_button {
-        icon-name: "system-search-symbolic";
-        tooltip-text: _("Search Current Folder");
+        icon-name: "edit-find-symbolic";
+        tooltip-text: _("Search Commits");
         halign: center;
         valign: center;
         styles ["flat"]
@@ -135,6 +116,11 @@ menu primary_menu {
     item {
       label: _("Open Repository");
       action: "win.open-repository";
+    }
+
+    item {
+      label: _("Clonar repositório");
+      action: "win.clone-repository";
     }
 
     item {
@@ -190,12 +176,44 @@ menu primary_menu {
       label: _("Captions…");
       action: "win.show-captions";
     }
+
+    item {
+      label: _("Visible Columns…");
+      action: "win.show-column-chooser";
+    }
+
+    item {
+      label: _("Select Commits by Pattern…");
+      action: "win.select-by-pattern";
+    }
   }
 
   section {
     item {
       label: _("Properties");
       action: "win.current-properties";
+    }
+
+    item {
+      label: _("Preview Selected File");
+      action: "win.preview-selected-file";
+    }
+
+    item {
+      label: _("Show Context Menu");
+      action: "win.open-context-menu";
+    }
+  }
+
+  section {
+    item {
+      label: _("Batch Operations…");
+      action: "win.batch-operations";
+    }
+
+    item {
+      label: _("Merge Conflicts…");
+      action: "win.show-merge-conflicts";
     }
   }
 

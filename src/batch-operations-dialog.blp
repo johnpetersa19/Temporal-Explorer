@@ -22,7 +22,28 @@ template $BatchOperationsDialog : Adw.Dialog {
 
   child: Adw.ToolbarView {
     [top]
-    Adw.HeaderBar {}
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      [start]
+      Button cancel_button {
+        label: _("_Cancel");
+        use-underline: true;
+        can-shrink: true;
+        clicked => $on_cancel_clicked() swapped;
+      }
+
+      [end]
+      Button run_button {
+        label: _("_Run");
+        use-underline: true;
+        can-shrink: true;
+        clicked => $on_run_clicked() swapped;
+
+        styles ["suggested-action"]
+      }
+    }
 
     content: Box {
       orientation: horizontal;
@@ -172,24 +193,6 @@ template $BatchOperationsDialog : Adw.Dialog {
           pulse-step: 0.1;
         }
 
-        // Action row
-        Box {
-          orientation: horizontal;
-          spacing: 8;
-          halign: end;
-
-          Button cancel_button {
-            label: _("Cancel");
-            clicked => $on_cancel_clicked() swapped;
-          }
-
-          Button run_button {
-            label: _("Run");
-            clicked => $on_run_clicked() swapped;
-
-            styles ["suggested-action"]
-          }
-        }
       }
     };
   };

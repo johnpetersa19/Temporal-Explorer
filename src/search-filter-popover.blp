@@ -178,7 +178,7 @@ template $SearchFilterPopover : Popover {
       }
 
       /* ── Text matching — Nautilus visual section.
-       * In Temporal Explorer the main SearchEntry still controls the text query.
+       * In Temporal Explorer the timeline SearchEntry controls the text query.
        */
       Box {
         orientation: vertical;
@@ -200,11 +200,12 @@ template $SearchFilterPopover : Popover {
             label: _("Content & Filename");
             tooltip-text: _("Search commit text and changed file names");
             sensitive: false;
+            styles ["suggested-action"]
           }
 
           Button {
             label: _("Only Filename");
-            tooltip-text: _("Filename-only search is not enabled yet");
+            tooltip-text: _("Filename-only search is not available in this view");
             sensitive: false;
           }
         }

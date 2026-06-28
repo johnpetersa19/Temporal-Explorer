@@ -8,7 +8,11 @@ template $ColumnChooser : Adw.Dialog {
 
   child: Adw.ToolbarView {
     [top]
-    Adw.HeaderBar {}
+    Adw.HeaderBar {
+      title-widget: Adw.WindowTitle {
+        title: _("Visible Columns");
+      };
+    }
 
     content: ScrolledWindow {
       hscrollbar-policy: never;

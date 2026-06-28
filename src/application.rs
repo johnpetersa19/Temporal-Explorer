@@ -18,9 +18,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-use gettextrs::gettext;
 use adw::prelude::*;
 use adw::subclass::prelude::*;
+use gettextrs::gettext;
 use gtk::{gio, glib};
 
 use crate::config::VERSION;
@@ -52,6 +52,7 @@ mod imp {
     impl ApplicationImpl for TemporalExplorerApplication {
         fn activate(&self) {
             let application = self.obj();
+            application.ensure_icon_resource_path();
             let window = application.active_window().unwrap_or_else(|| {
                 let window = TemporalExplorerWindow::new(&*application);
                 window.upcast()
@@ -75,8 +76,20 @@ impl TemporalExplorerApplication {
         glib::Object::builder()
             .property("application-id", application_id)
             .property("flags", flags)
-            .property("resource-base-path", "/io/github/johnpetersa19/TemporalExplorer")
+            .property(
+                "resource-base-path",
+                "/io/github/johnpetersa19/TemporalExplorer",
+            )
             .build()
+    }
+
+    fn ensure_icon_resource_path(&self) {
+        let Some(display) = gtk::gdk::Display::default() else {
+            return;
+        };
+
+        gtk::IconTheme::for_display(&display)
+            .add_resource_path("/io/github/johnpetersa19/TemporalExplorer/icons");
     }
 
     fn setup_gactions(&self) {

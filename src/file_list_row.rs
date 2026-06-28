@@ -95,7 +95,7 @@ impl FileListRow {
             self.set_snippet(&format!("Git submodule · {repo_path}"));
             self.set_badge("submodule");
             self.set_chevron_visible(true);
-            self.add_emblem("vcs-branch-symbolic");
+            self.add_emblem("emblem-symbolic-link-symbolic");
         } else {
             let ext = node
                 .path()

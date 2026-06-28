@@ -12,35 +12,35 @@
  *  - Branch / tag badge chips (FlowBox, hidden when empty)
  */
 
-use gtk::glib;
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
 use adw::prelude::*;
+use gtk::glib;
+use gtk::subclass::prelude::*;
 use std::cell::RefCell;
 
 // ── Palette for avatar background based on author email hash ────────────────
 const AVATAR_COLORS: &[&str] = &[
-    "#3584e4", "#33d17a", "#f6d32d", "#ff7800",
-    "#e01b24", "#9141ac", "#2190a4", "#c64600",
+    "#3584e4", "#33d17a", "#f6d32d", "#ff7800", "#e01b24", "#9141ac", "#2190a4", "#c64600",
 ];
 
 fn avatar_color(email: &str) -> &'static str {
-    let hash: usize = email.bytes().fold(0usize, |a, b| a.wrapping_add(b as usize));
+    let hash: usize = email
+        .bytes()
+        .fold(0usize, |a, b| a.wrapping_add(b as usize));
     AVATAR_COLORS[hash % AVATAR_COLORS.len()]
 }
 
 // ── Data model passed to bind_commit ─────────────────────────────────────
 #[derive(Debug, Clone, Default)]
 pub struct CommitCellData {
-    pub sha:        String,   // full 40-char SHA
-    pub summary:    String,
-    pub author:     String,
-    pub email:      String,
-    pub date_rel:   String,   // e.g. "2 days ago"
-    pub additions:  i32,
-    pub deletions:  i32,
+    pub sha: String, // full 40-char SHA
+    pub summary: String,
+    pub author: String,
+    pub email: String,
+    pub date_rel: String, // e.g. "2 days ago"
+    pub additions: i32,
+    pub deletions: i32,
     /// (name, is_tag) pairs — branches first, tags second
-    pub refs:       Vec<(String, bool)>,
+    pub refs: Vec<(String, bool)>,
 }
 
 // ── GObject subclass ───────────────────────────────────────────────────
@@ -50,15 +50,24 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/commit-name-cell.ui")]
     pub struct CommitNameCell {
-        #[template_child] pub summary_label:    TemplateChild<gtk::Label>,
-        #[template_child] pub sha_label:        TemplateChild<gtk::Label>,
-        #[template_child] pub sha_copy_button:  TemplateChild<gtk::Button>,
-        #[template_child] pub author_label:     TemplateChild<gtk::Label>,
-        #[template_child] pub date_label:       TemplateChild<gtk::Label>,
-        #[template_child] pub author_avatar:    TemplateChild<gtk::Label>,
-        #[template_child] pub additions_label:  TemplateChild<gtk::Label>,
-        #[template_child] pub deletions_label:  TemplateChild<gtk::Label>,
-        #[template_child] pub badges_box:       TemplateChild<gtk::FlowBox>,
+        #[template_child]
+        pub summary_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub sha_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub sha_copy_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub author_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub date_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub author_avatar: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub additions_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub deletions_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub badges_box: TemplateChild<gtk::FlowBox>,
 
         pub full_sha: RefCell<String>,
     }
@@ -79,9 +88,9 @@ mod imp {
         }
     }
 
-    impl ObjectImpl        for CommitNameCell {}
-    impl WidgetImpl        for CommitNameCell {}
-    impl ListBoxRowImpl    for CommitNameCell {}
+    impl ObjectImpl for CommitNameCell {}
+    impl WidgetImpl for CommitNameCell {}
+    impl ListBoxRowImpl for CommitNameCell {}
 
     #[gtk::template_callbacks]
     impl CommitNameCell {
@@ -93,10 +102,7 @@ mod imp {
             }
             // Show a brief toast via the parent window if available
             if let Some(win) = self.obj().root().and_downcast::<adw::ApplicationWindow>() {
-                if let Some(toast_overlay) = win
-                    .content()
-                    .and_downcast::<adw::ToastOverlay>()
-                {
+                if let Some(toast_overlay) = win.content().and_downcast::<adw::ToastOverlay>() {
                     let toast = adw::Toast::new(&format!("Copied {}", &sha[..8]));
                     toast.set_timeout(2);
                     toast_overlay.add_toast(toast);
@@ -115,7 +121,9 @@ glib::wrapper! {
 }
 
 impl Default for CommitNameCell {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CommitNameCell {
@@ -134,7 +142,11 @@ impl CommitNameCell {
         imp.summary_label.set_label(&data.summary);
 
         // Short SHA (7 chars)
-        let short = if data.sha.len() >= 7 { &data.sha[..7] } else { &data.sha };
+        let short = if data.sha.len() >= 7 {
+            &data.sha[..7]
+        } else {
+            &data.sha
+        };
         imp.sha_label.set_label(short);
 
         // Author & date
@@ -142,18 +154,28 @@ impl CommitNameCell {
         imp.date_label.set_label(&data.date_rel);
 
         // Avatar: first letter of author name, coloured background via CSS
-        let initial = data.author.chars().next().unwrap_or('?').to_uppercase().next().unwrap_or('?');
+        let initial = data
+            .author
+            .chars()
+            .next()
+            .unwrap_or('?')
+            .to_uppercase()
+            .next()
+            .unwrap_or('?');
         imp.author_avatar.set_label(&initial.to_string());
         // Inline style for avatar colour (safe: only hex colours from AVATAR_COLORS)
         let color = avatar_color(&data.email);
         imp.author_avatar.set_css_classes(&["commit-avatar"]);
         // Use a CSS custom property trick via the widget name as a selector anchor
-        imp.author_avatar.set_widget_name(&format!("avatar-{}", &data.sha[..7]));
+        imp.author_avatar
+            .set_widget_name(&format!("avatar-{}", &data.sha[..7]));
 
         // Diff stat
         if data.additions > 0 || data.deletions > 0 {
-            imp.additions_label.set_label(&format!("+{}", data.additions));
-            imp.deletions_label.set_label(&format!("−{}", data.deletions));
+            imp.additions_label
+                .set_label(&format!("+{}", data.additions));
+            imp.deletions_label
+                .set_label(&format!("−{}", data.deletions));
             imp.additions_label.set_visible(true);
             imp.deletions_label.set_visible(true);
         } else {
@@ -171,9 +193,7 @@ impl CommitNameCell {
             badges.set_visible(false);
         } else {
             for (name, is_tag) in &data.refs {
-                let chip = gtk::Label::builder()
-                    .label(name)
-                    .build();
+                let chip = gtk::Label::builder().label(name).build();
                 if *is_tag {
                     chip.add_css_class("tag-badge");
                     chip.add_css_class("badge");

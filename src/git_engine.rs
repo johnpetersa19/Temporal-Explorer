@@ -171,10 +171,10 @@ const MIN_COMMITS_FOR_PARALLEL: usize = 2_000;
 #[inline]
 fn entry_to_tree_node(kind: Option<ObjectType>, path: PathBuf) -> Option<TreeNode> {
     match kind {
-        Some(ObjectType::Blob)   => Some(TreeNode::File(path)),
-        Some(ObjectType::Tree)   => Some(TreeNode::Dir(path)),
+        Some(ObjectType::Blob) => Some(TreeNode::File(path)),
+        Some(ObjectType::Tree) => Some(TreeNode::Dir(path)),
         Some(ObjectType::Commit) => Some(TreeNode::Submodule(path)),
-        _                        => None,
+        _ => None,
     }
 }
 
@@ -229,7 +229,10 @@ impl CpuPool {
     /// accessor.  Kept as part of the public `CpuPool` API so external
     /// consumers can inspect core count without re-detecting it.
     #[allow(dead_code)]
-    #[inline] pub fn logical_cores(self) -> usize { self.logical_cores }
+    #[inline]
+    pub fn logical_cores(self) -> usize {
+        self.logical_cores
+    }
 
     /// Returns the recommended number of CPU-bound worker threads
     /// (capped at [`MAX_WORKER_THREADS`]).
@@ -238,19 +241,26 @@ impl CpuPool {
     /// `io_threads` instead.  Kept as part of the public threading API for
     /// future CPU-bound work (e.g. diff generation, blame).
     #[allow(dead_code)]
-    #[inline] pub fn worker_threads(self) -> usize {
+    #[inline]
+    pub fn worker_threads(self) -> usize {
         self.logical_cores.min(MAX_WORKER_THREADS)
     }
 
-    #[inline] pub fn io_threads(self) -> usize {
+    #[inline]
+    pub fn io_threads(self) -> usize {
         self.logical_cores.min(MAX_IO_THREADS)
     }
 
-    #[inline] pub fn is_parallel(self) -> bool { self.logical_cores > 1 }
+    #[inline]
+    pub fn is_parallel(self) -> bool {
+        self.logical_cores > 1
+    }
 }
 
 impl Default for CpuPool {
-    fn default() -> Self { Self::detect() }
+    fn default() -> Self {
+        Self::detect()
+    }
 }
 
 // ── CommitInfo ───────────────────────────────────────────────────────────────────────────
@@ -326,7 +336,9 @@ impl CommitInfo {
     /// the OID to git2 functions — it avoids the hex-to-bytes parse and the
     /// potential (though unlikely) `Err` branch.
     #[inline]
-    pub fn oid(&self) -> git2::Oid { self.oid }
+    pub fn oid(&self) -> git2::Oid {
+        self.oid
+    }
 
     // ── Private fast constructor ────────────────────────────────────────────────
     //
@@ -335,14 +347,18 @@ impl CommitInfo {
     #[inline]
     fn from_commit_fast(commit: &git2::Commit<'_>) -> Self {
         Self {
-            oid:          commit.id(),
-            hash:         commit.id().to_string(),
-            summary:      commit.summary().unwrap_or("").to_owned(),
-            author:       commit.author().name().unwrap_or(&gettext("Unknown")).to_owned(),
+            oid: commit.id(),
+            hash: commit.id().to_string(),
+            summary: commit.summary().unwrap_or("").to_owned(),
+            author: commit
+                .author()
+                .name()
+                .unwrap_or(&gettext("Unknown"))
+                .to_owned(),
             author_email: commit.author().email().unwrap_or("").to_owned(),
-            timestamp:    commit.time().seconds(),
+            timestamp: commit.time().seconds(),
             changed_files: Vec::new(),
-            files_loaded:  false,
+            files_loaded: false,
         }
     }
 
@@ -373,22 +389,25 @@ impl CommitInfo {
     /// matching the behaviour of `git show` / `git log -p` and avoiding the
     /// false-positive duplicates that arise from diffing all N parents.
     pub fn load_changed_files(&mut self, repo: &git2::Repository) {
+        let _ = self.load_changed_files_result(repo);
+    }
+
+    /// Computes and caches the list of files changed by this commit, returning
+    /// any git2 error to callers that need user-visible diagnostics.
+    pub fn load_changed_files_result(
+        &mut self,
+        repo: &git2::Repository,
+    ) -> Result<(), git2::Error> {
         // Idempotent — skip if the diff has already been computed.
         // Using a dedicated flag instead of `!changed_files.is_empty()` is
         // necessary for root commits that touch zero files.
         if self.files_loaded {
-            return;
+            return Ok(());
         }
 
         // Use the stored OID directly — no hex re-parse needed.
-        let commit = match repo.find_commit(self.oid) {
-            Ok(c)  => c,
-            Err(_) => return,
-        };
-        let tree = match commit.tree() {
-            Ok(t)  => t,
-            Err(_) => return,
-        };
+        let commit = repo.find_commit(self.oid)?;
+        let tree = commit.tree()?;
 
         // Pre-size for a typical commit; avoids the first 3–4 reallocations.
         let mut files = Vec::with_capacity(8);
@@ -396,41 +415,50 @@ impl CommitInfo {
         if commit.parent_count() > 0 {
             // Regular commit or merge commit — diff against first parent only.
             // See module-level doc for the rationale.
-            if let Ok(parent) = commit.parent(0) {
-                if let Ok(parent_tree) = parent.tree() {
-                    if let Ok(diff) = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None) {
-                        let _ = diff.foreach(
-                            &mut |delta, _| {
-                                if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                                    files.push(path.to_owned());
-                                }
-                                true
-                            },
-                            None, None, None,
-                        );
+            let parent = commit.parent(0)?;
+            let parent_tree = parent.tree()?;
+            let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)?;
+            diff.foreach(
+                &mut |delta, _| {
+                    if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                        files.push(path.to_owned());
                     }
-                }
-            }
+                    true
+                },
+                None,
+                None,
+                None,
+            )?;
         } else {
             // Root commit — diff against empty tree.
-            if let Ok(diff) = repo.diff_tree_to_tree(None, Some(&tree), None) {
-                let _ = diff.foreach(
-                    &mut |delta, _| {
-                        if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                            files.push(path.to_owned());
-                        }
-                        true
-                    },
-                    None, None, None,
-                );
-            }
+            let diff = repo.diff_tree_to_tree(None, Some(&tree), None)?;
+            diff.foreach(
+                &mut |delta, _| {
+                    if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                        files.push(path.to_owned());
+                    }
+                    true
+                },
+                None,
+                None,
+                None,
+            )?;
         }
 
         files.sort();
         files.dedup();
+        self.set_changed_files_loaded(files);
+        Ok(())
+    }
+
+    /// Rehydrates changed-file metadata from an external cache.
+    ///
+    /// This deliberately sets the same loaded flag as `load_changed_files()` so
+    /// commits with zero changed files are not diffed repeatedly.
+    pub fn set_changed_files_loaded(&mut self, mut files: Vec<String>) {
+        files.sort();
+        files.dedup();
         self.changed_files = files;
-        // Mark as loaded *after* assigning so that a panic inside the diff
-        // loop leaves the flag false (allowing a retry on next call).
         self.files_loaded = true;
     }
 
@@ -504,7 +532,7 @@ pub fn detect_submodules(repo: &Repository) -> Result<Vec<SubmoduleInfo>, git2::
     let mut infos = Vec::with_capacity(submodules.len());
     for sm in &submodules {
         let name = sm.name().unwrap_or("").to_owned();
-        let url  = sm.url().unwrap_or("").to_owned();
+        let url = sm.url().unwrap_or("").to_owned();
         let path = sm.path().to_path_buf();
 
         // `Repository::submodule_status` is the stable public API for
@@ -522,7 +550,12 @@ pub fn detect_submodules(repo: &Repository) -> Result<Vec<SubmoduleInfo>, git2::
             SubmoduleStatus::Missing
         };
 
-        infos.push(SubmoduleInfo { name, url, path, status });
+        infos.push(SubmoduleInfo {
+            name,
+            url,
+            path,
+            status,
+        });
     }
 
     Ok(infos)
@@ -573,7 +606,9 @@ impl HistoryReader {
     /// doc-comment.  External crates (e.g. an integration test harness or a
     /// future plugin crate) may call it without the compiler knowing.
     #[allow(dead_code)]
-    pub fn repo(&self) -> &Repository { &self.repo }
+    pub fn repo(&self) -> &Repository {
+        &self.repo
+    }
 
     /// Returns the [`CpuPool`] detected at construction time.
     ///
@@ -581,7 +616,9 @@ impl HistoryReader {
     ///
     /// See the note on [`HistoryReader::repo`].
     #[allow(dead_code)]
-    pub fn cpu_pool(&self) -> CpuPool { self.cpu_pool }
+    pub fn cpu_pool(&self) -> CpuPool {
+        self.cpu_pool
+    }
 
     /// Returns up to [`LIST_COMMITS_MAX`] commits reachable from HEAD,
     /// sorted newest-first.
@@ -605,7 +642,9 @@ impl HistoryReader {
             let oid = oid?;
             let commit = self.repo.find_commit(oid)?;
             commits.push(CommitInfo::from_commit_fast(&commit));
-            if commits.len() >= LIST_COMMITS_MAX { break; }
+            if commits.len() >= LIST_COMMITS_MAX {
+                break;
+            }
         }
         Ok(commits)
     }
@@ -661,7 +700,9 @@ impl HistoryReader {
                 on_page(std::mem::replace(&mut page, Vec::with_capacity(page_size)));
             }
         }
-        if !page.is_empty() { on_page(page); }
+        if !page.is_empty() {
+            on_page(page);
+        }
         Ok(())
     }
 
@@ -714,9 +755,9 @@ impl HistoryReader {
         oids: Vec<git2::Oid>,
         mut on_page: impl FnMut(Vec<CommitInfo>),
     ) -> Result<(), git2::Error> {
-        let n_threads  = self.cpu_pool.io_threads().max(2);
-        let repo_path  = self.repo.path().to_path_buf();
-        let oid_count  = oids.len();
+        let n_threads = self.cpu_pool.io_threads().max(2);
+        let repo_path = self.repo.path().to_path_buf();
+        let oid_count = oids.len();
         let chunk_size = (oid_count + n_threads - 1) / n_threads;
 
         // Share the OID list across threads via Arc; git2::Oid is [u8; 20]
@@ -728,11 +769,13 @@ impl HistoryReader {
                 let oids = Arc::clone(&oids);
                 let path = repo_path.clone();
                 let start = i * chunk_size;
-                let end   = ((i + 1) * chunk_size).min(oid_count);
+                let end = ((i + 1) * chunk_size).min(oid_count);
                 std::thread::spawn(move || {
-                    if start >= end { return Vec::new(); }
+                    if start >= end {
+                        return Vec::new();
+                    }
                     let repo = match Repository::open(&path) {
-                        Ok(r)  => r,
+                        Ok(r) => r,
                         Err(_) => return Vec::new(),
                     };
                     let mut results = Vec::with_capacity(end - start);
@@ -775,7 +818,9 @@ impl HistoryReader {
         let mut remaining = all.into_iter();
         loop {
             let page: Vec<CommitInfo> = remaining.by_ref().take(page_size).collect();
-            if page.is_empty() { break; }
+            if page.is_empty() {
+                break;
+            }
             on_page(page);
         }
         Ok(())
@@ -810,7 +855,9 @@ impl HistoryReader {
                 let oid = oid?;
                 let commit = self.repo.find_commit(oid)?;
                 results.push(CommitInfo::from_commit_fast(&commit));
-                if results.len() >= SEARCH_COMMITS_MAX { break; }
+                if results.len() >= SEARCH_COMMITS_MAX {
+                    break;
+                }
             }
             return Ok(results);
         }
@@ -831,7 +878,9 @@ impl HistoryReader {
                 || info.author.to_lowercase().contains(&q)
             {
                 results.push(info);
-                if results.len() >= SEARCH_COMMITS_MAX { break; }
+                if results.len() >= SEARCH_COMMITS_MAX {
+                    break;
+                }
             }
         }
         Ok(results)
@@ -848,7 +897,9 @@ impl HistoryReader {
     /// for a future refactor that routes all repository handles through
     /// `HistoryReader` to avoid redundant opens.
     #[allow(dead_code)]
-    pub fn into_git2(self) -> Repository { self.repo }
+    pub fn into_git2(self) -> Repository {
+        self.repo
+    }
 }
 
 // ── TreeNode ───────────────────────────────────────────────────────────────────────────
@@ -871,8 +922,12 @@ impl TreeNode {
         }
     }
 
-    pub fn is_dir(&self) -> bool { matches!(self, TreeNode::Dir(_)) }
-    pub fn is_submodule(&self) -> bool { matches!(self, TreeNode::Submodule(_)) }
+    pub fn is_dir(&self) -> bool {
+        matches!(self, TreeNode::Dir(_))
+    }
+    pub fn is_submodule(&self) -> bool {
+        matches!(self, TreeNode::Submodule(_))
+    }
 }
 
 // ── DirCache ───────────────────────────────────────────────────────────────────────────
@@ -885,7 +940,9 @@ pub struct DirCache {
 
 impl DirCache {
     pub fn new() -> Self {
-        Self { entries: VecDeque::with_capacity(DIR_CACHE_MAX_ENTRIES) }
+        Self {
+            entries: VecDeque::with_capacity(DIR_CACHE_MAX_ENTRIES),
+        }
     }
 
     pub fn get(&mut self, hash: &str, dir: &Path) -> Option<Arc<Vec<TreeNode>>> {
@@ -918,11 +975,15 @@ impl DirCache {
         self.entries.push_front(((hash, dir), Arc::new(nodes)));
     }
 
-    pub fn clear(&mut self) { self.entries.clear(); }
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
 }
 
 impl Default for DirCache {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ── SnapshotResolver ──────────────────────────────────────────────────────────────────────────────
@@ -933,17 +994,15 @@ pub struct SnapshotResolver<'repo> {
 }
 
 impl<'repo> SnapshotResolver<'repo> {
-    pub fn new(repo: &'repo Repository) -> Self { Self { repo } }
+    pub fn new(repo: &'repo Repository) -> Self {
+        Self { repo }
+    }
 
     /// Resolves `revision` and materializes only the **direct children** of
     /// `dir` in the corresponding commit tree.
     ///
     /// Entries with missing or empty names are silently skipped.
-    pub fn resolve_dir(
-        &self,
-        revision: &str,
-        dir: &Path,
-    ) -> Result<Vec<TreeNode>, git2::Error> {
+    pub fn resolve_dir(&self, revision: &str, dir: &Path) -> Result<Vec<TreeNode>, git2::Error> {
         let obj = self.repo.revparse_single(revision)?;
         let commit = obj.peel_to_commit()?;
         let root_tree = commit.tree()?;
@@ -1023,7 +1082,9 @@ pub struct SnapshotMaterializer<'repo> {
 }
 
 impl<'repo> SnapshotMaterializer<'repo> {
-    pub fn new(repo: &'repo Repository) -> Self { Self { repo } }
+    pub fn new(repo: &'repo Repository) -> Self {
+        Self { repo }
+    }
 
     /// Public entry point kept for API compatibility.
     ///
@@ -1107,11 +1168,7 @@ impl<'repo> SnapshotMaterializer<'repo> {
     }
 
     /// Reads the raw byte content of a file at `path` in the given `revision`.
-    pub fn read_file(
-        &self,
-        revision: &str,
-        path: &Path,
-    ) -> Result<Vec<u8>, git2::Error> {
+    pub fn read_file(&self, revision: &str, path: &Path) -> Result<Vec<u8>, git2::Error> {
         let obj = self.repo.revparse_single(revision)?;
         let commit = obj.peel_to_commit()?;
         let tree = commit.tree()?;

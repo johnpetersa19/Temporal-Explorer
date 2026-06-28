@@ -28,8 +28,8 @@
 //! - [`file_list_view`] — unified GObject widget wrapping both modes with an
 //!                        empty-state fallback; used directly in window.rs.
 
+pub mod file_list_view;
 pub mod grid_view;
 pub mod list_view;
-pub mod file_list_view;
 #[allow(unused_imports)]
 pub use file_list_view::FileListView;

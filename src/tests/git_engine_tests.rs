@@ -34,8 +34,8 @@
 
 #[cfg(test)]
 mod git_engine_tests {
-    use std::path::{Path, PathBuf};
     use git2::{Repository, Signature, Time};
+    use std::path::{Path, PathBuf};
 
     use crate::git_engine::{
         CommitInfo, DirCache, HistoryReader, SnapshotMaterializer, SnapshotResolver, TreeNode,
@@ -158,8 +158,16 @@ mod git_engine_tests {
     fn dir_cache_hit_promotes_to_front() {
         let mut cache = DirCache::new();
         // Insert two entries; then access the first one so it moves to front.
-        cache.insert("h1".into(), PathBuf::new(), vec![TreeNode::Dir(PathBuf::from("a"))]);
-        cache.insert("h2".into(), PathBuf::new(), vec![TreeNode::Dir(PathBuf::from("b"))]);
+        cache.insert(
+            "h1".into(),
+            PathBuf::new(),
+            vec![TreeNode::Dir(PathBuf::from("a"))],
+        );
+        cache.insert(
+            "h2".into(),
+            PathBuf::new(),
+            vec![TreeNode::Dir(PathBuf::from("b"))],
+        );
         // Access "h1" — it should become MRU.
         cache.get("h1", Path::new(""));
         // Both entries should still be retrievable.
@@ -245,30 +253,9 @@ mod git_engine_tests {
     #[test]
     fn history_reader_list_commits_ordered_newest_first() {
         let (_dir, repo) = init_repo();
-        let c1 = commit_files(
-            &repo,
-            &[("a.txt", b"a")],
-            "First",
-            "Alice",
-            1_000,
-            None,
-        );
-        let c2 = commit_files(
-            &repo,
-            &[("b.txt", b"b")],
-            "Second",
-            "Bob",
-            2_000,
-            Some(c1),
-        );
-        commit_files(
-            &repo,
-            &[("c.txt", b"c")],
-            "Third",
-            "Carol",
-            3_000,
-            Some(c2),
-        );
+        let c1 = commit_files(&repo, &[("a.txt", b"a")], "First", "Alice", 1_000, None);
+        let c2 = commit_files(&repo, &[("b.txt", b"b")], "Second", "Bob", 2_000, Some(c1));
+        commit_files(&repo, &[("c.txt", b"c")], "Third", "Carol", 3_000, Some(c2));
 
         let reader = HistoryReader::open(_dir.path()).unwrap();
         let commits = reader.list_commits().unwrap();
@@ -348,7 +335,14 @@ mod git_engine_tests {
     fn search_commits_by_summary_case_insensitive() {
         let (_dir, repo) = init_repo();
         let c1 = commit_files(&repo, &[("a.txt", b"a")], "Fix login bug", "Alice", 1, None);
-        commit_files(&repo, &[("b.txt", b"b")], "Add dark mode", "Bob", 2, Some(c1));
+        commit_files(
+            &repo,
+            &[("b.txt", b"b")],
+            "Add dark mode",
+            "Bob",
+            2,
+            Some(c1),
+        );
 
         let reader = HistoryReader::open(_dir.path()).unwrap();
         let results = reader.search_commits("LOGIN").unwrap();
@@ -442,10 +436,7 @@ mod git_engine_tests {
         let (_dir, repo) = init_repo();
         commit_files(
             &repo,
-            &[
-                ("src/main.rs", b"fn main() {}"),
-                ("src/lib.rs", b"// lib"),
-            ],
+            &[("src/main.rs", b"fn main() {}"), ("src/lib.rs", b"// lib")],
             "Init",
             "Dev",
             1,
@@ -506,7 +497,9 @@ mod git_engine_tests {
         let head = repo.head().unwrap().peel_to_commit().unwrap();
         let tree = head.tree().unwrap();
         let materializer = SnapshotMaterializer::new(&repo);
-        let nodes = materializer.materialize(&tree, PathBuf::new(), 0, usize::MAX).unwrap();
+        let nodes = materializer
+            .materialize(&tree, PathBuf::new(), 0, usize::MAX)
+            .unwrap();
 
         assert_eq!(nodes.len(), 2);
         assert!(nodes.iter().all(|n| !n.is_dir()));
@@ -531,7 +524,9 @@ mod git_engine_tests {
         let head = repo.head().unwrap().peel_to_commit().unwrap();
         let tree = head.tree().unwrap();
         let materializer = SnapshotMaterializer::new(&repo);
-        let nodes = materializer.materialize(&tree, PathBuf::new(), 0, usize::MAX).unwrap();
+        let nodes = materializer
+            .materialize(&tree, PathBuf::new(), 0, usize::MAX)
+            .unwrap();
 
         // Expected: README.md, src (dir), src/main.rs, src/utils (dir), src/utils/helper.rs
         assert_eq!(nodes.len(), 5);

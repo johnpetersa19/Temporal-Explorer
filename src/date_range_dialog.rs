@@ -45,12 +45,10 @@
 //! dialog.present(Some(&parent_widget));
 //! ```
 
-use gtk::glib;
-use gtk::glib::subclass::Signal;
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
 use adw::prelude::*;
 use adw::subclass::prelude::*;
+use gtk::glib;
+use gtk::glib::subclass::Signal;
 use std::cell::Cell;
 use std::sync::OnceLock;
 
@@ -71,23 +69,16 @@ fn parse_date_entry(text: &str) -> Option<i64> {
         return None;
     }
 
-    let year:  i32 = parts[0].parse().ok()?;
+    let year: i32 = parts[0].parse().ok()?;
     let month: i32 = parts[1].parse().ok()?;
-    let day:   i32 = parts[2].parse().ok()?;
+    let day: i32 = parts[2].parse().ok()?;
 
     // Basic range validation
-    if !(1970..=9999).contains(&year)
-        || !(1..=12).contains(&month)
-        || !(1..=31).contains(&day)
-    {
+    if !(1970..=9999).contains(&year) || !(1..=12).contains(&month) || !(1..=31).contains(&day) {
         return None;
     }
 
-    let dt = glib::DateTime::new(
-        &glib::TimeZone::local(),
-        year, month, day,
-        0, 0, 0.0,
-    ).ok()?;
+    let dt = glib::DateTime::new(&glib::TimeZone::local(), year, month, day, 0, 0, 0.0).ok()?;
 
     Some(dt.to_unix())
 }
@@ -100,14 +91,20 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/date-range-dialog.ui")]
     pub struct DateRangeDialog {
-        #[template_child] pub from_entry:   TemplateChild<adw::EntryRow>,
-        #[template_child] pub to_entry:     TemplateChild<adw::EntryRow>,
-        #[template_child] pub error_group:  TemplateChild<adw::PreferencesGroup>,
-        #[template_child] pub apply_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub from_entry: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub to_entry: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub error_group: TemplateChild<adw::PreferencesGroup>,
+        #[template_child]
+        pub apply_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub cancel_button: TemplateChild<gtk::Button>,
 
         /// Cached parsed timestamps; `None` when the field is empty or invalid.
         pub from_ts: Cell<Option<i64>>,
-        pub to_ts:   Cell<Option<i64>>,
+        pub to_ts: Cell<Option<i64>>,
     }
 
     #[glib::object_subclass]
@@ -164,7 +161,9 @@ glib::wrapper! {
 }
 
 impl Default for DateRangeDialog {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DateRangeDialog {
@@ -180,13 +179,15 @@ impl DateRangeDialog {
         // from_entry changed
         {
             let dialog = self.clone();
-            imp.from_entry.connect_changed(move |_| dialog.on_entry_changed());
+            imp.from_entry
+                .connect_changed(move |_| dialog.on_entry_changed());
         }
 
         // to_entry changed
         {
             let dialog = self.clone();
-            imp.to_entry.connect_changed(move |_| dialog.on_entry_changed());
+            imp.to_entry
+                .connect_changed(move |_| dialog.on_entry_changed());
         }
 
         // Apply button
@@ -194,27 +195,34 @@ impl DateRangeDialog {
             let dialog = self.clone();
             imp.apply_button.connect_clicked(move |_| dialog.on_apply());
         }
+
+        {
+            let dialog = self.clone();
+            imp.cancel_button.connect_clicked(move |_| {
+                dialog.close();
+            });
+        }
     }
 
     fn on_entry_changed(&self) {
         let imp = self.imp();
 
         let from_text = imp.from_entry.text();
-        let to_text   = imp.to_entry.text();
+        let to_text = imp.to_entry.text();
 
         let from_ts = parse_date_entry(&from_text);
-        let to_ts   = parse_date_entry(&to_text);
+        let to_ts = parse_date_entry(&to_text);
 
         // Store parsed values
         imp.from_ts.set(from_ts);
         imp.to_ts.set(to_ts);
 
         let from_empty = from_text.trim().is_empty();
-        let to_empty   = to_text.trim().is_empty();
+        let to_empty = to_text.trim().is_empty();
 
         // Determine error state
         let from_invalid = !from_empty && from_ts.is_none();
-        let to_invalid   = !to_empty   && to_ts.is_none();
+        let to_invalid = !to_empty && to_ts.is_none();
 
         // Range coherence: from must be ≤ to when both are set
         let range_incoherent = matches!((from_ts, to_ts), (Some(f), Some(t)) if f > t);
@@ -246,7 +254,7 @@ impl DateRangeDialog {
         let imp = self.imp();
 
         let from = imp.from_ts.get().unwrap_or(i64::MIN);
-        let to   = imp.to_ts.get().unwrap_or(i64::MAX);
+        let to = imp.to_ts.get().unwrap_or(i64::MAX);
 
         // Emit signal before closing so listeners can read values
         self.emit_by_name::<()>("date-range-selected", &[&from, &to]);
@@ -262,7 +270,14 @@ impl DateRangeDialog {
 
         let fmt = |ts: i64| -> String {
             glib::DateTime::from_unix_local(ts)
-                .map(|dt| format!("{:04}-{:02}-{:02}", dt.year(), dt.month(), dt.day_of_month()))
+                .map(|dt| {
+                    format!(
+                        "{:04}-{:02}-{:02}",
+                        dt.year(),
+                        dt.month(),
+                        dt.day_of_month()
+                    )
+                })
                 .unwrap_or_default()
         };
 
@@ -283,7 +298,7 @@ impl DateRangeDialog {
     {
         self.connect_local("date-range-selected", false, move |values| {
             let from = values[1].get::<i64>().unwrap_or(i64::MIN);
-            let to   = values[2].get::<i64>().unwrap_or(i64::MAX);
+            let to = values[2].get::<i64>().unwrap_or(i64::MAX);
             f(from, to);
             None
         })

@@ -12,8 +12,8 @@
 //!   - `"navigate-forward"` (no args) — user pressed the forward button
 
 use adw::subclass::prelude::*;
-use gtk::{glib, glib::subclass::Signal};
 use gtk::prelude::{ObjectExt, WidgetExt};
+use gtk::{glib, glib::subclass::Signal};
 use std::sync::OnceLock;
 
 // ── Private implementation ─────────────────────────────────────────────────────
@@ -24,8 +24,10 @@ mod imp {
     #[derive(Debug, Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/history-controls.ui")]
     pub struct HistoryControls {
-        #[template_child] pub back_button:    gtk::TemplateChild<gtk::Button>,
-        #[template_child] pub forward_button: gtk::TemplateChild<gtk::Button>,
+        #[template_child]
+        pub back_button: gtk::TemplateChild<gtk::Button>,
+        #[template_child]
+        pub forward_button: gtk::TemplateChild<gtk::Button>,
     }
 
     #[glib::object_subclass]
@@ -104,5 +106,7 @@ impl HistoryControls {
 }
 
 impl Default for HistoryControls {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
