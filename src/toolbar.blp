@@ -14,7 +14,9 @@ template $TemporalToolbar : Adw.Bin {
     }
 
     [start]
-    $HistoryControls history_controls {}
+    $HistoryControls history_controls {
+      styles ["toolbar-history-controls"]
+    }
 
     [title]
     Box header_toolbar {
@@ -31,19 +33,33 @@ template $TemporalToolbar : Adw.Bin {
 
         StackPage {
           name: "pathbar";
-          child: ScrolledWindow {
-            hadjustment: Adjustment {};
-            vadjustment: Adjustment {};
-            hscrollbar-policy: automatic;
-            vscrollbar-policy: never;
-            propagate-natural-width: true;
-            min-content-width: 360;
-            max-content-width: 860;
+          child: Box {
+            orientation: horizontal;
+            valign: center;
+            styles ["nautilus-pathbar"]
 
-            Box address_bar {
-              orientation: horizontal;
-              valign: center;
-              styles ["nautilus-pathbar"]
+            ScrolledWindow address_bar_scrolled {
+              hadjustment: Adjustment {};
+              vadjustment: Adjustment {};
+              hscrollbar-policy: automatic;
+              vscrollbar-policy: never;
+              propagate-natural-width: true;
+              min-content-width: 320;
+              max-content-width: 420;
+
+              Box address_bar {
+                orientation: horizontal;
+                valign: center;
+                styles ["nautilus-pathbar-segments"]
+              }
+            }
+
+            MenuButton main_menu_button {
+              primary: true;
+              icon-name: "view-more-symbolic";
+              tooltip-text: _("Main Menu");
+              menu-model: primary_menu;
+              styles ["flat", "pathbar-menu-button"]
             }
           };
         }
@@ -52,6 +68,7 @@ template $TemporalToolbar : Adw.Bin {
           name: "location";
           child: Box {
             orientation: horizontal;
+            width-request: 360;
             styles ["linked", "location-bar"]
 
             Entry location_entry {
@@ -71,7 +88,7 @@ template $TemporalToolbar : Adw.Bin {
       }
 
       ToggleButton search_button {
-        icon-name: "edit-find-symbolic";
+        icon-name: "nautilus-folder-search-symbolic";
         tooltip-text: _("Search Commits");
         halign: center;
         valign: center;
@@ -81,15 +98,6 @@ template $TemporalToolbar : Adw.Bin {
 
     [end]
     $ViewControls view_controls {}
-
-    [end]
-    MenuButton main_menu_button {
-      primary: true;
-      icon-name: "open-menu-symbolic";
-      tooltip-text: _("Main Menu");
-      menu-model: primary_menu;
-      styles ["flat"]
-    }
 
     // Kept as hidden template children because toolbar.rs/window.rs still use them.
     [end]
@@ -119,7 +127,7 @@ menu primary_menu {
     }
 
     item {
-      label: _("Clonar repositório");
+      label: _("Clone Repository");
       action: "win.clone-repository";
     }
 
@@ -127,9 +135,7 @@ menu primary_menu {
       label: _("New Branch");
       action: "win.new-branch";
     }
-  }
 
-  section {
     item {
       label: _("Reload");
       action: "win.reload-repository";
@@ -138,99 +144,154 @@ menu primary_menu {
   }
 
   section {
-    item {
-      label: _("Open Repository in System");
-      action: "win.open-repository-system";
+    submenu {
+      label: _("Location");
+
+      section {
+        item {
+          label: _("Edit Snapshot Location");
+          action: "win.edit-location";
+          accel: "<control>l";
+        }
+
+        item {
+          label: _("Go to Snapshot Root");
+          action: "win.prompt-root-location";
+          accel: "/";
+        }
+
+        item {
+          label: _("Copy Snapshot Location");
+          action: "win.copy-current-location";
+        }
+      }
     }
 
-    item {
-      label: _("Open in Console");
-      action: "win.open-repository-console";
-    }
+    submenu {
+      label: _("Repository");
 
-    item {
-      label: _("Copy Repository Path");
-      action: "win.copy-current-repository-path";
-    }
-  }
+      section {
+        item {
+          label: _("Open Repository in System");
+          action: "win.open-repository-system";
+        }
 
-  section {
-    item {
-      label: _("Select All");
-      action: "win.select-all-files";
-      accel: "<control>a";
-    }
+        item {
+          label: _("Open in Console");
+          action: "win.open-repository-console";
+        }
 
-    item {
-      label: _("Invert Selection");
-      action: "win.invert-file-selection";
-      accel: "<control><shift>a";
-    }
-
-    item {
-      label: _("Clear Selection");
-      action: "win.unselect-all-files";
-    }
-
-    item {
-      label: _("Captions…");
-      action: "win.show-captions";
-    }
-
-    item {
-      label: _("Visible Columns…");
-      action: "win.show-column-chooser";
-    }
-
-    item {
-      label: _("Select Commits by Pattern…");
-      action: "win.select-by-pattern";
+        item {
+          label: _("Copy Repository Path");
+          action: "win.copy-current-repository-path";
+        }
+      }
     }
   }
 
   section {
-    item {
-      label: _("Properties");
-      action: "win.current-properties";
+    submenu {
+      label: _("Selection");
+
+      section {
+        item {
+          label: _("Select All");
+          action: "win.select-all-files";
+          accel: "<control>a";
+        }
+
+        item {
+          label: _("Invert Selection");
+          action: "win.invert-file-selection";
+          accel: "<control><shift>a";
+        }
+
+        item {
+          label: _("Clear Selection");
+          action: "win.unselect-all-files";
+        }
+      }
     }
 
-    item {
-      label: _("Preview Selected File");
-      action: "win.preview-selected-file";
+    submenu {
+      label: _("View");
+
+      section {
+        item {
+          label: _("Captions…");
+          action: "win.show-captions";
+        }
+
+        item {
+          label: _("Visible Columns…");
+          action: "win.show-column-chooser";
+        }
+
+        item {
+          label: _("Select Commits by Pattern…");
+          action: "win.select-by-pattern";
+        }
+      }
     }
 
-    item {
-      label: _("Show Context Menu");
-      action: "win.open-context-menu";
+    submenu {
+      label: _("File");
+
+      section {
+        item {
+          label: _("Properties");
+          action: "win.current-properties";
+        }
+
+        item {
+          label: _("Preview Selected File");
+          action: "win.preview-selected-file";
+        }
+
+        item {
+          label: _("Show Context Menu");
+          action: "win.open-context-menu";
+        }
+      }
+    }
+
+    submenu {
+      label: _("Operations");
+
+      section {
+        item {
+          label: _("Batch Operations…");
+          action: "win.batch-operations";
+        }
+
+        item {
+          label: _("Merge Conflicts…");
+          action: "win.show-merge-conflicts";
+        }
+      }
     }
   }
 
   section {
-    item {
-      label: _("Batch Operations…");
-      action: "win.batch-operations";
-    }
+    submenu {
+      label: _("Help");
 
-    item {
-      label: _("Merge Conflicts…");
-      action: "win.show-merge-conflicts";
-    }
-  }
+      section {
+        item {
+          label: _("Preferences");
+          action: "app.preferences";
+        }
 
-  section {
-    item {
-      label: _("Preferences");
-      action: "app.preferences";
-    }
+        item {
+          label: _("Keyboard Shortcuts");
+          action: "app.shortcuts";
+        }
 
-    item {
-      label: _("Keyboard Shortcuts");
-      action: "app.shortcuts";
-    }
-
-    item {
-      label: _("About Temporal Explorer");
-      action: "app.about";
+        item {
+          label: _("About Temporal Explorer");
+          action: "app.about";
+        }
+      }
     }
   }
 }

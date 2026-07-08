@@ -65,6 +65,14 @@ impl FileGridCell {
         self.imp().grid_cell_icon.set_icon_name(Some(icon_name));
     }
 
+    pub fn set_gicon(&self, icon: &impl IsA<gtk::gio::Icon>) {
+        self.imp().grid_cell_icon.set_from_gicon(icon);
+    }
+
+    pub fn set_paintable(&self, paintable: Option<&impl IsA<gtk::gdk::Paintable>>) {
+        self.imp().grid_cell_icon.set_paintable(paintable);
+    }
+
     pub fn set_icon_size(&self, size: i32) {
         self.imp().grid_cell_icon.set_pixel_size(size);
     }

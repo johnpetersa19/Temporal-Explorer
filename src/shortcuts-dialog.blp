@@ -48,6 +48,16 @@ Adw.ShortcutsDialog shortcuts_dialog {
       title: C_("shortcuts dialog", "Refresh / Reload");
       action-name: "win.reload-repository";
     }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Edit Snapshot Location");
+      action-name: "win.edit-location";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcuts dialog", "Go to Snapshot Root");
+      action-name: "win.prompt-root-location";
+    }
   }
 
   Adw.ShortcutsSection {

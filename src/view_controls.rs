@@ -45,6 +45,8 @@ mod imp {
         pub is_grid: Cell<bool>,
         pub sort_action: RefCell<Option<gio::SimpleAction>>,
         pub hidden_action: RefCell<Option<gio::SimpleAction>>,
+        pub visible_columns_action: RefCell<Option<gio::SimpleAction>>,
+        pub captions_action: RefCell<Option<gio::SimpleAction>>,
     }
 
     #[glib::object_subclass]
@@ -92,6 +94,7 @@ mod imp {
                     glib::subclass::Signal::builder("hidden-files-changed")
                         .param_types([bool::static_type()])
                         .build(),
+                    glib::subclass::Signal::builder("visible-columns-requested").build(),
                     glib::subclass::Signal::builder("captions-requested").build(),
                 ]
             })
@@ -140,11 +143,16 @@ mod imp {
             }
         }
 
-        fn update_zoom_sensitivity(&self) {
+        pub(super) fn update_zoom_sensitivity(&self) {
             let current = self.zoom_level.get();
+            let zoom_available = self.is_grid.get();
 
-            self.zoom_out_button.get().set_sensitive(current > 0);
-            self.zoom_in_button.get().set_sensitive(current < 2);
+            self.zoom_out_button
+                .get()
+                .set_sensitive(zoom_available && current > 0);
+            self.zoom_in_button
+                .get()
+                .set_sensitive(zoom_available && current < 2);
         }
 
         fn update_view_split_button(&self) {
@@ -159,6 +167,14 @@ mod imp {
                 button.set_icon_name("view-grid-symbolic");
                 button.set_tooltip_text(Some(&gettext("Grid view")));
             }
+
+            if let Some(action) = self.visible_columns_action.borrow().as_ref() {
+                action.set_enabled(!self.is_grid.get());
+            }
+            if let Some(action) = self.captions_action.borrow().as_ref() {
+                action.set_enabled(self.is_grid.get());
+            }
+            self.update_zoom_sensitivity();
         }
     }
 }
@@ -221,6 +237,19 @@ impl ViewControls {
         group.add_action(&sort_action);
         self.imp().sort_action.replace(Some(sort_action));
 
+        let visible_columns_action = gio::SimpleAction::new("visible-columns", None);
+        {
+            let obj = self.clone();
+
+            visible_columns_action.connect_activate(move |_, _| {
+                obj.emit_by_name::<()>("visible-columns-requested", &[]);
+            });
+        }
+        group.add_action(&visible_columns_action);
+        self.imp()
+            .visible_columns_action
+            .replace(Some(visible_columns_action));
+
         let captions_action = gio::SimpleAction::new("captions", None);
         {
             let obj = self.clone();
@@ -230,6 +259,7 @@ impl ViewControls {
             });
         }
         group.add_action(&captions_action);
+        self.imp().captions_action.replace(Some(captions_action));
 
         let hidden_action =
             gio::SimpleAction::new_stateful("show-hidden-files", None, &false.to_variant());
@@ -251,6 +281,7 @@ impl ViewControls {
         self.imp().hidden_action.replace(Some(hidden_action));
 
         self.insert_action_group("viewctrl", Some(&group));
+        self.set_view_mode(self.imp().is_grid.get());
     }
 
     /// Sync view mode from window.rs.
@@ -270,6 +301,13 @@ impl ViewControls {
             button.set_icon_name("view-grid-symbolic");
             button.set_tooltip_text(Some(&gettext("Grid view")));
         }
+
+        if let Some(action) = imp.visible_columns_action.borrow().as_ref() {
+            action.set_enabled(!is_grid);
+        }
+        if let Some(action) = imp.captions_action.borrow().as_ref() {
+            action.set_enabled(is_grid);
+        }
     }
 
     /// Restore zoom button state from saved settings.
@@ -278,8 +316,7 @@ impl ViewControls {
         let level = level.min(2);
 
         imp.zoom_level.set(level);
-        imp.zoom_out_button.get().set_sensitive(level > 0);
-        imp.zoom_in_button.get().set_sensitive(level < 2);
+        imp.update_zoom_sensitivity();
     }
 
     pub fn set_show_hidden_files(&self, show: bool) {

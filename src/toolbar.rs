@@ -67,6 +67,8 @@ mod imp {
         #[template_child]
         pub toolbar_switcher: TemplateChild<gtk::Stack>,
         #[template_child]
+        pub address_bar_scrolled: TemplateChild<gtk::ScrolledWindow>,
+        #[template_child]
         pub address_bar: TemplateChild<gtk::Box>,
         #[template_child]
         pub location_entry: TemplateChild<gtk::Entry>,
@@ -145,6 +147,10 @@ impl TemporalToolbar {
 
     pub fn address_bar(&self) -> &gtk::Box {
         &self.imp().address_bar
+    }
+
+    pub fn address_bar_scrolled(&self) -> &gtk::ScrolledWindow {
+        &self.imp().address_bar_scrolled
     }
 
     pub fn location_entry(&self) -> &gtk::Entry {

@@ -3,7 +3,7 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 
 use crate::git_engine::TreeNode;
-use crate::icon_helpers::{folder_icon_symbolic, mime_icon};
+use crate::icon_helpers::{file_icon_symbolic, folder_icon_symbolic};
 
 mod imp {
     use super::*;
@@ -73,15 +73,11 @@ impl FileListRow {
 
         let repo_path = node.path().display().to_string();
 
-        let icon_name = match node {
-            TreeNode::Dir(path) => {
-                folder_icon_symbolic(path.file_name().and_then(|n| n.to_str()).unwrap_or(""))
-            }
-            TreeNode::File(path) => mime_icon(path),
-            TreeNode::Submodule(_) => "folder-remote-symbolic",
-        };
-
-        self.set_icon_name(icon_name);
+        match node {
+            TreeNode::Dir(_) => self.set_gicon(&folder_icon_symbolic()),
+            TreeNode::File(path) => self.set_gicon(&file_icon_symbolic(path)),
+            TreeNode::Submodule(_) => self.set_icon_name("folder-remote-symbolic"),
+        }
         self.set_name(name);
         self.set_tooltip_text(Some(&repo_path));
         self.set_loading(false);
@@ -117,6 +113,10 @@ impl FileListRow {
 
     pub fn set_icon_name(&self, icon_name: &str) {
         self.imp().file_row_icon.set_icon_name(Some(icon_name));
+    }
+
+    pub fn set_gicon(&self, icon: &impl IsA<gtk::gio::Icon>) {
+        self.imp().file_row_icon.set_from_gicon(icon);
     }
 
     pub fn set_name(&self, name: &str) {

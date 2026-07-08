@@ -56,11 +56,11 @@ use adw::subclass::prelude::*;
 use gettextrs::gettext;
 use glib::object::ObjectExt;
 use gtk::prelude::*;
-use gtk::{gio, glib};
+use gtk::{gdk, gio, glib};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -111,6 +111,7 @@ enum SearchProgressMessage {
 struct SearchRunResult {
     results: Vec<CommitInfo>,
     newly_cached_changed_files: Vec<(String, Vec<String>)>,
+    file_match_counts: HashMap<String, usize>,
     indexed: usize,
     cache_hits: usize,
     diff_errors: usize,
@@ -257,6 +258,7 @@ mod imp {
 
         pub timeline_level: RefCell<TimelineLevel>,
         pub selected_year: Cell<i32>,
+        pub selected_month: Cell<u32>,
         pub loading_commits: Cell<bool>,
         pub dir_cache: RefCell<DirCache>,
         pub search_debounce: RefCell<Option<Arc<AtomicBool>>>,
@@ -265,6 +267,7 @@ mod imp {
         pub filter_state: RefCell<FilterState>,
         pub load_cancel: RefCell<Option<Arc<AtomicBool>>>,
         pub context_node: RefCell<Option<TreeNode>>,
+        pub active_context_popover: RefCell<Option<gtk::PopoverMenu>>,
     }
 
     #[glib::object_subclass]
@@ -449,6 +452,96 @@ fn file_matches_search_category(path: &str, filter: &FileTypeFilter) -> bool {
         })
 }
 
+fn case_insensitive_extension_pathspec(ext: &str) -> String {
+    let mut pattern = String::from("*.");
+    for ch in ext.trim_start_matches('.').chars() {
+        if ch.is_ascii_alphabetic() {
+            pattern.push('[');
+            pattern.push(ch.to_ascii_lowercase());
+            pattern.push(ch.to_ascii_uppercase());
+            pattern.push(']');
+        } else {
+            pattern.push(ch);
+        }
+    }
+    pattern
+}
+
+fn add_extension_pathspecs(pathspecs: &mut Vec<String>, exts: &[&str]) {
+    for ext in exts {
+        pathspecs.push(case_insensitive_extension_pathspec(ext));
+    }
+}
+
+fn file_filter_pathspecs(filter: &FileTypeFilter) -> Vec<String> {
+    if filter.folders {
+        return Vec::new();
+    }
+
+    let mut pathspecs = Vec::new();
+
+    if filter.audio {
+        add_extension_pathspecs(
+            &mut pathspecs,
+            &[
+                "mp3", "flac", "wav", "ogg", "opus", "m4a", "aac", "mid", "midi",
+            ],
+        );
+    }
+
+    if filter.documents {
+        add_extension_pathspecs(
+            &mut pathspecs,
+            &["doc", "docx", "odt", "ott", "rtf", "abw", "pages"],
+        );
+    }
+
+    if filter.images {
+        add_extension_pathspecs(
+            &mut pathspecs,
+            &[
+                "png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tif", "tiff", "heic", "avif",
+            ],
+        );
+    }
+
+    if filter.pdf {
+        add_extension_pathspecs(&mut pathspecs, &["pdf"]);
+    }
+
+    if filter.text {
+        add_extension_pathspecs(
+            &mut pathspecs,
+            &[
+                "txt", "md", "markdown", "rst", "log", "csv", "json", "jsonc", "yaml", "yml",
+                "toml", "xml", "html", "css", "scss", "js", "ts", "jsx", "tsx", "rs", "c", "h",
+                "cpp", "hpp", "cc", "py", "sh", "bash", "zsh", "fish", "go", "java", "kt", "swift",
+                "php", "rb", "lua", "blp", "ui", "desktop", "service",
+            ],
+        );
+    }
+
+    if filter.videos {
+        add_extension_pathspecs(
+            &mut pathspecs,
+            &[
+                "mp4", "mkv", "webm", "mov", "avi", "m4v", "flv", "wmv", "mpeg", "mpg",
+            ],
+        );
+    }
+
+    if let Some(ext) = filter.other_ext.as_deref() {
+        let ext = ext.trim();
+        if !ext.is_empty() {
+            pathspecs.push(case_insensitive_extension_pathspec(ext));
+        }
+    }
+
+    pathspecs.sort();
+    pathspecs.dedup();
+    pathspecs
+}
+
 fn format_git_mode(mode: i32) -> String {
     match mode {
         0o040000 => "040000 · Directory".to_string(),
@@ -478,6 +571,39 @@ fn format_file_size(size: u64) -> String {
     }
 }
 
+fn is_thumbnail_image_path(path: &Path) -> bool {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    matches!(
+        ext.as_str(),
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "tif" | "tiff" | "heic" | "avif"
+    )
+}
+
+fn texture_for_tree_file(
+    repo: &git2::Repository,
+    tree: &git2::Tree<'_>,
+    path: &Path,
+    max_bytes: usize,
+) -> Option<gdk::Texture> {
+    let entry = tree.get_path(path).ok()?;
+    if entry.kind() != Some(git2::ObjectType::Blob) {
+        return None;
+    }
+
+    let blob = repo.find_blob(entry.id()).ok()?;
+    if blob.size() > max_bytes {
+        return None;
+    }
+
+    let bytes = glib::Bytes::from_owned(blob.content().to_vec());
+    gdk::Texture::from_bytes(&bytes).ok()
+}
+
 fn clear_box(container: &gtk::Box) {
     while let Some(child) = container.first_child() {
         container.remove(&child);
@@ -487,6 +613,12 @@ fn clear_box(container: &gtk::Box) {
 #[inline]
 fn year_from_timestamp(ts: i64) -> Option<i32> {
     glib::DateTime::from_unix_local(ts).ok().map(|dt| dt.year())
+}
+
+#[inline]
+fn year_month_from_timestamp(ts: i64) -> Option<(i32, u32)> {
+    let dt = glib::DateTime::from_unix_local(ts).ok()?;
+    Some((dt.year(), dt.month() as u32))
 }
 
 fn bump_year_count(year_counts: &mut Vec<(i32, usize)>, year: i32) {
@@ -727,10 +859,39 @@ impl TemporalExplorerWindow {
         let win_g = self.clone();
         let gesture = gtk::GestureClick::new();
         gesture.set_button(1);
-        gesture.connect_pressed(move |_, _n, _, _| {
-            win_g.enter_location_mode();
+        gesture.connect_pressed(move |gesture, _n, x, y| {
+            let Some(widget) = gesture.widget() else {
+                return;
+            };
+            let clicked_empty_pathbar_area = widget
+                .pick(x, y, gtk::PickFlags::DEFAULT)
+                .is_some_and(|picked| picked == widget);
+
+            if clicked_empty_pathbar_area {
+                win_g.enter_location_mode();
+            }
         });
         imp.toolbar.address_bar().add_controller(gesture);
+
+        let address_bar_scrolled = imp.toolbar.address_bar_scrolled().clone();
+        let pathbar_scroll =
+            gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
+        pathbar_scroll.connect_scroll(move |_, _, dy| {
+            if dy == 0.0 {
+                return gtk::glib::Propagation::Proceed;
+            }
+
+            let adjustment = address_bar_scrolled.hadjustment();
+            let max = (adjustment.upper() - adjustment.page_size()).max(adjustment.lower());
+            let next = (adjustment.value() + dy * adjustment.step_increment())
+                .clamp(adjustment.lower(), max);
+            adjustment.set_value(next);
+
+            gtk::glib::Propagation::Stop
+        });
+        imp.toolbar
+            .address_bar_scrolled()
+            .add_controller(pathbar_scroll);
 
         let win = self.clone();
         imp.toolbar.location_entry().connect_activate(move |entry| {
@@ -741,6 +902,15 @@ impl TemporalExplorerWindow {
         imp.toolbar.location_cancel_btn().connect_clicked(move |_| {
             win.leave_location_mode();
         });
+
+        let win = self.clone();
+        let location_focus = gtk::EventControllerFocus::new();
+        location_focus.connect_leave(move |_| {
+            if !win.imp().toolbar.location_entry().has_focus() {
+                win.leave_location_mode();
+            }
+        });
+        imp.toolbar.location_entry().add_controller(location_focus);
 
         let win = self.clone();
         imp.toolbar.search_button().connect_toggled(move |button| {
@@ -814,6 +984,9 @@ impl TemporalExplorerWindow {
             ),
             ("show-captions", Self::show_file_grid_captions_dialog),
             ("current-properties", Self::show_current_folder_properties),
+            ("edit-location", Self::edit_location),
+            ("prompt-root-location", Self::prompt_root_location),
+            ("copy-current-location", Self::copy_current_location),
             ("open-repository", Self::open_repo_dialog),
             ("clone-repository", Self::show_clone_repository_dialog),
             ("batch-operations", Self::show_batch_operations_dialog),
@@ -883,6 +1056,8 @@ impl TemporalExplorerWindow {
                 .insert_action_group("app", Some(&app));
 
             app.set_accels_for_action("win.reload-repository", &["F5"]);
+            app.set_accels_for_action("win.edit-location", &["<Control>l"]);
+            app.set_accels_for_action("win.prompt-root-location", &["slash", "KP_Divide"]);
             app.set_accels_for_action("win.select-all-files", &["<Control>a"]);
             app.set_accels_for_action("win.invert-file-selection", &["<Control><Shift>a"]);
             app.set_accels_for_action("win.open-repository", &["<Control>o"]);
@@ -913,6 +1088,30 @@ impl TemporalExplorerWindow {
     }
 
     // ── Folder / main menu actions ───────────────────────────────────────────
+
+    fn edit_location(&self) {
+        self.enter_location_mode();
+    }
+
+    fn prompt_root_location(&self) {
+        self.imp().toolbar.set_location_mode(true);
+        self.imp().toolbar.location_entry().set_text("/");
+        self.imp().toolbar.location_entry().grab_focus();
+        self.imp()
+            .toolbar
+            .location_entry()
+            .set_position(self.imp().toolbar.location_entry().text_length() as i32);
+    }
+
+    fn copy_current_location(&self) {
+        if self.imp().current_hash.borrow().is_none() {
+            self.show_toast(&gettext("No snapshot selected"));
+            return;
+        }
+
+        let current_dir = self.imp().current_dir.borrow().clone();
+        self.copy_snapshot_path_from_pathbar(&current_dir);
+    }
 
     fn reload_repository(&self) {
         let Some(repo_path) = self.imp().repo_path.borrow().clone() else {
@@ -1920,6 +2119,16 @@ impl TemporalExplorerWindow {
         );
 
         let win = self.clone();
+        self.imp().toolbar.view_controls().connect_local(
+            "visible-columns-requested",
+            false,
+            move |_| {
+                win.show_column_chooser();
+                None
+            },
+        );
+
+        let win = self.clone();
         self.imp()
             .toolbar
             .view_controls()
@@ -2545,6 +2754,8 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         imp.year_list.remove_all();
         *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
+        imp.selected_year.set(0);
+        imp.selected_month.set(0);
         imp.timeline_stack.set_visible_child_name("years");
         imp.timeline_back_button.set_visible(false);
         imp.timeline_header_title.set_title(&gettext("Timeline"));
@@ -2747,6 +2958,8 @@ impl TemporalExplorerWindow {
                 .append(&commit_controller::build_year_row(*year, *count));
         }
 
+        imp.selected_year.set(0);
+        imp.selected_month.set(0);
         *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
         imp.timeline_stack.set_visible_child_name("years");
         imp.timeline_back_button.set_visible(false);
@@ -2760,11 +2973,117 @@ impl TemporalExplorerWindow {
         }
     }
 
+    fn reapply_active_file_filter(&self) {
+        let file_filter_active = self.imp().filter_state.borrow().files.is_active();
+        if file_filter_active {
+            let q = self.imp().last_query.borrow().clone();
+            self.run_search(q);
+        }
+    }
+
+    fn update_file_filter_timeline(
+        &self,
+        results: &[CommitInfo],
+        file_match_counts: &HashMap<String, usize>,
+    ) {
+        let imp = self.imp();
+        let selected_year = imp.selected_year.get();
+        let selected_month = imp.selected_month.get();
+        let level = *imp.timeline_level.borrow();
+        let total_files: usize = file_match_counts.values().sum();
+
+        if selected_year > 0 && selected_month > 0 && level == TimelineLevel::Commits {
+            imp.timeline_header_title.set_subtitle(&format!(
+                "{} {} · {} file(s) · {} commit(s)",
+                timeline_filter::month_name(selected_month),
+                selected_year,
+                total_files,
+                results.len(),
+            ));
+            return;
+        }
+
+        if selected_year > 0 {
+            let mut month_counts: Vec<(u32, usize)> = Vec::new();
+
+            for commit in results {
+                let Some((year, month)) = year_month_from_timestamp(commit.timestamp) else {
+                    continue;
+                };
+
+                if year != selected_year {
+                    continue;
+                }
+
+                let count = file_match_counts.get(&commit.hash).copied().unwrap_or(0);
+                if count == 0 {
+                    continue;
+                }
+
+                if let Some((_, existing)) = month_counts.iter_mut().find(|(m, _)| *m == month) {
+                    *existing += count;
+                } else {
+                    month_counts.push((month, count));
+                }
+            }
+
+            month_counts.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+            imp.month_list.remove_all();
+            for (month, count) in month_counts {
+                imp.month_list
+                    .append(&commit_controller::build_month_row(month, count));
+            }
+
+            imp.timeline_header_title.set_subtitle(&format!(
+                "{} file(s) · {} commit(s)",
+                total_files,
+                results.len()
+            ));
+            return;
+        }
+
+        let mut year_counts: Vec<(i32, usize)> = Vec::new();
+
+        for commit in results {
+            let Some(year) = year_from_timestamp(commit.timestamp) else {
+                continue;
+            };
+
+            let count = file_match_counts.get(&commit.hash).copied().unwrap_or(0);
+            if count == 0 {
+                continue;
+            }
+
+            if let Some((_, existing)) = year_counts.iter_mut().find(|(y, _)| *y == year) {
+                *existing += count;
+            } else {
+                year_counts.push((year, count));
+            }
+        }
+
+        year_counts.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+        imp.year_list.remove_all();
+        for (year, count) in year_counts.iter() {
+            imp.year_list
+                .append(&commit_controller::build_year_row(*year, *count));
+        }
+
+        *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
+        imp.selected_year.set(0);
+        imp.selected_month.set(0);
+        imp.timeline_stack.set_visible_child_name("years");
+        imp.timeline_back_button.set_visible(false);
+        imp.timeline_header_title.set_title(&gettext("Timeline"));
+        imp.timeline_header_title
+            .set_subtitle(&format!("{} file(s)", total_files));
+    }
+
     // ── Year selected ─────────────────────────────────────────────────────────
 
     fn on_year_selected(&self, year: i32) {
         let imp = self.imp();
         imp.selected_year.set(year);
+        imp.selected_month.set(0);
         imp.month_list.remove_all();
         imp.commit_list.remove_all();
 
@@ -2789,6 +3108,9 @@ impl TemporalExplorerWindow {
         imp.timeline_header_title.set_title(&year.to_string());
         imp.timeline_header_title
             .set_subtitle(&format!("{} commit(s)", filtered.len()));
+
+        drop(commits);
+        self.reapply_active_file_filter();
     }
 
     // ── Month selected ────────────────────────────────────────────────────────
@@ -2796,6 +3118,7 @@ impl TemporalExplorerWindow {
     fn on_month_selected(&self, month: u32) {
         let imp = self.imp();
         let year = imp.selected_year.get();
+        imp.selected_month.set(month);
         imp.commit_list.remove_all();
 
         let commits = imp.all_commits.borrow();
@@ -2813,6 +3136,9 @@ impl TemporalExplorerWindow {
             year,
             filtered.len(),
         ));
+
+        drop(commits);
+        self.reapply_active_file_filter();
     }
 
     // ── Timeline back ─────────────────────────────────────────────────────────
@@ -2823,10 +3149,12 @@ impl TemporalExplorerWindow {
         match level {
             TimelineLevel::Commits => {
                 if imp.selected_year.get() > 0 {
+                    imp.selected_month.set(0);
                     *imp.timeline_level.borrow_mut() = TimelineLevel::Months;
                     imp.timeline_stack.set_visible_child_name("months");
                     imp.timeline_header_title.set_subtitle("");
                 } else {
+                    imp.selected_month.set(0);
                     *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
                     imp.timeline_stack.set_visible_child_name("years");
                     imp.timeline_back_button.set_visible(false);
@@ -2835,6 +3163,7 @@ impl TemporalExplorerWindow {
                 }
             }
             TimelineLevel::Months => {
+                imp.selected_month.set(0);
                 *imp.timeline_level.borrow_mut() = TimelineLevel::Years;
                 imp.timeline_stack.set_visible_child_name("years");
                 imp.timeline_back_button.set_visible(false);
@@ -2932,7 +3261,9 @@ impl TemporalExplorerWindow {
 
         let win_ab1 = self.clone();
         let win_ab2 = self.clone();
-        address_bar::rebuild_address_bar(
+        let win_ab3 = self.clone();
+        let win_ab4 = self.clone();
+        address_bar::rebuild_address_bar_with_context(
             imp.toolbar.address_bar(),
             &repo_name,
             &dir,
@@ -2942,7 +3273,19 @@ impl TemporalExplorerWindow {
             move || {
                 win_ab2.enter_location_mode();
             },
+            move |path: PathBuf| {
+                win_ab3.copy_snapshot_path_from_pathbar(&path);
+            },
+            move |path: PathBuf| {
+                win_ab4.show_pathbar_properties(&path);
+            },
         );
+        let address_bar_scrolled = imp.toolbar.address_bar_scrolled().clone();
+        glib::idle_add_local_once(move || {
+            let adjustment = address_bar_scrolled.hadjustment();
+            let max = (adjustment.upper() - adjustment.page_size()).max(adjustment.lower());
+            adjustment.set_value(max);
+        });
         self.update_dir_nav_buttons();
 
         // Cancellation token for directory loads.
@@ -3093,7 +3436,7 @@ impl TemporalExplorerWindow {
             win1.push_dir(path);
         });
         let on_open_file: OnOpenFile = Box::new(move |path: &std::path::Path, _h: &str| {
-            win2.preview_file(path);
+            win2.open_snapshot_node_with_default_app(&TreeNode::File(path.to_path_buf()));
         });
         let on_context_menu: grid_view::OnContextMenu =
             Box::new(move |node: &TreeNode, anchor: &gtk::Widget| {
@@ -3122,18 +3465,22 @@ impl TemporalExplorerWindow {
                 on_list_background_context_menu,
             )
             .upcast(),
-            ViewMode::Grid => grid_view::build_grid_view(
-                &nodes,
-                &hash,
-                grid_zoom,
-                grid_caption_flags,
-                &metadata,
-                on_enter_dir,
-                on_open_file,
-                on_context_menu,
-                on_background_context_menu,
-            )
-            .upcast(),
+            ViewMode::Grid => {
+                let thumbnails = self.build_file_grid_thumbnails(&nodes, &hash);
+                grid_view::build_grid_view(
+                    &nodes,
+                    &hash,
+                    grid_zoom,
+                    grid_caption_flags,
+                    &metadata,
+                    &thumbnails,
+                    on_enter_dir,
+                    on_open_file,
+                    on_context_menu,
+                    on_background_context_menu,
+                )
+                .upcast()
+            }
         };
         self.replace_right_panel(widget);
     }
@@ -3212,6 +3559,46 @@ impl TemporalExplorerWindow {
             sort_mode,
             FileSortMode::Size | FileSortMode::LastModified | FileSortMode::FirstModified
         ) || caption_flags.intersects(CaptionFlags::SIZE | CaptionFlags::DATE)
+    }
+
+    fn build_file_grid_thumbnails(
+        &self,
+        nodes: &[TreeNode],
+        hash: &str,
+    ) -> HashMap<PathBuf, gdk::Texture> {
+        const MAX_THUMBNAIL_BYTES: usize = 8 * 1024 * 1024;
+
+        let mut out = HashMap::new();
+        let imp = self.imp();
+        let repo_ref = imp.repository.borrow();
+        let Some(repo_wrapper) = repo_ref.as_ref() else {
+            return out;
+        };
+        let repo: &git2::Repository = &repo_wrapper.0;
+
+        let Some(tree) = repo
+            .revparse_single(hash)
+            .ok()
+            .and_then(|obj| obj.peel_to_commit().ok())
+            .and_then(|commit| commit.tree().ok())
+        else {
+            return out;
+        };
+
+        for node in nodes {
+            let thumbnail = match node {
+                TreeNode::File(path) if is_thumbnail_image_path(path) => {
+                    texture_for_tree_file(repo, &tree, path, MAX_THUMBNAIL_BYTES)
+                }
+                _ => None,
+            };
+
+            if let Some(texture) = thumbnail {
+                out.insert(node.path().to_path_buf(), texture);
+            }
+        }
+
+        out
     }
 
     fn build_file_grid_metadata(
@@ -3389,8 +3776,8 @@ impl TemporalExplorerWindow {
             Some("win.open-repository-console"),
         );
         folder_section.append(
-            Some(&gettext("Copy Repository Path")),
-            Some("win.copy-current-repository-path"),
+            Some(&gettext("Copy Snapshot Location")),
+            Some("win.copy-current-location"),
         );
         menu.append_section(None, &folder_section);
 
@@ -3408,12 +3795,25 @@ impl TemporalExplorerWindow {
             1,
             1,
         )));
+        self.set_active_context_popover(&popover);
 
-        popover.connect_closed(|p| {
+        let win = self.clone();
+        popover.connect_closed(move |p| {
             let popover = p.clone();
+            if win
+                .imp()
+                .active_context_popover
+                .borrow()
+                .as_ref()
+                .is_some_and(|active| active == &popover)
+            {
+                win.imp().active_context_popover.borrow_mut().take();
+            }
 
             glib::idle_add_local_once(move || {
-                popover.unparent();
+                if popover.parent().is_some() {
+                    popover.unparent();
+                }
             });
         });
 
@@ -3429,13 +3829,26 @@ impl TemporalExplorerWindow {
 
         let open_section = gio::Menu::new();
         open_section.append(Some(&gettext("Open")), Some("win.context-open"));
+        open_section.append(
+            Some(&gettext("Open in New Tab")),
+            Some("win.context-open-new-tab"),
+        );
+        open_section.append(
+            Some(&gettext("Open in New Window")),
+            Some("win.context-open-new-window"),
+        );
+        open_section.append(Some(&gettext("Preview")), Some("win.context-preview"));
         open_section.append(Some(&gettext("Open With…")), Some("win.context-open-with"));
+        open_section.append(
+            Some(&gettext("Open Item Location")),
+            Some("win.context-open-location"),
+        );
         menu.append_section(None, &open_section);
 
         let edit_section = gio::Menu::new();
         edit_section.append(Some(&gettext("Export File…")), Some("win.context-export"));
         edit_section.append(
-            Some(&gettext("Copy Repository Path")),
+            Some(&gettext("Copy Snapshot Path")),
             Some("win.context-copy-path"),
         );
         edit_section.append(
@@ -3463,6 +3876,7 @@ impl TemporalExplorerWindow {
             let node = node.clone();
 
             open_action.connect_activate(move |_, _| {
+                win.close_active_context_popover();
                 if node.is_dir() || node.is_submodule() {
                     win.push_dir(node.path().to_path_buf());
                 } else {
@@ -3472,6 +3886,30 @@ impl TemporalExplorerWindow {
         }
         group.add_action(&open_action);
 
+        let open_new_tab_action = gio::SimpleAction::new("context-open-new-tab", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+
+            open_new_tab_action.connect_activate(move |_, _| {
+                win.close_active_context_popover();
+                win.open_snapshot_node_in_new_tab(&node);
+            });
+        }
+        group.add_action(&open_new_tab_action);
+
+        let open_new_window_action = gio::SimpleAction::new("context-open-new-window", None);
+        {
+            let win = self.clone();
+            let node = node.clone();
+
+            open_new_window_action.connect_activate(move |_, _| {
+                win.close_active_context_popover();
+                win.open_snapshot_node_in_new_window(&node);
+            });
+        }
+        group.add_action(&open_new_window_action);
+
         let open_with_action = gio::SimpleAction::new("context-open-with", None);
         open_with_action.set_enabled(is_file);
         {
@@ -3479,10 +3917,42 @@ impl TemporalExplorerWindow {
             let node = node.clone();
 
             open_with_action.connect_activate(move |_, _| {
+                win.close_active_context_popover();
                 win.open_snapshot_node_with_app_chooser(&node);
             });
         }
         group.add_action(&open_with_action);
+
+        let preview_action = gio::SimpleAction::new("context-preview", None);
+        preview_action.set_enabled(is_file);
+        {
+            let win = self.clone();
+            let node = node.clone();
+
+            preview_action.connect_activate(move |_, _| {
+                win.close_active_context_popover();
+                win.preview_file(node.path());
+            });
+        }
+        group.add_action(&preview_action);
+
+        let open_location_action = gio::SimpleAction::new("context-open-location", None);
+        let has_parent = node
+            .path()
+            .parent()
+            .is_some_and(|parent| parent != node.path());
+        open_location_action.set_enabled(has_parent || is_file);
+        {
+            let win = self.clone();
+            let node = node.clone();
+
+            open_location_action.connect_activate(move |_, _| {
+                win.close_active_context_popover();
+                let parent = node.path().parent().map(PathBuf::from).unwrap_or_default();
+                win.push_dir(parent);
+            });
+        }
+        group.add_action(&open_location_action);
 
         let export_action = gio::SimpleAction::new("context-export", None);
         export_action.set_enabled(is_file);
@@ -3491,6 +3961,7 @@ impl TemporalExplorerWindow {
             let node = node.clone();
 
             export_action.connect_activate(move |_, _| {
+                win.close_active_context_popover();
                 win.export_snapshot_node(&node);
             });
         }
@@ -3502,6 +3973,7 @@ impl TemporalExplorerWindow {
             let node = node.clone();
 
             copy_path_action.connect_activate(move |_, _| {
+                win.close_active_context_popover();
                 win.copy_repository_path(&node);
             });
         }
@@ -3514,6 +3986,7 @@ impl TemporalExplorerWindow {
             let node = node.clone();
 
             copy_content_action.connect_activate(move |_, _| {
+                win.close_active_context_popover();
                 win.copy_snapshot_node_content(&node);
             });
         }
@@ -3525,6 +3998,7 @@ impl TemporalExplorerWindow {
             let node = node.clone();
 
             show_system_action.connect_activate(move |_, _| {
+                win.close_active_context_popover();
                 win.show_node_in_system(&node);
             });
         }
@@ -3536,6 +4010,7 @@ impl TemporalExplorerWindow {
             let node = node.clone();
 
             properties_action.connect_activate(move |_, _| {
+                win.close_active_context_popover();
                 win.show_node_properties(&node);
             });
         }
@@ -3548,13 +4023,25 @@ impl TemporalExplorerWindow {
         popover.set_has_arrow(false);
         popover.add_css_class("nautilus-context-menu");
         popover.set_parent(anchor);
+        self.set_active_context_popover(&popover);
 
-        // Atrasa o unparent para o GTK terminar a ativação do item.
-        popover.connect_closed(|p| {
+        let win = self.clone();
+        popover.connect_closed(move |p| {
             let popover = p.clone();
+            if win
+                .imp()
+                .active_context_popover
+                .borrow()
+                .as_ref()
+                .is_some_and(|active| active == &popover)
+            {
+                win.imp().active_context_popover.borrow_mut().take();
+            }
 
             glib::idle_add_local_once(move || {
-                popover.unparent();
+                if popover.parent().is_some() {
+                    popover.unparent();
+                }
             });
         });
 
@@ -3579,6 +4066,63 @@ impl TemporalExplorerWindow {
             } else {
                 win.open_snapshot_node_with_default_app(&node);
             }
+        });
+    }
+
+    fn open_snapshot_node_in_new_tab(&self, node: &TreeNode) {
+        if node.is_dir() || node.is_submodule() {
+            self.push_dir(node.path().to_path_buf());
+        } else {
+            self.open_snapshot_node_with_default_app(node);
+        }
+    }
+
+    fn open_snapshot_node_in_new_window(&self, node: &TreeNode) {
+        if !(node.is_dir() || node.is_submodule()) {
+            self.open_snapshot_node_with_default_app(node);
+            return;
+        }
+
+        let Some(application) = self.application() else {
+            self.show_error(&gettext("Could not open a new window"));
+            return;
+        };
+        let Some(repo_path) = self.imp().repo_path.borrow().clone() else {
+            self.show_toast(&gettext("No repository loaded"));
+            return;
+        };
+        let Some(hash) = self.imp().current_hash.borrow().clone() else {
+            self.show_toast(&gettext("No snapshot selected"));
+            return;
+        };
+
+        let target_dir = node.path().to_path_buf();
+        let new_window = TemporalExplorerWindow::new(&application);
+        new_window.present();
+        new_window.load_repository(repo_path);
+        new_window.open_snapshot_dir_when_ready(hash, target_dir);
+    }
+
+    fn open_snapshot_dir_when_ready(&self, hash: String, dir: PathBuf) {
+        const MAX_ATTEMPTS: u32 = 240;
+
+        let win = self.clone();
+        let mut attempts = 0u32;
+        glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+            attempts += 1;
+
+            if win.imp().commit_index.borrow().contains_key(&hash) {
+                win.jump_to_commit_hash(hash.clone());
+                win.navigate_to_dir(dir.clone());
+                return glib::ControlFlow::Break;
+            }
+
+            if attempts >= MAX_ATTEMPTS || !win.imp().loading_commits.get() {
+                win.show_error(&gettext("Could not open the snapshot in a new window"));
+                return glib::ControlFlow::Break;
+            }
+
+            glib::ControlFlow::Continue
         });
     }
 
@@ -3821,13 +4365,23 @@ impl TemporalExplorerWindow {
             &gettext("Opening File"),
             &gettext("Materializing snapshot file…"),
             |win, path| {
-                let uri = format!("file://{}", path.to_string_lossy());
+                let win = win.clone();
+                glib::idle_add_local_once(move || {
+                    let file = gio::File::for_path(&path);
+                    let launcher = gtk::FileLauncher::new(Some(&file));
+                    let parent = win.clone();
 
-                if gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>)
-                    .is_err()
-                {
-                    win.show_error(&gettext("Could not open file with the default application"));
-                }
+                    launcher.launch(Some(&parent), None::<&gio::Cancellable>, move |result| {
+                        if let Err(err) = result {
+                            if !err.matches(gio::IOErrorEnum::Cancelled) {
+                                win.show_error(&format!(
+                                    "{}: {err}",
+                                    gettext("Could not open file with the default application")
+                                ));
+                            }
+                        }
+                    });
+                });
             },
         );
     }
@@ -3844,16 +4398,22 @@ impl TemporalExplorerWindow {
             &gettext("Materializing snapshot file…"),
             |win, path| {
                 let win = win.clone();
-                let parent = win.clone();
-                let file = gio::File::for_path(&path);
-                let launcher = gtk::FileLauncher::new(Some(&file));
-                launcher.set_always_ask(true);
-                launcher.launch(Some(&parent), None::<&gio::Cancellable>, move |result| {
-                    if result.is_err() {
-                        win.show_error(&gettext(
-                            "Could not open file with the selected application",
-                        ));
-                    }
+                glib::idle_add_local_once(move || {
+                    let parent = win.clone();
+                    let file = gio::File::for_path(&path);
+                    let launcher = gtk::FileLauncher::new(Some(&file));
+                    launcher.set_always_ask(true);
+
+                    launcher.launch(Some(&parent), None::<&gio::Cancellable>, move |result| {
+                        if let Err(err) = result {
+                            if !err.matches(gio::IOErrorEnum::Cancelled) {
+                                win.show_error(&format!(
+                                    "{}: {err}",
+                                    gettext("Could not open file with the selected application")
+                                ));
+                            }
+                        }
+                    });
                 });
             },
         );
@@ -3907,7 +4467,7 @@ impl TemporalExplorerWindow {
 
         if let Some(display) = gtk::gdk::Display::default() {
             display.clipboard().set_text(&text);
-            self.show_toast(&gettext("Repository path copied"));
+            self.show_toast(&gettext("Snapshot path copied"));
         }
     }
 
@@ -4125,10 +4685,27 @@ impl TemporalExplorerWindow {
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
-    // ── Right-panel management    // ── Right-panel management ────────────────────────────────────────────────
+    fn close_active_context_popover(&self) {
+        if let Some(popover) = self.imp().active_context_popover.borrow_mut().take() {
+            popover.popdown();
+            if popover.parent().is_some() {
+                popover.unparent();
+            }
+        }
+    }
+
+    fn set_active_context_popover(&self, popover: &gtk::PopoverMenu) {
+        self.close_active_context_popover();
+        self.imp()
+            .active_context_popover
+            .replace(Some(popover.clone()));
+    }
+
+    // ── Right-panel management ────────────────────────────────────────────────
 
     pub fn replace_right_panel(&self, widget: gtk::Widget) {
         let imp = self.imp();
+        self.close_active_context_popover();
         clear_box(&imp.right_panel_content);
         imp.right_panel_content.append(&widget);
         imp.right_panel_stack.set_visible_child_name("content");
@@ -4136,6 +4713,7 @@ impl TemporalExplorerWindow {
 
     pub fn show_empty_state(&self) {
         let imp = self.imp();
+        self.close_active_context_popover();
         clear_box(&imp.right_panel_content);
         imp.right_panel_stack.set_visible_child_name("empty");
     }
@@ -4263,8 +4841,58 @@ impl TemporalExplorerWindow {
 
     fn navigate_to_typed_path(&self, text: &str) {
         self.imp().toolbar.set_location_mode(false);
-        let path = PathBuf::from(text);
-        self.push_dir(path);
+        match Self::normalize_typed_snapshot_path(text) {
+            Ok(path) => self.push_dir(path),
+            Err(message) => {
+                self.show_toast(&message);
+                self.enter_location_mode();
+            }
+        }
+    }
+
+    fn normalize_typed_snapshot_path(text: &str) -> Result<PathBuf, String> {
+        let trimmed = text.trim();
+        if trimmed.is_empty() || trimmed == "/" || trimmed == "." {
+            return Ok(PathBuf::new());
+        }
+
+        let mut normalized = PathBuf::new();
+        let candidate = PathBuf::from(trimmed.trim_start_matches('/'));
+
+        for component in candidate.components() {
+            match component {
+                Component::Normal(part) => normalized.push(part),
+                Component::CurDir => {}
+                Component::ParentDir => {
+                    return Err(gettext("Parent paths are not available in snapshots"));
+                }
+                Component::RootDir | Component::Prefix(_) => {}
+            }
+        }
+
+        Ok(normalized)
+    }
+
+    fn copy_snapshot_path_from_pathbar(&self, path: &std::path::Path) {
+        let text = if path.as_os_str().is_empty() {
+            self.imp()
+                .repo_path
+                .borrow()
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| self.imp().repo_name.borrow().clone())
+        } else {
+            path.to_string_lossy().to_string()
+        };
+
+        if let Some(display) = gtk::gdk::Display::default() {
+            display.clipboard().set_text(&text);
+            self.show_toast(&gettext("Path copied"));
+        }
+    }
+
+    fn show_pathbar_properties(&self, path: &std::path::Path) {
+        self.show_node_properties(&TreeNode::Dir(path.to_path_buf()));
     }
 
     // ── Timestamp formatting ──────────────────────────────────────────────────
@@ -4295,6 +4923,7 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         let level = *imp.timeline_level.borrow();
         let selected_year = imp.selected_year.get();
+        let selected_month = imp.selected_month.get();
 
         match level {
             TimelineLevel::Years => {
@@ -4310,10 +4939,21 @@ impl TemporalExplorerWindow {
                     let year_has_commits =
                         !timeline_filter::commits_for_year(&visible_owned, selected_year)
                             .is_empty();
+                    let month_has_commits = level == TimelineLevel::Commits
+                        && selected_month > 0
+                        && !timeline_filter::commits_for_month(
+                            &visible_owned,
+                            selected_year,
+                            selected_month,
+                        )
+                        .is_empty();
 
                     drop(commits);
 
-                    if year_has_commits {
+                    if month_has_commits {
+                        self.on_year_selected(selected_year);
+                        self.on_month_selected(selected_month);
+                    } else if year_has_commits {
                         self.on_year_selected(selected_year);
                     } else {
                         self.populate_year_list();
@@ -4361,6 +5001,7 @@ impl TemporalExplorerWindow {
         popover.connect_filters_changed(move |popover_ref| {
             let state = popover_ref.filter_state();
             *win.imp().filter_state.borrow_mut() = state;
+            win.update_search_filter_indicators();
 
             // Rebuild the timeline sidebar from the active FilterState.
             // Without this, changing Author/Date only updated the commit search
@@ -4368,7 +5009,14 @@ impl TemporalExplorerWindow {
             win.refresh_timeline_after_filter_change();
 
             let q = win.imp().last_query.borrow().clone();
-            win.run_search(q);
+            let file_filter_reapplied_by_timeline_selection = {
+                let imp = win.imp();
+                imp.filter_state.borrow().files.is_active() && imp.selected_year.get() > 0
+            };
+
+            if !file_filter_reapplied_by_timeline_selection {
+                win.run_search(q);
+            }
         });
 
         *imp.filter_popover.borrow_mut() = Some(popover);
@@ -4382,6 +5030,7 @@ impl TemporalExplorerWindow {
         if self.imp().toolbar.search_button().is_active() != has_query {
             self.imp().toolbar.search_button().set_active(has_query);
         }
+        self.update_search_filter_indicators();
 
         if trimmed.is_empty() {
             // Search cleared: restore the normal timeline view using the already
@@ -4398,6 +5047,7 @@ impl TemporalExplorerWindow {
             let imp = self.imp();
             *imp.timeline_level.borrow_mut() = TimelineLevel::Commits;
             imp.selected_year.set(0);
+            imp.selected_month.set(0);
             imp.timeline_stack.set_visible_child_name("commits");
             imp.timeline_back_button.set_visible(true);
             imp.timeline_header_title
@@ -4422,6 +5072,24 @@ impl TemporalExplorerWindow {
         });
     }
 
+    fn update_search_filter_indicators(&self) {
+        let imp = self.imp();
+        let has_query = !imp.commit_search_entry.text().trim().is_empty();
+        let has_filter = imp.filter_state.borrow().is_active();
+
+        if has_query {
+            imp.toolbar.search_button().add_css_class("accent");
+        } else {
+            imp.toolbar.search_button().remove_css_class("accent");
+        }
+
+        if has_filter {
+            imp.filter_button.add_css_class("accent");
+        } else {
+            imp.filter_button.remove_css_class("accent");
+        }
+    }
+
     pub fn run_search(&self, query: String) {
         // Cancel any previous search before starting a new worker.
         if let Some(prev) = self.imp().search_cancel.borrow_mut().take() {
@@ -4439,11 +5107,44 @@ impl TemporalExplorerWindow {
             .and_then(|branch| self.imp().branch_commit_index.borrow().get(branch).cloned());
         let q = query.to_lowercase();
         let file_filter_active = filter.files.is_active();
+        let file_filter_active_for_ui = file_filter_active;
+        let file_filter_pathspecs = if file_filter_active {
+            file_filter_pathspecs(&filter.files)
+        } else {
+            Vec::new()
+        };
+        let file_filter_scope = if file_filter_active {
+            let imp = self.imp();
+            let level = *imp.timeline_level.borrow();
+            let selected_year = imp.selected_year.get();
+            let selected_month = imp.selected_month.get();
+
+            match level {
+                TimelineLevel::Commits if selected_year > 0 && selected_month > 0 => {
+                    Some((selected_year, selected_month))
+                }
+                TimelineLevel::Months | TimelineLevel::Commits if selected_year > 0 => {
+                    Some((selected_year, 0))
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
         let candidates: Vec<CommitInfo> = {
             let commits = self.imp().all_commits.borrow();
             commits
                 .iter()
                 .filter(|commit| {
+                    if let Some((scope_year, scope_month)) = file_filter_scope {
+                        match year_month_from_timestamp(commit.timestamp) {
+                            Some((year, month))
+                                if year == scope_year
+                                    && (scope_month == 0 || month == scope_month) => {}
+                            _ => return false,
+                        }
+                    }
+
                     commit_matches_lightweight_filters(commit, &filter, branch_hashes.as_ref(), &q)
                 })
                 .cloned()
@@ -4484,6 +5185,7 @@ impl TemporalExplorerWindow {
         std::thread::spawn(move || {
             let mut results = Vec::new();
             let mut newly_cached_changed_files: Vec<(String, Vec<String>)> = Vec::new();
+            let mut file_match_counts: HashMap<String, usize> = HashMap::new();
             let mut cache_hits = 0usize;
             let mut diff_errors = 0usize;
             let mut indexed = 0usize;
@@ -4521,15 +5223,28 @@ impl TemporalExplorerWindow {
 
                 // ── File-type / extension filter ──────────────────────────
                 if filter.files.is_active() {
-                    if !commit.has_changed_files_loaded() {
-                        if let Some(cached_files) = changed_files_cache_snapshot.get(&commit.hash) {
-                            commit.set_changed_files_loaded(cached_files.clone());
-                            cache_hits += 1;
-                        } else if let Some(ref repo) = repo_for_file_filter {
+                    if let Some(cached_files) = changed_files_cache_snapshot.get(&commit.hash) {
+                        commit.set_changed_files_loaded(cached_files.clone());
+                        cache_hits += 1;
+                    } else if commit.has_changed_files_loaded() {
+                        // The cloned commit already has a full changed-file list.
+                    } else if let Some(ref repo) = repo_for_file_filter {
+                        if file_filter_pathspecs.is_empty() {
                             match commit.load_changed_files_result(repo) {
                                 Ok(()) => {
                                     newly_cached_changed_files
                                         .push((commit.hash.clone(), commit.changed_files.clone()));
+                                }
+                                Err(_) => {
+                                    diff_errors += 1;
+                                }
+                            }
+                        } else {
+                            match commit
+                                .changed_files_matching_pathspecs(repo, &file_filter_pathspecs)
+                            {
+                                Ok(files) => {
+                                    commit.changed_files = files;
                                 }
                                 Err(_) => {
                                     diff_errors += 1;
@@ -4548,15 +5263,17 @@ impl TemporalExplorerWindow {
                         });
                     }
 
-                    let has_file_match = commit
+                    let file_match_count = commit
                         .changed_files
                         .iter()
-                        .any(|file| file_matches_search_category(file, &filter.files));
+                        .filter(|file| file_matches_search_category(file, &filter.files))
+                        .count();
 
-                    if !has_file_match {
+                    if file_match_count == 0 {
                         continue;
                     }
 
+                    file_match_counts.insert(commit.hash.clone(), file_match_count);
                     results.push(commit);
                     continue;
                 }
@@ -4567,6 +5284,7 @@ impl TemporalExplorerWindow {
             let _ = tx.send(SearchProgressMessage::Done(SearchRunResult {
                 results,
                 newly_cached_changed_files,
+                file_match_counts,
                 indexed,
                 cache_hits,
                 diff_errors,
@@ -4611,6 +5329,7 @@ impl TemporalExplorerWindow {
                     Ok(SearchProgressMessage::Done(SearchRunResult {
                         results,
                         newly_cached_changed_files,
+                        file_match_counts,
                         indexed,
                         cache_hits,
                         diff_errors,
@@ -4659,6 +5378,10 @@ impl TemporalExplorerWindow {
                                 &win.imp().commit_list,
                                 &results,
                             );
+
+                            if file_filter_active_for_ui {
+                                win.update_file_filter_timeline(&results, &file_match_counts);
+                            }
 
                             if diff_errors > 0 {
                                 win.show_toast(&format!(

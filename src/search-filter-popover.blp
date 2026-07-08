@@ -177,7 +177,7 @@ template $SearchFilterPopover : Popover {
         }
       }
 
-      /* ── Text matching — Nautilus visual section.
+      /* ── Text matching — adapted from Nautilus.
        * In Temporal Explorer the timeline SearchEntry controls the text query.
        */
       Box {
@@ -197,15 +197,15 @@ template $SearchFilterPopover : Popover {
           natural-line-length: 340;
 
           Button {
-            label: _("Content & Filename");
-            tooltip-text: _("Search commit text and changed file names");
+            label: _("Commits & Changed Files");
+            tooltip-text: _("The sidebar search matches commit metadata and changed file names");
             sensitive: false;
             styles ["suggested-action"]
           }
 
           Button {
-            label: _("Only Filename");
-            tooltip-text: _("Filename-only search is not available in this view");
+            label: _("Filename Only");
+            tooltip-text: _("Use the file type controls above to narrow changed files");
             sensitive: false;
           }
         }

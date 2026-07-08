@@ -68,8 +68,17 @@ menu view_menu {
 
   section {
     item {
+      label: _("Visible Columns…");
+      action: "viewctrl.visible-columns";
+      hidden-when: "action-disabled";
+    }
+  }
+
+  section {
+    item {
       label: _("Captions…");
       action: "viewctrl.captions";
+      hidden-when: "action-disabled";
     }
   }
 }

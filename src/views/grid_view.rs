@@ -32,7 +32,7 @@
 
 use gettextrs::gettext;
 use gtk::prelude::*;
-use gtk::{gio, glib};
+use gtk::{gdk, gio, glib};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -40,7 +40,7 @@ use std::rc::Rc;
 use crate::file_grid_captions_dialog::CaptionFlags;
 use crate::file_grid_cell::FileGridCell;
 use crate::git_engine::TreeNode;
-use crate::icon_helpers::{folder_icon, mime_icon_full};
+use crate::icon_helpers::{file_icon, folder_icon};
 
 /// Callback type invoked when the user activates a directory cell.
 pub type OnEnterDir = Box<dyn Fn(PathBuf) + 'static>;
@@ -103,6 +103,7 @@ struct GridMetrics {
 pub struct GridFileItem {
     pub node: TreeNode,
     pub metadata: Option<FileGridMetadata>,
+    pub thumbnail: Option<gdk::Texture>,
 }
 
 pub fn build_grid_view(
@@ -111,6 +112,7 @@ pub fn build_grid_view(
     zoom: GridZoom,
     caption_flags: CaptionFlags,
     metadata: &HashMap<PathBuf, FileGridMetadata>,
+    thumbnails: &HashMap<PathBuf, gdk::Texture>,
     on_enter_dir: OnEnterDir,
     on_open_file: OnOpenFile,
     on_context_menu: OnContextMenu,
@@ -134,6 +136,7 @@ pub fn build_grid_view(
         model.append(&glib::BoxedAnyObject::new(GridFileItem {
             node: node.clone(),
             metadata: metadata.get(node.path()).cloned(),
+            thumbnail: thumbnails.get(node.path()).cloned(),
         }));
     }
 
@@ -201,6 +204,7 @@ pub fn build_grid_view(
             metrics,
             caption_flags,
             item.metadata.as_ref(),
+            item.thumbnail.as_ref(),
         );
     });
 
@@ -211,6 +215,7 @@ pub fn build_grid_view(
         if let Some(cell) = list_item.child().and_downcast::<FileGridCell>() {
             cell.clear_captions();
             cell.clear_emblems();
+            cell.set_paintable(None::<&gdk::Texture>);
         }
     });
 
@@ -399,18 +404,22 @@ fn configure_grid_cell(
     metrics: GridMetrics,
     caption_flags: CaptionFlags,
     metadata: Option<&FileGridMetadata>,
+    thumbnail: Option<&gdk::Texture>,
 ) {
     cell.set_cell_width(metrics.cell_width);
     cell.set_icon_size(metrics.icon_size);
     cell.set_label_width_chars(metrics.label_width_chars);
 
-    let icon_name = match node {
-        TreeNode::Dir(p) => folder_icon(p.file_name().and_then(|n| n.to_str()).unwrap_or("")),
-        TreeNode::File(p) => mime_icon_full(p),
-        TreeNode::Submodule(_) => "folder-remote",
-    };
-
-    cell.set_icon_name(icon_name);
+    if let Some(thumbnail) = thumbnail {
+        cell.set_paintable(Some(thumbnail));
+    } else {
+        cell.set_paintable(None::<&gdk::Texture>);
+        match node {
+            TreeNode::Dir(_) => cell.set_gicon(&folder_icon()),
+            TreeNode::File(path) => cell.set_gicon(&file_icon(path)),
+            TreeNode::Submodule(_) => cell.set_icon_name("folder-remote"),
+        }
+    }
 
     let name = node
         .path()
@@ -439,7 +448,7 @@ fn build_grid_cell(
     metadata: Option<&FileGridMetadata>,
 ) -> FileGridCell {
     let cell = FileGridCell::new();
-    configure_grid_cell(&cell, node, metrics, caption_flags, metadata);
+    configure_grid_cell(&cell, node, metrics, caption_flags, metadata, None);
     cell
 }
 

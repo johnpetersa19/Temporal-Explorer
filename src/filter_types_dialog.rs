@@ -10,7 +10,7 @@
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gettextrs::gettext;
-use gtk::glib;
+use gtk::{gio, glib};
 use std::cell::RefCell;
 use std::sync::OnceLock;
 
@@ -18,31 +18,31 @@ use std::sync::OnceLock;
 
 /// (extension, human label, mime-type icon-name)
 const KNOWN_TYPES: &[(&str, &str, &str)] = &[
-    ("rs", "Rust source", "text-x-rust"),
-    ("toml", "TOML config", "text-x-toml"),
+    ("rs", "Rust source", "text-x-generic"),
+    ("toml", "TOML config", "text-x-script"),
     ("blp", "Blueprint UI", "text-xml"),
-    ("py", "Python script", "text-x-python"),
-    ("js", "JavaScript", "text-x-javascript"),
-    ("ts", "TypeScript", "text-x-typescript"),
-    ("c", "C source", "text-x-csrc"),
-    ("cpp", "C++ source", "text-x-c++src"),
-    ("h", "C/C++ header", "text-x-chdr"),
-    ("go", "Go source", "text-x-go"),
-    ("java", "Java source", "text-x-java"),
-    ("kt", "Kotlin source", "text-x-kotlin"),
-    ("swift", "Swift source", "text-x-swift"),
+    ("py", "Python script", "text-x-script"),
+    ("js", "JavaScript", "text-x-script"),
+    ("ts", "TypeScript", "text-x-script"),
+    ("c", "C source", "text-x-generic"),
+    ("cpp", "C++ source", "text-x-generic"),
+    ("h", "C/C++ header", "text-x-generic"),
+    ("go", "Go source", "text-x-generic"),
+    ("java", "Java source", "text-x-generic"),
+    ("kt", "Kotlin source", "text-x-generic"),
+    ("swift", "Swift source", "text-x-generic"),
     ("sh", "Shell script", "text-x-script"),
-    ("md", "Markdown", "text-x-markdown"),
-    ("json", "JSON data", "text-x-json"),
-    ("yaml", "YAML config", "text-x-yaml"),
+    ("md", "Markdown", "text-x-generic"),
+    ("json", "JSON data", "text-x-script"),
+    ("yaml", "YAML config", "text-x-script"),
     ("xml", "XML document", "text-xml"),
-    ("sql", "SQL query", "text-x-sql"),
+    ("sql", "SQL query", "text-x-generic"),
     ("html", "HTML document", "text-html"),
-    ("css", "CSS stylesheet", "text-css"),
-    ("txt", "Plain text", "text-plain"),
-    ("lock", "Lock file (Cargo/npm)", "text-plain"),
-    ("png", "PNG image", "image-png"),
-    ("svg", "SVG vector image", "image-svg+xml"),
+    ("css", "CSS stylesheet", "text-html"),
+    ("txt", "Plain text", "text-x-generic"),
+    ("lock", "Lock file (Cargo/npm)", "text-x-generic"),
+    ("png", "PNG image", "image-x-generic"),
+    ("svg", "SVG vector image", "image-x-generic"),
 ];
 
 /// Extensions shown on the start state as quick chips.
@@ -321,7 +321,7 @@ impl FilterTypesDialog {
             let pos = list_item.position() as usize;
 
             let filtered = filtered_ref.borrow();
-            let Some(&(ext, label, icon)) = filtered.get(pos) else {
+            let Some(&(ext, label, _icon)) = filtered.get(pos) else {
                 return;
             };
 
@@ -329,7 +329,11 @@ impl FilterTypesDialog {
 
             // row_icon (index 0)
             if let Some(img) = hbox.first_child().and_downcast::<gtk::Image>() {
-                img.set_icon_name(Some(icon));
+                let filename = format!("file.{ext}");
+                let content_type =
+                    gio::content_type_guess(Some(std::path::Path::new(&filename)), &[]).0;
+                let icon = gio::content_type_get_icon(&content_type);
+                img.set_from_gicon(&icon);
             }
 
             // text_box (index 1) → description + subtitle

@@ -12,6 +12,7 @@ template $HistoryControls : Gtk.Box {
     tooltip-text: _("Back");
     sensitive: false;
     clicked => $on_back_clicked() swapped;
+    styles ["flat"]
   }
 
   Button forward_button {
@@ -19,5 +20,6 @@ template $HistoryControls : Gtk.Box {
     tooltip-text: _("Forward");
     sensitive: false;
     clicked => $on_forward_clicked() swapped;
+    styles ["flat"]
   }
 }

@@ -35,15 +35,36 @@
 /* ── Address / path bar ─────────────────────────────────────────────── */
 
 .nautilus-pathbar {
-    background-color: color-mix(in srgb, currentColor 8%, transparent);
-    border-radius: 9999px;
-    padding: 2px 4px;
+    background-color: color-mix(in srgb, currentColor 10%, transparent);
+    border-radius: 9px;
     min-height: 32px;
+}
+
+.nautilus-pathbar-segments {
+    background: transparent;
+    min-height: 28px;
+}
+
+.pathbar-menu-button,
+.pathbar-menu-button > button {
+    min-height: 28px;
+    min-width: 32px;
+    border-radius: 7px;
+    margin: 0;
+}
+
+.header-toolbar-box {
+    min-width: 260px;
+}
+
+.toolbar-history-controls button {
+    border-radius: 7px;
 }
 
 .nautilus-path-button {
     min-width: 8px;
-    border-radius: 9999px;
+    border-radius: 7px;
+    margin: 3px;
     padding: 0 8px;
     min-height: 28px;
 }
@@ -59,7 +80,7 @@
 
 .nautilus-path-button:not(.current-dir):hover label,
 .nautilus-path-button:not(.current-dir):hover image {
-    opacity: 0.85;
+    opacity: 1;
 }
 
 .nautilus-path-button.current-dir {
@@ -69,8 +90,7 @@
 
 .nautilus-path-separator {
     opacity: 0.35;
-    margin: 0 1px;
-    -gtk-icon-size: 12px;
+    margin: 0 2px;
 }
 
 /* ── Location entry bar ──────────────────────────────────────────────── */
@@ -266,4 +286,79 @@ flowboxchild:selected flowboxchild:selected:focus .nautilus-emblems-box {
 
 .nautilus-context-menu {
     padding: 6px;
+}
+
+/* ── Temporal Explorer refinements over Nautilus references ─────────── */
+
+.nautilus-pathbar {
+    border-radius: 9px;
+}
+
+.nautilus-path-button {
+    border-radius: 7px;
+    margin: 3px;
+}
+
+.nautilus-path-button.current-dir {
+    background: none;
+    color: @window_fg_color;
+}
+
+.nautilus-path-button.current-dir label,
+.nautilus-path-button.current-dir image {
+    opacity: 1;
+}
+
+.pathbar-context-menu {
+    padding: 6px;
+}
+
+.toolbar-popover-list {
+    padding: 4px;
+}
+
+.toolbar-popover-list button {
+    min-height: 32px;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-radius: 7px;
+    font-weight: normal;
+}
+
+button.accent {
+    color: @accent_bg_color;
+}
+
+button.accent image {
+    color: @accent_bg_color;
+}
+
+.nautilus-grid-view gridview,
+gridview.nautilus-grid-view {
+    padding: 18px;
+    border-spacing: 6px;
+    background: transparent;
+}
+
+gridview.nautilus-grid-view > child {
+    border-radius: 12px;
+}
+
+gridview.nautilus-grid-view > child:hover {
+    background-color: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+gridview.nautilus-grid-view > child:selected {
+    background-color: color-mix(in srgb, @accent_bg_color 26%, transparent);
+    color: @window_fg_color;
+}
+
+gridview.nautilus-grid-view > child:selected .icon-ui-labels-box label {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}
+
+.nautilus-context-menu modelbutton,
+.nautilus-context-menu button {
+    border-radius: 7px;
 }

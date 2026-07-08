@@ -102,7 +102,7 @@
 //! ~2 001 redundant OID reads on every load.
 
 use gettextrs::gettext;
-use git2::{ObjectType, Repository, SubmoduleIgnore};
+use git2::{DiffOptions, ObjectType, Repository, SubmoduleIgnore};
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -449,6 +449,48 @@ impl CommitInfo {
         files.dedup();
         self.set_changed_files_loaded(files);
         Ok(())
+    }
+
+    /// Returns changed files that match Git pathspecs without marking the full
+    /// changed-file list as loaded. Used by file-type search to let libgit2
+    /// skip unrelated paths before Rust applies the final category check.
+    pub fn changed_files_matching_pathspecs(
+        &self,
+        repo: &git2::Repository,
+        pathspecs: &[String],
+    ) -> Result<Vec<String>, git2::Error> {
+        let commit = repo.find_commit(self.oid)?;
+        let tree = commit.tree()?;
+        let mut opts = DiffOptions::new();
+
+        for pathspec in pathspecs {
+            opts.pathspec(pathspec);
+        }
+
+        let diff = if commit.parent_count() > 0 {
+            let parent = commit.parent(0)?;
+            let parent_tree = parent.tree()?;
+            repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), Some(&mut opts))?
+        } else {
+            repo.diff_tree_to_tree(None, Some(&tree), Some(&mut opts))?
+        };
+
+        let mut files = Vec::with_capacity(4);
+        diff.foreach(
+            &mut |delta, _| {
+                if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                    files.push(path.to_owned());
+                }
+                true
+            },
+            None,
+            None,
+            None,
+        )?;
+
+        files.sort();
+        files.dedup();
+        Ok(files)
     }
 
     /// Rehydrates changed-file metadata from an external cache.
