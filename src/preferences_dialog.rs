@@ -107,8 +107,6 @@ mod imp {
         #[template_child]
         pub include_submodules_row: TemplateChild<adw::SwitchRow>,
         #[template_child]
-        pub git_binary_row: TemplateChild<adw::EntryRow>,
-        #[template_child]
         pub background_fetch_row: TemplateChild<adw::SwitchRow>,
         #[template_child]
         pub background_fetch_interval_row: TemplateChild<adw::SpinRow>,
@@ -284,8 +282,6 @@ impl PreferencesDialog {
         s.bind("follow-renames", &*imp.follow_renames_row, "active")
             .build();
         s.bind("include-submodules", &*imp.include_submodules_row, "active")
-            .build();
-        s.bind("git-binary-path", &*imp.git_binary_row, "text")
             .build();
         s.bind("background-fetch", &*imp.background_fetch_row, "active")
             .build();

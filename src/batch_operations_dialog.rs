@@ -197,6 +197,7 @@ impl BatchOperationsDialog {
             imp.commit_list.append(&row);
         }
 
+        self.on_operation_changed();
         self.refresh_preview();
     }
 
@@ -238,6 +239,13 @@ impl BatchOperationsDialog {
         imp.run_button.set_sensitive(false);
     }
 
+    /// Restore the dialog after an operation failed so the user can adjust
+    /// the options and try again.
+    pub fn mark_failed(&self) {
+        self.imp().operation_progress.set_visible(false);
+        self.update_run_button();
+    }
+
     // ── Internal ──────────────────────────────────────────────────────────────────────
 
     fn setup_callbacks(&self) {
@@ -272,7 +280,15 @@ impl BatchOperationsDialog {
         imp.signoff_row.set_visible(idx == 0);
         imp.export_path_row.set_visible(idx == 1);
         imp.short_sha_row.set_visible(idx == 2);
+        self.update_run_button();
         self.refresh_preview();
+    }
+
+    fn update_run_button(&self) {
+        let imp = self.imp();
+        let has_commits = !imp.commits.borrow().is_empty();
+        let has_destination = imp.operation_row.selected() != 1 || imp.dest_dir.borrow().is_some();
+        imp.run_button.set_sensitive(has_commits && has_destination);
     }
 
     fn refresh_preview(&self) {
@@ -350,6 +366,7 @@ impl BatchOperationsDialog {
                         let imp = dlg.imp();
                         imp.export_path_label.set_label(&path.display().to_string());
                         *imp.dest_dir.borrow_mut() = Some(path);
+                        dlg.update_run_button();
                         dlg.refresh_preview();
                     }
                 }

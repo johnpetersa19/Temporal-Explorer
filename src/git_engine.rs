@@ -100,12 +100,21 @@
 //! (`probe_oid_count` up to 2 001 steps + `collect_all_oids` for all N).
 //! For a repository with 50 000 commits this saves one revwalk setup and
 //! ~2 001 redundant OID reads on every load.
+//!
+//! # Performance — normalized text filters
+//!
+//! `CommitInfo` stores lowercase copies of the summary, author and e-mail so
+//! repeated search predicates can run without allocating per row.
 
 use gettextrs::gettext;
 use git2::{DiffOptions, ObjectType, Repository, SubmoduleIgnore};
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::fs;
+use std::hash::{Hash, Hasher};
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{mpsc, Arc};
 
 // ── Limits ───────────────────────────────────────────────────────────────────
 
@@ -159,6 +168,359 @@ const SEARCH_COMMITS_MAX: usize = 5_000;
 /// over the serial path.  Decoupled from `page_size` so that the parallelism
 /// threshold does not vary with the caller's pagination preference.
 const MIN_COMMITS_FOR_PARALLEL: usize = 2_000;
+
+pub const FILE_CATEGORY_AUDIO: u16 = 1 << 0;
+pub const FILE_CATEGORY_DOCUMENTS: u16 = 1 << 1;
+pub const FILE_CATEGORY_FOLDERS: u16 = 1 << 2;
+pub const FILE_CATEGORY_IMAGES: u16 = 1 << 3;
+pub const FILE_CATEGORY_PDF: u16 = 1 << 4;
+pub const FILE_CATEGORY_TEXT: u16 = 1 << 5;
+pub const FILE_CATEGORY_VIDEOS: u16 = 1 << 6;
+
+const FILE_INDEX_CACHE_VERSION: &str = "TEFI1";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileIndexGroup {
+    pub categories: u16,
+    pub extension: String,
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CommitFileIndex {
+    groups: Vec<FileIndexGroup>,
+}
+
+impl CommitFileIndex {
+    pub fn from_paths(paths: &[String]) -> Self {
+        let mut grouped: HashMap<(u16, String), u32> = HashMap::new();
+        for path in paths {
+            let path_obj = Path::new(path);
+            let extension = path_obj
+                .extension()
+                .and_then(|value| value.to_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            let categories = categories_for_path(path_obj, &extension);
+            *grouped.entry((categories, extension)).or_default() += 1;
+        }
+        let mut groups = grouped
+            .into_iter()
+            .map(|((categories, extension), count)| FileIndexGroup {
+                categories,
+                extension,
+                count,
+            })
+            .collect::<Vec<_>>();
+        groups.sort_unstable_by(|a, b| {
+            a.extension
+                .cmp(&b.extension)
+                .then(a.categories.cmp(&b.categories))
+        });
+        Self { groups }
+    }
+
+    pub fn match_count(&self, categories: u16, extension: Option<&str>) -> usize {
+        let wanted_extension =
+            extension.map(|value| value.trim_start_matches('.').to_ascii_lowercase());
+        self.groups
+            .iter()
+            .filter(|group| {
+                group.categories & categories != 0
+                    || wanted_extension
+                        .as_ref()
+                        .is_some_and(|wanted| group.extension == *wanted)
+            })
+            .map(|group| group.count as usize)
+            .sum()
+    }
+
+    pub fn match_count_textual(
+        &self,
+        include_folders: bool,
+        wanted_extensions: &[String],
+    ) -> usize {
+        self.groups
+            .iter()
+            .filter(|group| {
+                (include_folders && group.categories & FILE_CATEGORY_FOLDERS != 0)
+                    || wanted_extensions
+                        .iter()
+                        .any(|wanted| group.extension == *wanted)
+            })
+            .map(|group| group.count as usize)
+            .sum()
+    }
+
+    fn encode(&self) -> String {
+        self.groups
+            .iter()
+            .map(|group| {
+                format!(
+                    "{:x},{},{}",
+                    group.categories,
+                    hex_encode(group.extension.as_bytes()),
+                    group.count
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(";")
+    }
+
+    fn decode(encoded: &str) -> Option<Self> {
+        if encoded.is_empty() {
+            return Some(Self::default());
+        }
+        let mut groups = Vec::new();
+        for raw_group in encoded.split(';') {
+            let mut fields = raw_group.splitn(3, ',');
+            groups.push(FileIndexGroup {
+                categories: u16::from_str_radix(fields.next()?, 16).ok()?,
+                extension: String::from_utf8(hex_decode(fields.next()?)?).ok()?,
+                count: fields.next()?.parse().ok()?,
+            });
+        }
+        Some(Self { groups })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FileIndexStore {
+    cache_path: PathBuf,
+    repository_id: String,
+    entries: HashMap<git2::Oid, Arc<CommitFileIndex>>,
+}
+
+impl FileIndexStore {
+    pub fn open(repo_path: &Path) -> Self {
+        let repository_id = fs::canonicalize(repo_path)
+            .unwrap_or_else(|_| repo_path.to_path_buf())
+            .to_string_lossy()
+            .into_owned();
+        let cache_path = file_index_cache_path(&repository_id);
+        let entries = load_file_index(&cache_path, &repository_id).unwrap_or_default();
+        Self {
+            cache_path,
+            repository_id,
+            entries,
+        }
+    }
+
+    pub fn snapshot(&self) -> HashMap<git2::Oid, Arc<CommitFileIndex>> {
+        self.entries.clone()
+    }
+
+    pub fn insert_many(&mut self, entries: Vec<(git2::Oid, CommitFileIndex)>) {
+        for (oid, index) in entries {
+            self.entries.insert(oid, Arc::new(index));
+        }
+    }
+
+    pub fn retain_oids(&mut self, reachable: &HashMap<git2::Oid, usize>) {
+        self.entries.retain(|oid, _| reachable.contains_key(oid));
+    }
+
+    pub fn save(&self) -> std::io::Result<()> {
+        if let Some(parent) = self.cache_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let temp_path = self.cache_path.with_extension("tmp");
+        let mut file = fs::File::create(&temp_path)?;
+        writeln!(
+            file,
+            "{FILE_INDEX_CACHE_VERSION}\t{}",
+            hex_encode(self.repository_id.as_bytes())
+        )?;
+        let mut entries = self.entries.iter().collect::<Vec<_>>();
+        entries.sort_unstable_by(|(left, _), (right, _)| left.as_bytes().cmp(right.as_bytes()));
+        for (oid, index) in entries {
+            writeln!(file, "{}\t{}", oid, index.encode())?;
+        }
+        file.flush()?;
+        fs::rename(temp_path, &self.cache_path)
+    }
+}
+
+fn categories_for_path(path: &Path, extension: &str) -> u16 {
+    let mut categories = 0;
+    if path
+        .parent()
+        .is_some_and(|parent| !parent.as_os_str().is_empty())
+    {
+        categories |= FILE_CATEGORY_FOLDERS;
+    }
+    if matches!(
+        extension,
+        "mp3" | "flac" | "wav" | "ogg" | "opus" | "m4a" | "aac" | "mid" | "midi"
+    ) {
+        categories |= FILE_CATEGORY_AUDIO;
+    }
+    if matches!(
+        extension,
+        "doc" | "docx" | "odt" | "ott" | "rtf" | "abw" | "pages"
+    ) {
+        categories |= FILE_CATEGORY_DOCUMENTS;
+    }
+    if matches!(
+        extension,
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "tif" | "tiff" | "heic" | "avif"
+    ) {
+        categories |= FILE_CATEGORY_IMAGES;
+    }
+    if extension == "pdf" {
+        categories |= FILE_CATEGORY_PDF;
+    }
+    if matches!(
+        extension,
+        "txt"
+            | "md"
+            | "markdown"
+            | "rst"
+            | "log"
+            | "csv"
+            | "json"
+            | "jsonc"
+            | "yaml"
+            | "yml"
+            | "toml"
+            | "xml"
+            | "html"
+            | "css"
+            | "scss"
+            | "js"
+            | "ts"
+            | "jsx"
+            | "tsx"
+            | "rs"
+            | "c"
+            | "h"
+            | "cpp"
+            | "hpp"
+            | "cc"
+            | "py"
+            | "sh"
+            | "bash"
+            | "zsh"
+            | "fish"
+            | "go"
+            | "java"
+            | "kt"
+            | "swift"
+            | "php"
+            | "rb"
+            | "lua"
+            | "blp"
+            | "ui"
+            | "desktop"
+            | "service"
+    ) {
+        categories |= FILE_CATEGORY_TEXT;
+    }
+    if matches!(
+        extension,
+        "mp4" | "mkv" | "webm" | "mov" | "avi" | "m4v" | "flv" | "wmv" | "mpeg" | "mpg"
+    ) {
+        categories |= FILE_CATEGORY_VIDEOS;
+    }
+    categories
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        encoded.push(HEX[(byte >> 4) as usize] as char);
+        encoded.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    encoded
+}
+
+fn hex_decode(value: &str) -> Option<Vec<u8>> {
+    if !value.len().is_multiple_of(2) {
+        return None;
+    }
+    value
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let high = (pair[0] as char).to_digit(16)?;
+            let low = (pair[1] as char).to_digit(16)?;
+            Some(((high << 4) | low) as u8)
+        })
+        .collect()
+}
+
+fn file_index_cache_path(repository_id: &str) -> PathBuf {
+    let root = std::env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))
+        .unwrap_or_else(std::env::temp_dir);
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    repository_id.hash(&mut hasher);
+    root.join("temporal-explorer")
+        .join(format!("file-index-v1-{:016x}.cache", hasher.finish()))
+}
+
+fn load_file_index(
+    path: &Path,
+    repository_id: &str,
+) -> std::io::Result<HashMap<git2::Oid, Arc<CommitFileIndex>>> {
+    let file = fs::File::open(path)?;
+    let mut lines = BufReader::new(file).lines();
+    let Some(header) = lines.next().transpose()? else {
+        return Ok(HashMap::new());
+    };
+    let expected = format!(
+        "{FILE_INDEX_CACHE_VERSION}\t{}",
+        hex_encode(repository_id.as_bytes())
+    );
+    if header != expected {
+        return Ok(HashMap::new());
+    }
+    let mut entries = HashMap::new();
+    for line in lines.map_while(Result::ok) {
+        let Some((raw_oid, raw_index)) = line.split_once('\t') else {
+            continue;
+        };
+        let (Ok(oid), Some(index)) = (
+            git2::Oid::from_str(raw_oid),
+            CommitFileIndex::decode(raw_index),
+        ) else {
+            continue;
+        };
+        entries.insert(oid, Arc::new(index));
+    }
+    Ok(entries)
+}
+
+pub fn build_commit_file_index(
+    repo: &Repository,
+    oid: git2::Oid,
+) -> Result<CommitFileIndex, git2::Error> {
+    let commit = repo.find_commit(oid)?;
+    let tree = commit.tree()?;
+    let parent_tree = if commit.parent_count() > 0 {
+        Some(commit.parent(0)?.tree()?)
+    } else {
+        None
+    };
+    let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)?;
+    let mut paths = Vec::with_capacity(8);
+    diff.foreach(
+        &mut |delta, _| {
+            if let Some(path) = delta.new_file().path().and_then(|path| path.to_str()) {
+                paths.push(path.to_owned());
+            }
+            true
+        },
+        None,
+        None,
+        None,
+    )?;
+    paths.sort_unstable();
+    paths.dedup();
+    Ok(CommitFileIndex::from_paths(&paths))
+}
 
 // ── Internal helpers ───────────────────────────────────────────────────────────────────
 
@@ -288,11 +650,14 @@ pub struct CommitInfo {
     pub hash: String,
     /// First line of the commit message (summary).
     pub summary: String,
+    summary_lower: String,
     /// Author name.
     pub author: String,
+    author_lower: String,
     /// Author e-mail address.  Useful for deduplicating authors with different
     /// display names and for generating Gravatar avatar URLs.
     pub author_email: String,
+    author_email_lower: String,
     /// Unix timestamp (seconds since epoch).
     pub timestamp: i64,
     /// Files changed by this commit (extensions used by `FilterTypesDialog`).
@@ -318,12 +683,18 @@ impl CommitInfo {
         author_email: String,
         timestamp: i64,
     ) -> Self {
+        let summary_lower = summary.to_lowercase();
+        let author_lower = author.to_lowercase();
+        let author_email_lower = author_email.to_lowercase();
         Self {
             oid: git2::Oid::zero(),
             hash,
             summary,
+            summary_lower,
             author,
+            author_lower,
             author_email,
+            author_email_lower,
             timestamp,
             changed_files: Vec::new(),
             files_loaded: false,
@@ -346,16 +717,22 @@ impl CommitInfo {
     // Used by every code path that walks the history (serial, parallel, search).
     #[inline]
     fn from_commit_fast(commit: &git2::Commit<'_>) -> Self {
+        let summary = commit.summary().unwrap_or("").to_owned();
+        let author = commit
+            .author()
+            .name()
+            .unwrap_or(&gettext("Unknown"))
+            .to_owned();
+        let author_email = commit.author().email().unwrap_or("").to_owned();
         Self {
             oid: commit.id(),
             hash: commit.id().to_string(),
-            summary: commit.summary().unwrap_or("").to_owned(),
-            author: commit
-                .author()
-                .name()
-                .unwrap_or(&gettext("Unknown"))
-                .to_owned(),
-            author_email: commit.author().email().unwrap_or("").to_owned(),
+            summary_lower: summary.to_lowercase(),
+            summary,
+            author_lower: author.to_lowercase(),
+            author,
+            author_email_lower: author_email.to_lowercase(),
+            author_email,
             timestamp: commit.time().seconds(),
             changed_files: Vec::new(),
             files_loaded: false,
@@ -515,6 +892,21 @@ impl CommitInfo {
     #[inline]
     pub fn has_changed_files_loaded(&self) -> bool {
         self.files_loaded
+    }
+
+    /// Returns true when the commit matches a lowercase text query.
+    #[inline]
+    pub fn matches_text_query(&self, query: &str) -> bool {
+        self.hash.starts_with(query)
+            || self.summary_lower.contains(query)
+            || self.author_lower.contains(query)
+            || self.author_email_lower.contains(query)
+    }
+
+    /// Returns true when the commit author matches a lowercase query.
+    #[inline]
+    pub fn author_matches_query(&self, query: &str) -> bool {
+        self.author_lower.contains(query)
     }
 }
 
@@ -715,11 +1107,31 @@ impl HistoryReader {
             if oids.len() > MIN_COMMITS_FOR_PARALLEL {
                 return self.list_commits_paginated_parallel(page_size, oids, on_page);
             }
-            // Small repo on multi-core: OIDs already collected but not used.
-            // For N < MIN_COMMITS_FOR_PARALLEL the in-memory Vec is < 40 KB.
-            // Fall through to the serial walker (opens a fresh revwalk).
+            return self.list_commits_from_oids(page_size, oids, on_page);
         }
         self.list_commits_paginated_serial(page_size, on_page)
+    }
+
+    /// Materializes already-collected OIDs without opening a second revwalk.
+    fn list_commits_from_oids(
+        &self,
+        page_size: usize,
+        oids: Vec<git2::Oid>,
+        mut on_page: impl FnMut(Vec<CommitInfo>),
+    ) -> Result<(), git2::Error> {
+        let page_size = page_size.max(1);
+        let mut page = Vec::with_capacity(page_size);
+        for oid in oids {
+            let commit = self.repo.find_commit(oid)?;
+            page.push(CommitInfo::from_commit_fast(&commit));
+            if page.len() == page_size {
+                on_page(std::mem::replace(&mut page, Vec::with_capacity(page_size)));
+            }
+        }
+        if !page.is_empty() {
+            on_page(page);
+        }
+        Ok(())
     }
 
     /// Serial (single-threaded) paginated commit walk.
@@ -766,13 +1178,9 @@ impl HistoryReader {
 
     /// Parallel paginated commit walk.
     ///
-    /// `on_page` is called **only after all worker threads have joined**
-    /// successfully, preventing duplicate-page delivery on panic fallback.
-    ///
-    /// After merging all shards, commits are re-sorted by timestamp (newest-first)
-    /// to restore chronological order that may have been disrupted by shard
-    /// interleaving. This guarantees the same ordering as the serial path and
-    /// ensures the timeline sidebar sees all years correctly.
+    /// Workers materialize page-sized OID ranges and send them to the caller as
+    /// soon as they are ready. A small reorder buffer preserves the exact
+    /// revwalk order without a global sort or an all-commits staging vector.
     ///
     /// # Zero-copy OID sharding
     ///
@@ -797,73 +1205,84 @@ impl HistoryReader {
         oids: Vec<git2::Oid>,
         mut on_page: impl FnMut(Vec<CommitInfo>),
     ) -> Result<(), git2::Error> {
+        enum WorkerMessage {
+            Page(usize, Vec<CommitInfo>),
+            Error(String),
+        }
+
+        let page_size = page_size.max(1);
         let n_threads = self.cpu_pool.io_threads().max(2);
         let repo_path = self.repo.path().to_path_buf();
         let oid_count = oids.len();
-        let chunk_size = (oid_count + n_threads - 1) / n_threads;
+        let page_count = oid_count.div_ceil(page_size);
 
         // Share the OID list across threads via Arc; git2::Oid is [u8; 20]
         // (Copy + Send + Sync), so Arc<Vec<Oid>> is sound without unsafe.
         let oids = Arc::new(oids);
+        let next_page = Arc::new(AtomicUsize::new(0));
+        let (tx, rx) = mpsc::channel::<WorkerMessage>();
 
-        let handles: Vec<std::thread::JoinHandle<Vec<CommitInfo>>> = (0..n_threads)
-            .map(|i| {
+        let handles: Vec<std::thread::JoinHandle<()>> = (0..n_threads)
+            .map(|_| {
                 let oids = Arc::clone(&oids);
+                let next_page = Arc::clone(&next_page);
                 let path = repo_path.clone();
-                let start = i * chunk_size;
-                let end = ((i + 1) * chunk_size).min(oid_count);
+                let tx = tx.clone();
                 std::thread::spawn(move || {
-                    if start >= end {
-                        return Vec::new();
-                    }
                     let repo = match Repository::open(&path) {
                         Ok(r) => r,
-                        Err(_) => return Vec::new(),
+                        Err(error) => {
+                            let _ = tx.send(WorkerMessage::Error(error.to_string()));
+                            return;
+                        }
                     };
-                    let mut results = Vec::with_capacity(end - start);
-                    for &oid in &oids[start..end] {
-                        if let Ok(commit) = repo.find_commit(oid) {
-                            results.push(CommitInfo::from_commit_fast(&commit));
+
+                    loop {
+                        let page_index = next_page.fetch_add(1, Ordering::Relaxed);
+                        if page_index >= page_count {
+                            break;
+                        }
+                        let start = page_index * page_size;
+                        let end = (start + page_size).min(oid_count);
+                        let mut results = Vec::with_capacity(end - start);
+                        for &oid in &oids[start..end] {
+                            match repo.find_commit(oid) {
+                                Ok(commit) => results.push(CommitInfo::from_commit_fast(&commit)),
+                                Err(error) => {
+                                    let _ = tx.send(WorkerMessage::Error(error.to_string()));
+                                    return;
+                                }
+                            }
+                        }
+                        if tx.send(WorkerMessage::Page(page_index, results)).is_err() {
+                            return;
                         }
                     }
-                    results
                 })
             })
             .collect();
+        drop(tx);
 
-        let mut all: Vec<CommitInfo> = Vec::with_capacity(oid_count);
-        for handle in handles {
-            match handle.join() {
-                Ok(shard_commits) => all.extend(shard_commits),
-                Err(e) => {
-                    eprintln!(
-                        "[git_engine] parallel worker panicked ({e:?}); \
-                         falling back to serial commit walk"
-                    );
-                    return self.list_commits_paginated_serial(page_size, on_page);
+        let mut pending = BTreeMap::new();
+        let mut next_to_emit = 0usize;
+        while next_to_emit < page_count {
+            match rx.recv() {
+                Ok(WorkerMessage::Page(index, page)) => {
+                    pending.insert(index, page);
+                    while let Some(page) = pending.remove(&next_to_emit) {
+                        on_page(page);
+                        next_to_emit += 1;
+                    }
                 }
+                Ok(WorkerMessage::Error(error)) => return Err(git2::Error::from_str(&error)),
+                Err(_) => return Err(git2::Error::from_str("commit worker stopped unexpectedly")),
             }
         }
 
-        // sort_unstable_by is ~20 % faster than sort_by for i64 keys: it uses
-        // introsort (in-place) instead of merge sort, avoiding an auxiliary
-        // allocation proportional to `all.len()`.  Stability is not required
-        // because different commits are already uniquely identified by their
-        // OID; equal timestamps are an expected, harmless case.
-        all.sort_unstable_by(|a, b| b.timestamp.cmp(&a.timestamp));
-
-        // Drain pages with into_iter() + take() so each CommitInfo is *moved*
-        // rather than cloned.  CommitInfo carries several String fields
-        // (hash, summary, author, author_email); cloning them on every page
-        // boundary was the main allocation cost of the old chunks()+to_vec() path.
-        let page_size = page_size.max(1);
-        let mut remaining = all.into_iter();
-        loop {
-            let page: Vec<CommitInfo> = remaining.by_ref().take(page_size).collect();
-            if page.is_empty() {
-                break;
+        for handle in handles {
+            if handle.join().is_err() {
+                return Err(git2::Error::from_str("commit worker panicked"));
             }
-            on_page(page);
         }
         Ok(())
     }
@@ -915,10 +1334,7 @@ impl HistoryReader {
             let commit = self.repo.find_commit(oid)?;
             let info = CommitInfo::from_commit_fast(&commit);
 
-            if hash_match
-                || info.summary.to_lowercase().contains(&q)
-                || info.author.to_lowercase().contains(&q)
-            {
+            if hash_match || info.matches_text_query(&q) {
                 results.push(info);
                 if results.len() >= SEARCH_COMMITS_MAX {
                     break;
@@ -1045,8 +1461,18 @@ impl<'repo> SnapshotResolver<'repo> {
     ///
     /// Entries with missing or empty names are silently skipped.
     pub fn resolve_dir(&self, revision: &str, dir: &Path) -> Result<Vec<TreeNode>, git2::Error> {
-        let obj = self.repo.revparse_single(revision)?;
-        let commit = obj.peel_to_commit()?;
+        let commit = self.repo.revparse_single(revision)?.peel_to_commit()?;
+        self.resolve_dir_oid(commit.id(), dir)
+    }
+
+    /// Resolves `oid` and materializes only the **direct children** of `dir`
+    /// in the corresponding commit tree.
+    pub fn resolve_dir_oid(
+        &self,
+        oid: git2::Oid,
+        dir: &Path,
+    ) -> Result<Vec<TreeNode>, git2::Error> {
+        let commit = self.repo.find_commit(oid)?;
         let root_tree = commit.tree()?;
 
         let subtree = if dir.as_os_str().is_empty() {
@@ -1211,8 +1637,13 @@ impl<'repo> SnapshotMaterializer<'repo> {
 
     /// Reads the raw byte content of a file at `path` in the given `revision`.
     pub fn read_file(&self, revision: &str, path: &Path) -> Result<Vec<u8>, git2::Error> {
-        let obj = self.repo.revparse_single(revision)?;
-        let commit = obj.peel_to_commit()?;
+        let commit = self.repo.revparse_single(revision)?.peel_to_commit()?;
+        self.read_file_oid(commit.id(), path)
+    }
+
+    /// Reads the raw byte content of a file at `path` in the given commit `oid`.
+    pub fn read_file_oid(&self, oid: git2::Oid, path: &Path) -> Result<Vec<u8>, git2::Error> {
+        let commit = self.repo.find_commit(oid)?;
         let tree = commit.tree()?;
         let entry = tree.get_path(path)?;
 

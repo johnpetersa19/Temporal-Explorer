@@ -11,8 +11,13 @@
         "--share=network",
         "--share=ipc",
         "--socket=fallback-x11",
+        "--socket=ssh-auth",
         "--device=dri",
         "--socket=wayland",
+        "--talk-name=org.freedesktop.portal.Desktop",
+        "--talk-name=org.freedesktop.portal.Documents",
+        "--talk-name=org.freedesktop.Flatpak",
+        "--filesystem=xdg-cache/temporal-explorer:create",
         "--filesystem=host:ro"
     ],
     "build-options": {

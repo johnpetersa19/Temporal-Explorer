@@ -24,13 +24,14 @@ template $SearchFilterPopover : Popover {
       margin-end: 12;
       width-request: 340;
 
-      /* ── File type filter — same position as Nautilus ─────────────── */
+      /* File Type Filter */
       Box {
         orientation: vertical;
         spacing: 6;
 
-        Label {
+        Label file_type_header {
           label: _("File Types");
+          use-underline: true;
           xalign: 0;
           valign: baseline;
           styles ["heading"]
@@ -45,7 +46,8 @@ template $SearchFilterPopover : Popover {
             accessible-role: checkbox;
             child: Adw.ButtonContent {
               icon-name: "audio-x-generic-symbolic";
-              label: _("Audio");
+              label: _("_Audio");
+              use-underline: true;
             };
           }
 
@@ -53,7 +55,8 @@ template $SearchFilterPopover : Popover {
             accessible-role: checkbox;
             child: Adw.ButtonContent {
               icon-name: "rich-text-symbolic";
-              label: _("Documents");
+              label: _("_Documents");
+              use-underline: true;
             };
           }
 
@@ -61,7 +64,8 @@ template $SearchFilterPopover : Popover {
             accessible-role: checkbox;
             child: Adw.ButtonContent {
               icon-name: "folder-symbolic";
-              label: _("Folders");
+              label: _("_Folders");
+              use-underline: true;
             };
           }
 
@@ -69,7 +73,8 @@ template $SearchFilterPopover : Popover {
             accessible-role: checkbox;
             child: Adw.ButtonContent {
               icon-name: "image-print-symbolic";
-              label: _("Images");
+              label: _("_Images");
+              use-underline: true;
             };
           }
 
@@ -77,7 +82,8 @@ template $SearchFilterPopover : Popover {
             accessible-role: checkbox;
             child: Adw.ButtonContent {
               icon-name: "rich-text-symbolic";
-              label: "PDF";
+              label: _("_PDF");
+              use-underline: true;
             };
           }
 
@@ -85,7 +91,8 @@ template $SearchFilterPopover : Popover {
             accessible-role: checkbox;
             child: Adw.ButtonContent {
               icon-name: "paper-symbolic";
-              label: _("Text");
+              label: _("Te_xt");
+              use-underline: true;
             };
           }
 
@@ -93,7 +100,8 @@ template $SearchFilterPopover : Popover {
             accessible-role: checkbox;
             child: Adw.ButtonContent {
               icon-name: "camera-video-symbolic";
-              label: _("Videos");
+              label: _("_Videos");
+              use-underline: true;
             };
           }
 
@@ -105,7 +113,7 @@ template $SearchFilterPopover : Popover {
         }
       }
 
-      /* ── Date filter — Nautilus-like “Last Modified” section ──────── */
+      /* Date Filter */
       Box {
         orientation: vertical;
         spacing: 6;
@@ -115,6 +123,7 @@ template $SearchFilterPopover : Popover {
 
           Label date_header {
             label: _("Last Modified");
+            use-underline: true;
             hexpand: true;
             xalign: 0;
             valign: baseline;
@@ -177,15 +186,14 @@ template $SearchFilterPopover : Popover {
         }
       }
 
-      /* ── Text matching — adapted from Nautilus.
-       * In Temporal Explorer the timeline SearchEntry controls the text query.
-       */
+      /* Other Filter Options */
       Box {
         orientation: vertical;
         spacing: 6;
 
-        Label {
+        Label text_matching_header {
           label: _("Text Matching");
+          use-underline: true;
           xalign: 0;
           valign: baseline;
           styles ["heading"]
@@ -223,6 +231,7 @@ template $SearchFilterPopover : Popover {
 
           Label author_header {
             label: _("Author");
+            use-underline: true;
             hexpand: true;
             xalign: 0;
             valign: baseline;
@@ -265,6 +274,7 @@ template $SearchFilterPopover : Popover {
 
           Label branch_header {
             label: _("Branch");
+            use-underline: true;
             hexpand: true;
             xalign: 0;
             valign: baseline;

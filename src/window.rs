@@ -72,15 +72,19 @@ use crate::batch_operations_dialog::{BatchOp, BatchOperationsDialog};
 use crate::clone_repository_dialog::CloneRepositoryDialog;
 use crate::column_chooser::{ColumnChooser, ColumnVisibility};
 use crate::commit_controller;
+use crate::commit_details_dialog::{CommitDetails, CommitDetailsDialog};
 use crate::file_grid_captions_dialog::{CaptionFlags, FileGridCaptionsDialog};
 use crate::file_preview;
 use crate::filter_types_dialog::FilterTypesDialog;
-use crate::git_engine::{CommitInfo, DirCache, HistoryReader, SnapshotResolver, TreeNode};
+use crate::git_engine::{
+    build_commit_file_index, CommitFileIndex, CommitInfo, DirCache, FileIndexStore, HistoryReader,
+    SnapshotResolver, TreeNode,
+};
 use crate::merge_conflict_dialog::{ConflictInfo, MergeConflictDialog};
 use crate::new_branch_dialog::NewBranchDialog;
 use crate::node_properties_dialog::{NodeProperties, NodePropertiesDialog};
 use crate::operation_progress_dialog::OperationProgressDialog;
-use crate::search_filter_popover::{FileTypeFilter, FilterState, SearchFilterPopover};
+use crate::search_filter_popover::{FilterState, SearchFilterPopover};
 use crate::select_commits_by_pattern::{commit_matches_pattern, SelectCommitsByPattern};
 use crate::timeline_filter;
 use crate::toolbar::TemporalToolbar;
@@ -108,13 +112,27 @@ enum SearchProgressMessage {
     Error(String),
 }
 
+enum BackgroundIndexMessage {
+    Batch(Vec<(git2::Oid, CommitFileIndex)>),
+    Done,
+}
+
 struct SearchRunResult {
-    results: Vec<CommitInfo>,
-    newly_cached_changed_files: Vec<(String, Vec<String>)>,
-    file_match_counts: HashMap<String, usize>,
+    result_indices: Vec<usize>,
+    newly_indexed_files: Vec<(git2::Oid, CommitFileIndex)>,
+    file_match_counts: HashMap<git2::Oid, usize>,
     indexed: usize,
     cache_hits: usize,
     diff_errors: usize,
+}
+
+#[derive(Debug, Clone)]
+struct FileFilterResultsCache {
+    filter: FilterState,
+    query: String,
+    scope: Option<(i32, u32)>,
+    result_indices: Vec<usize>,
+    file_match_counts: HashMap<git2::Oid, usize>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -235,10 +253,13 @@ mod imp {
         pub branch_commit_index: RefCell<HashMap<String, HashSet<String>>>,
         pub seen_authors: RefCell<HashSet<String>>,
         pub changed_files_cache: RefCell<HashMap<String, Vec<String>>>,
+        pub file_index_store: RefCell<Option<FileIndexStore>>,
+        pub(super) file_filter_results_cache: RefCell<Option<FileFilterResultsCache>>,
         pub repo_path: RefCell<Option<PathBuf>>,
         pub repository: RefCell<Option<DebugRepository>>,
         pub last_query: RefCell<String>,
         pub current_hash: RefCell<Option<String>>,
+        pub current_oid: Cell<Option<git2::Oid>>,
         pub current_dir: RefCell<PathBuf>,
         pub current_nodes: RefCell<Vec<TreeNode>>,
         pub history_back: RefCell<Vec<PathBuf>>,
@@ -358,188 +379,6 @@ fn commit_touches_path(
     }
 
     false
-}
-
-fn file_matches_search_category(path: &str, filter: &FileTypeFilter) -> bool {
-    let path_obj = std::path::Path::new(path);
-
-    let ext = path_obj
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-
-    let in_folder = path_obj
-        .parent()
-        .is_some_and(|parent| !parent.as_os_str().is_empty());
-
-    let audio_ext = matches!(
-        ext.as_str(),
-        "mp3" | "flac" | "wav" | "ogg" | "opus" | "m4a" | "aac" | "mid" | "midi"
-    );
-
-    let document_ext = matches!(
-        ext.as_str(),
-        "doc" | "docx" | "odt" | "ott" | "rtf" | "abw" | "pages"
-    );
-
-    let image_ext = matches!(
-        ext.as_str(),
-        "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "tif" | "tiff" | "heic" | "avif"
-    );
-
-    let pdf_ext = ext == "pdf";
-
-    let text_ext = matches!(
-        ext.as_str(),
-        "txt"
-            | "md"
-            | "markdown"
-            | "rst"
-            | "log"
-            | "csv"
-            | "json"
-            | "jsonc"
-            | "yaml"
-            | "yml"
-            | "toml"
-            | "xml"
-            | "html"
-            | "css"
-            | "scss"
-            | "js"
-            | "ts"
-            | "jsx"
-            | "tsx"
-            | "rs"
-            | "c"
-            | "h"
-            | "cpp"
-            | "hpp"
-            | "cc"
-            | "py"
-            | "sh"
-            | "bash"
-            | "zsh"
-            | "fish"
-            | "go"
-            | "java"
-            | "kt"
-            | "swift"
-            | "php"
-            | "rb"
-            | "lua"
-            | "blp"
-            | "ui"
-            | "desktop"
-            | "service"
-    );
-
-    let video_ext = matches!(
-        ext.as_str(),
-        "mp4" | "mkv" | "webm" | "mov" | "avi" | "m4v" | "flv" | "wmv" | "mpeg" | "mpg"
-    );
-
-    (filter.audio && audio_ext)
-        || (filter.documents && document_ext)
-        || (filter.folders && in_folder)
-        || (filter.images && image_ext)
-        || (filter.pdf && pdf_ext)
-        || (filter.text && text_ext)
-        || (filter.videos && video_ext)
-        || filter.other_ext.as_deref().map_or(false, |wanted| {
-            ext == wanted.trim_start_matches('.').to_lowercase()
-        })
-}
-
-fn case_insensitive_extension_pathspec(ext: &str) -> String {
-    let mut pattern = String::from("*.");
-    for ch in ext.trim_start_matches('.').chars() {
-        if ch.is_ascii_alphabetic() {
-            pattern.push('[');
-            pattern.push(ch.to_ascii_lowercase());
-            pattern.push(ch.to_ascii_uppercase());
-            pattern.push(']');
-        } else {
-            pattern.push(ch);
-        }
-    }
-    pattern
-}
-
-fn add_extension_pathspecs(pathspecs: &mut Vec<String>, exts: &[&str]) {
-    for ext in exts {
-        pathspecs.push(case_insensitive_extension_pathspec(ext));
-    }
-}
-
-fn file_filter_pathspecs(filter: &FileTypeFilter) -> Vec<String> {
-    if filter.folders {
-        return Vec::new();
-    }
-
-    let mut pathspecs = Vec::new();
-
-    if filter.audio {
-        add_extension_pathspecs(
-            &mut pathspecs,
-            &[
-                "mp3", "flac", "wav", "ogg", "opus", "m4a", "aac", "mid", "midi",
-            ],
-        );
-    }
-
-    if filter.documents {
-        add_extension_pathspecs(
-            &mut pathspecs,
-            &["doc", "docx", "odt", "ott", "rtf", "abw", "pages"],
-        );
-    }
-
-    if filter.images {
-        add_extension_pathspecs(
-            &mut pathspecs,
-            &[
-                "png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tif", "tiff", "heic", "avif",
-            ],
-        );
-    }
-
-    if filter.pdf {
-        add_extension_pathspecs(&mut pathspecs, &["pdf"]);
-    }
-
-    if filter.text {
-        add_extension_pathspecs(
-            &mut pathspecs,
-            &[
-                "txt", "md", "markdown", "rst", "log", "csv", "json", "jsonc", "yaml", "yml",
-                "toml", "xml", "html", "css", "scss", "js", "ts", "jsx", "tsx", "rs", "c", "h",
-                "cpp", "hpp", "cc", "py", "sh", "bash", "zsh", "fish", "go", "java", "kt", "swift",
-                "php", "rb", "lua", "blp", "ui", "desktop", "service",
-            ],
-        );
-    }
-
-    if filter.videos {
-        add_extension_pathspecs(
-            &mut pathspecs,
-            &[
-                "mp4", "mkv", "webm", "mov", "avi", "m4v", "flv", "wmv", "mpeg", "mpg",
-            ],
-        );
-    }
-
-    if let Some(ext) = filter.other_ext.as_deref() {
-        let ext = ext.trim();
-        if !ext.is_empty() {
-            pathspecs.push(case_insensitive_extension_pathspec(ext));
-        }
-    }
-
-    pathspecs.sort();
-    pathspecs.dedup();
-    pathspecs
 }
 
 fn format_git_mode(mode: i32) -> String {
@@ -747,7 +586,7 @@ fn commit_matches_lightweight_filters(
 ) -> bool {
     if let Some(ref author) = filter.author {
         let wanted_author = author.to_lowercase();
-        if !commit.author.to_lowercase().contains(&wanted_author) {
+        if !commit.author_matches_query(&wanted_author) {
             return false;
         }
     }
@@ -770,12 +609,7 @@ fn commit_matches_lightweight_filters(
         }
     }
 
-    if !q.is_empty()
-        && !commit.summary.to_lowercase().contains(q)
-        && !commit.hash.starts_with(q)
-        && !commit.author.to_lowercase().contains(q)
-        && !matches_calendar(commit.timestamp, q)
-    {
+    if !q.is_empty() && !commit.matches_text_query(q) && !matches_calendar(commit.timestamp, q) {
         return false;
     }
 
@@ -802,20 +636,124 @@ fn clone_git_repository(
     url: String,
     destination: PathBuf,
     cancel: Arc<AtomicBool>,
+    progress: Arc<std::sync::atomic::AtomicUsize>,
+    include_files: bool,
 ) -> Result<PathBuf, String> {
-    let mut callbacks = git2::RemoteCallbacks::new();
-    let cancel_for_transfer = cancel.clone();
-    callbacks.transfer_progress(move |_| !cancel_for_transfer.load(Ordering::Relaxed));
+    fn clone_once(
+        url: &str,
+        destination: &Path,
+        cancel: &Arc<AtomicBool>,
+        progress: &Arc<std::sync::atomic::AtomicUsize>,
+        include_files: bool,
+    ) -> Result<(), git2::Error> {
+        let config = git2::Config::open_default().ok();
+        let ssh_keys: Vec<PathBuf> = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .into_iter()
+            .flat_map(|home| {
+                ["id_ed25519", "id_ecdsa", "id_rsa"]
+                    .into_iter()
+                    .map(move |name| home.join(".ssh").join(name))
+            })
+            .filter(|path| path.is_file())
+            .collect();
+        let mut ssh_attempt = 0usize;
 
-    let mut fetch_options = git2::FetchOptions::new();
-    fetch_options.remote_callbacks(callbacks);
+        let mut callbacks = git2::RemoteCallbacks::new();
+        let cancel_for_transfer = cancel.clone();
+        let progress_for_transfer = progress.clone();
+        callbacks.transfer_progress(move |stats| {
+            let total = stats.total_objects();
+            if total > 0 {
+                // Keep 100% for the point at which checkout has actually finished.
+                let percentage = (stats.received_objects() * 100 / total).min(99);
+                progress_for_transfer.store(percentage, Ordering::Relaxed);
+            }
+            !cancel_for_transfer.load(Ordering::Relaxed)
+        });
+        callbacks.credentials(move |remote_url, username, allowed| {
+            let username = username.unwrap_or("git");
 
-    let mut builder = git2::build::RepoBuilder::new();
-    builder.fetch_options(fetch_options);
+            if allowed.contains(git2::CredentialType::SSH_KEY) {
+                // Prefer the desktop session's ssh-agent. Flatpak exposes it through
+                // --socket=ssh-auth, so encrypted keys never need to be read here.
+                if ssh_attempt == 0 {
+                    ssh_attempt += 1;
+                    return git2::Cred::ssh_key_from_agent(username);
+                }
 
-    builder
-        .clone(&url, &destination)
-        .map(|_| destination)
+                if let Some(private_key) = ssh_keys.get(ssh_attempt - 1) {
+                    ssh_attempt += 1;
+                    return git2::Cred::ssh_key(username, None, private_key, None);
+                }
+            }
+
+            if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+                if let Some(config) = config.as_ref() {
+                    return git2::Cred::credential_helper(config, remote_url, Some(username));
+                }
+            }
+
+            if allowed.contains(git2::CredentialType::USERNAME) {
+                return git2::Cred::username(username);
+            }
+
+            if allowed.contains(git2::CredentialType::DEFAULT) {
+                return git2::Cred::default();
+            }
+
+            Err(git2::Error::from_str("no supported credentials available"))
+        });
+
+        let mut fetch_options = git2::FetchOptions::new();
+        fetch_options.remote_callbacks(callbacks);
+
+        let mut builder = git2::build::RepoBuilder::new();
+        builder.fetch_options(fetch_options);
+        builder.bare(!include_files);
+        builder.clone(url, destination).map(|_| ())
+    }
+
+    fn ssh_to_https(url: &str) -> Option<String> {
+        if let Some(rest) = url.strip_prefix("ssh://") {
+            let rest = rest
+                .split_once('@')
+                .map_or(rest, |(_, host_path)| host_path);
+            let (host, path) = rest.split_once('/')?;
+            return Some(format!("https://{host}/{path}"));
+        }
+
+        let (user_host, path) = url.split_once(':')?;
+        let (_, host) = user_host.split_once('@')?;
+        Some(format!("https://{host}/{path}"))
+    }
+
+    let result =
+        clone_once(&url, &destination, &cancel, &progress, include_files).or_else(|ssh_error| {
+            // Public repositories are often copied from hosting sites using their SSH
+            // URL. If no SSH identity is configured, HTTPS can still open them without
+            // turning the Open action into an authentication prompt.
+            let Some(https_url) = ssh_to_https(&url) else {
+                return Err(ssh_error);
+            };
+            if ssh_error.code() != git2::ErrorCode::Auth {
+                return Err(ssh_error);
+            }
+
+            if destination.exists() {
+                std::fs::remove_dir_all(&destination).map_err(|err| {
+                    git2::Error::from_str(&format!("failed to clean partial clone: {err}"))
+                })?;
+            }
+            progress.store(0, Ordering::Relaxed);
+            clone_once(&https_url, &destination, &cancel, &progress, include_files)
+        });
+
+    result
+        .map(|_| {
+            progress.store(100, Ordering::Relaxed);
+            destination
+        })
         .map_err(|err| {
             if cancel.load(Ordering::Relaxed) {
                 gettext("Clone operation cancelled")
@@ -823,6 +761,147 @@ fn clone_git_repository(
                 format!("{}: {err}", gettext("Failed to clone repository"))
             }
         })
+}
+
+fn cherry_pick_commits(repo_path: &Path, shas: &[String], signoff: bool) -> Result<usize, String> {
+    let repo = git2::Repository::open(repo_path).map_err(|e| e.to_string())?;
+
+    if repo.is_bare() {
+        return Err(gettext("Cannot cherry-pick in a bare repository"));
+    }
+    if repo.head_detached().map_err(|e| e.to_string())? {
+        return Err(gettext("Cannot cherry-pick while HEAD is detached"));
+    }
+    if !repo.statuses(None).map_err(|e| e.to_string())?.is_empty() {
+        return Err(gettext(
+            "Commit or stash local changes before running cherry-pick",
+        ));
+    }
+
+    let signature = repo.signature().map_err(|_| {
+        gettext("Configure your Git user name and email before running cherry-pick")
+    })?;
+    let mut applied = 0usize;
+
+    // History is displayed newest-first; replay selected commits oldest-first.
+    for sha in shas.iter().rev() {
+        let oid = git2::Oid::from_str(sha).map_err(|e| e.to_string())?;
+        let commit = repo.find_commit(oid).map_err(|e| e.to_string())?;
+        let head = repo
+            .head()
+            .and_then(|head| head.peel_to_commit())
+            .map_err(|e| e.to_string())?;
+        let mut index = repo
+            .cherrypick_commit(&commit, &head, 0, None)
+            .map_err(|e| e.to_string())?;
+
+        if index.has_conflicts() {
+            return Err(format!(
+                "{} {}",
+                gettext("Cherry-pick has conflicts at commit"),
+                short_hash(sha)
+            ));
+        }
+
+        let tree_id = index.write_tree_to(&repo).map_err(|e| e.to_string())?;
+        let tree = repo.find_tree(tree_id).map_err(|e| e.to_string())?;
+        let mut message = commit
+            .message()
+            .unwrap_or(&commit.summary().unwrap_or(""))
+            .to_string();
+
+        if signoff {
+            let name = signature.name().unwrap_or("");
+            let email = signature.email().unwrap_or("");
+            message = format!(
+                "{}\n\nSigned-off-by: {} <{}>",
+                message.trim_end(),
+                name,
+                email
+            );
+        }
+
+        repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            &message,
+            &tree,
+            &[&head],
+        )
+        .map_err(|e| e.to_string())?;
+        applied += 1;
+    }
+
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.force();
+    repo.checkout_head(Some(&mut checkout))
+        .map_err(|e| e.to_string())?;
+
+    Ok(applied)
+}
+
+#[cfg(test)]
+mod cherry_pick_tests {
+    use super::cherry_pick_commits;
+    use git2::{Repository, Signature};
+
+    #[test]
+    fn cherry_pick_replays_an_unattached_commit_onto_head() {
+        let dir = tempfile::tempdir().expect("temporary repository");
+        let repo = Repository::init(dir.path()).expect("initialize repository");
+        let mut config = repo.config().expect("repository config");
+        config.set_str("user.name", "Temporal Test").unwrap();
+        config
+            .set_str("user.email", "temporal@example.invalid")
+            .unwrap();
+
+        let signature = Signature::now("Temporal Test", "temporal@example.invalid").unwrap();
+        let empty_tree_id = repo.treebuilder(None).unwrap().write().unwrap();
+        let empty_tree = repo.find_tree(empty_tree_id).unwrap();
+        let initial_id = repo
+            .commit(
+                Some("HEAD"),
+                &signature,
+                &signature,
+                "Initial commit",
+                &empty_tree,
+                &[],
+            )
+            .unwrap();
+        let initial = repo.find_commit(initial_id).unwrap();
+
+        let blob_id = repo.blob(b"new content\n").unwrap();
+        let mut builder = repo.treebuilder(Some(&empty_tree)).unwrap();
+        builder.insert("new.txt", blob_id, 0o100644).unwrap();
+        let feature_tree_id = builder.write().unwrap();
+        let feature_tree = repo.find_tree(feature_tree_id).unwrap();
+        let feature_id = repo
+            .commit(
+                None,
+                &signature,
+                &signature,
+                "Add new file",
+                &feature_tree,
+                &[&initial],
+            )
+            .unwrap();
+
+        drop(builder);
+        drop(feature_tree);
+        drop(initial);
+        drop(empty_tree);
+        drop(repo);
+
+        let applied = cherry_pick_commits(dir.path(), &[feature_id.to_string()], false)
+            .expect("cherry-pick succeeds");
+        assert_eq!(applied, 1);
+
+        let repo = Repository::open(dir.path()).unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        assert_eq!(head.summary(), Some("Add new file"));
+        assert!(head.tree().unwrap().get_name("new.txt").is_some());
+    }
 }
 
 // ── TemporalExplorerWindow impl ────────────────────────────────────────────────
@@ -1463,12 +1542,54 @@ impl TemporalExplorerWindow {
     }
 
     fn show_current_commit_details(&self) {
-        if self.imp().current_hash.borrow().is_none() {
+        let Some(hash) = self.imp().current_hash.borrow().clone() else {
             self.show_toast(&gettext("No commit selected"));
             return;
-        }
+        };
 
-        self.show_current_folder_properties();
+        let repo_ref = self.imp().repository.borrow();
+        let Some(repo_wrapper) = repo_ref.as_ref() else {
+            self.show_error(&gettext("No repository loaded"));
+            return;
+        };
+
+        let commit = match git2::Oid::from_str(&hash)
+            .ok()
+            .and_then(|oid| repo_wrapper.0.find_commit(oid).ok())
+        {
+            Some(commit) => commit,
+            None => {
+                self.show_error(&gettext("Could not load commit details"));
+                return;
+            }
+        };
+
+        let parents = if commit.parent_count() == 0 {
+            gettext("Root commit")
+        } else {
+            commit
+                .parent_ids()
+                .map(|oid| short_hash(&oid.to_string()).to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+
+        let details = CommitDetails {
+            summary: commit.summary().unwrap_or("").to_string(),
+            sha: commit.id().to_string(),
+            parents,
+            author: commit.author().name().unwrap_or("").to_string(),
+            email: commit.author().email().unwrap_or("").to_string(),
+            date: Self::format_timestamp(commit.time().seconds()),
+            message: commit.message().unwrap_or("").trim().to_string(),
+        };
+
+        drop(commit);
+        drop(repo_ref);
+
+        let dialog = CommitDetailsDialog::new();
+        dialog.set_details(&details);
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
     fn preview_selected_file_from_action(&self) {
@@ -1493,7 +1614,9 @@ impl TemporalExplorerWindow {
             return;
         };
 
-        self.try_show_merge_conflict_dialog(&hash);
+        if !self.try_show_merge_conflict_dialog(&hash) {
+            self.show_toast(&gettext("Selected commit is not a merge commit"));
+        }
     }
 
     fn select_all_commits(&self) {
@@ -1726,25 +1849,7 @@ impl TemporalExplorerWindow {
             .toolbar
             .history_controls()
             .connect_local("navigate-back", false, move |_| {
-                // ── Step 1: snapshot condition into owned bools ───────────────────
-                // All borrow() guards are dropped at the end of this block.
-                // `imp` is NOT stored in a let-binding that outlives this block,
-                // because doing so would keep an implicit borrow alive across the
-                // dispatch call below, which triggers the RefCell panic.
-                let (has_hash, in_subdir) = {
-                    let imp = win.imp();
-                    let has_hash = imp.current_hash.borrow().is_some();
-                    let in_subdir = !imp.current_dir.borrow().as_os_str().is_empty();
-                    (has_hash, in_subdir)
-                    // imp, and both borrow() guards, are dropped here
-                };
-
-                // ── Step 2: dispatch — no RefCell is borrowed at this point ───────
-                if has_hash && in_subdir {
-                    win.navigate_back();
-                } else {
-                    win.navigate_commit_back();
-                }
+                win.navigate_back();
                 None
             });
 
@@ -1753,20 +1858,7 @@ impl TemporalExplorerWindow {
             .toolbar
             .history_controls()
             .connect_local("navigate-forward", false, move |_| {
-                // Same pattern as "navigate-back".
-                let (has_hash, in_subdir) = {
-                    let imp = win.imp();
-                    let has_hash = imp.current_hash.borrow().is_some();
-                    let in_subdir = !imp.current_dir.borrow().as_os_str().is_empty();
-                    (has_hash, in_subdir)
-                    // imp, and both borrow() guards, are dropped here
-                };
-
-                if has_hash && in_subdir {
-                    win.navigate_forward();
-                } else {
-                    win.navigate_commit_forward();
-                }
+                win.navigate_forward();
                 None
             });
     }
@@ -1803,6 +1895,7 @@ impl TemporalExplorerWindow {
     /// `current_hash` and `current_dir` internally; any live `imp` binding at the
     /// call-site would alias those borrows and cause a fatal RefCell panic inside
     /// the non-unwinding glib closure marshaller (SIGABRT).
+    #[allow(dead_code)]
     fn navigate_commit_back(&self) {
         // ── Extract all needed values; every borrow guard drops at end of block ──
         let (prev_hash, current) = {
@@ -1831,6 +1924,7 @@ impl TemporalExplorerWindow {
     /// Mirrors `navigate_commit_back`: all RefCell values are extracted into
     /// owned locals before `jump_to_commit_hash` is called, avoiding any
     /// simultaneous borrow_mut aliasing.
+    #[allow(dead_code)]
     fn navigate_commit_forward(&self) {
         // ── Extract all needed values; every borrow guard drops at end of block ──
         let (next_hash, current) = {
@@ -1855,6 +1949,7 @@ impl TemporalExplorerWindow {
     fn jump_to_commit_hash(&self, hash: String) {
         let imp = self.imp();
         *imp.current_hash.borrow_mut() = Some(hash.clone());
+        imp.current_oid.set(None);
         *imp.current_dir.borrow_mut() = PathBuf::new();
         imp.history_back.borrow_mut().clear();
         imp.history_forward.borrow_mut().clear();
@@ -1873,6 +1968,7 @@ impl TemporalExplorerWindow {
                 });
 
             if let Some(commit) = commit {
+                imp.current_oid.set(Some(commit.oid()));
                 imp.commit_hash_label.set_label(display_hash(&commit.hash));
                 imp.commit_message_label.set_label(&commit.summary);
                 imp.commit_date_label
@@ -1885,12 +1981,7 @@ impl TemporalExplorerWindow {
     }
 
     fn update_commit_nav_buttons(&self) {
-        let imp = self.imp();
-        let can_back = !imp.commit_nav_back.borrow().is_empty();
-        let can_forward = !imp.commit_nav_forward.borrow().is_empty();
-        imp.toolbar
-            .history_controls()
-            .set_sensitivity(can_back, can_forward);
+        self.update_navigation_buttons();
     }
 
     // ── Saved view preferences ────────────────────────────────────────────────
@@ -2183,24 +2274,79 @@ impl TemporalExplorerWindow {
     // ── BatchOperationsDialog ─────────────────────────────────────────────────
 
     pub fn show_batch_operations_dialog(&self) {
+        let mut selected_hashes = HashSet::new();
+        let mut child = self.imp().commit_list.first_child();
+        while let Some(widget) = child {
+            child = widget.next_sibling();
+            if let Ok(row) = widget.downcast::<gtk::ListBoxRow>() {
+                if row.has_css_class("pattern-match") && !row.widget_name().is_empty() {
+                    selected_hashes.insert(row.widget_name().to_string());
+                }
+            }
+        }
+
+        if selected_hashes.is_empty() {
+            if let Some(hash) = self.imp().current_hash.borrow().clone() {
+                selected_hashes.insert(hash);
+            }
+        }
+
+        let selected_commits = self
+            .imp()
+            .all_commits
+            .borrow()
+            .iter()
+            .filter(|commit| selected_hashes.contains(&commit.hash))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        if selected_commits.is_empty() {
+            self.show_toast(&gettext("Select at least one commit"));
+            return;
+        }
+
         let dialog = BatchOperationsDialog::new();
-        dialog.set_commits(&self.imp().all_commits.borrow());
+        dialog.set_commits(&selected_commits);
 
         let win = self.clone();
         dialog.connect_operation_requested(move |dlg, op, shas| match op {
             BatchOp::CherryPick { signoff } => {
-                let msg = format!(
-                    "{} {} commit(s){}",
-                    gettext("Cherry-pick"),
-                    shas.len(),
-                    if signoff {
-                        gettext(" with sign-off")
-                    } else {
-                        String::new()
-                    },
-                );
-                win.show_toast(&msg);
-                dlg.mark_done();
+                let Some(repo_path) = win.imp().repo_path.borrow().clone() else {
+                    win.show_error(&gettext("No repository loaded"));
+                    return;
+                };
+                let dlg_ref = dlg.clone();
+                let win_ref = win.clone();
+                dlg.set_progress_visible(true);
+                let (tx, rx) = std::sync::mpsc::sync_channel(1);
+
+                std::thread::spawn(move || {
+                    let _ = tx.send(cherry_pick_commits(&repo_path, &shas, signoff));
+                });
+
+                glib::idle_add_local(move || match rx.try_recv() {
+                    Ok(Ok(count)) => {
+                        dlg_ref.mark_done();
+                        win_ref.show_toast(&format!(
+                            "{} {} commit(s)",
+                            gettext("Cherry-picked"),
+                            count
+                        ));
+                        win_ref.reload_repository();
+                        glib::ControlFlow::Break
+                    }
+                    Ok(Err(error)) => {
+                        dlg_ref.mark_failed();
+                        win_ref.show_error(&format!("{}: {error}", gettext("Cherry-pick failed")));
+                        glib::ControlFlow::Break
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                    Err(_) => {
+                        dlg_ref.mark_failed();
+                        win_ref.show_error(&gettext("Cherry-pick worker stopped unexpectedly"));
+                        glib::ControlFlow::Break
+                    }
+                });
             }
             BatchOp::ExportPatches { dest_dir } => {
                 let shas_clone = shas.clone();
@@ -2348,29 +2494,29 @@ impl TemporalExplorerWindow {
     // ── MergeConflictDialog ───────────────────────────────────────────────────
 
     /// Show the merge-conflict inspector only for merge commits (≥ 2 parents).
-    fn try_show_merge_conflict_dialog(&self, hash: &str) {
+    fn try_show_merge_conflict_dialog(&self, hash: &str) -> bool {
         let repo_path = match self.imp().repo_path.borrow().clone() {
             Some(p) => p,
-            None => return,
+            None => return false,
         };
 
         let repo = match git2::Repository::open(&repo_path) {
             Ok(r) => r,
-            Err(_) => return,
+            Err(_) => return false,
         };
 
         let oid = match git2::Oid::from_str(hash) {
             Ok(o) => o,
-            Err(_) => return,
+            Err(_) => return false,
         };
 
         let commit = match repo.find_commit(oid) {
             Ok(c) => c,
-            Err(_) => return,
+            Err(_) => return false,
         };
 
         if commit.parent_count() < 2 {
-            return;
+            return false;
         }
 
         let ours = commit.parent(0).ok();
@@ -2454,23 +2600,8 @@ impl TemporalExplorerWindow {
         let dialog = MergeConflictDialog::new();
         dialog.load_conflict(&info);
 
-        let win = self.clone();
-        dialog.connect_conflict_resolved(move |_, resolution, file_path, apply_all| {
-            let msg = format!(
-                "{}: {} \u{2018}{}\u{2019}{}",
-                gettext("Conflict resolved"),
-                resolution,
-                file_path,
-                if apply_all {
-                    format!(" ({})", gettext("applied to all"))
-                } else {
-                    String::new()
-                },
-            );
-            win.show_toast(&msg);
-        });
-
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
+        true
     }
 
     // ── FilterTypesDialog ─────────────────────────────────────────────────────
@@ -2525,24 +2656,95 @@ impl TemporalExplorerWindow {
         dialog.select_folder(Some(self), gio::Cancellable::NONE, move |result| {
             if let Ok(file) = result {
                 if let Some(path) = file.path() {
-                    win.load_repository(path);
+                    if git2::Repository::open(&path).is_ok() {
+                        win.load_repository(path);
+                    } else {
+                        win.show_invalid_repository_and_retry(&path);
+                    }
                 }
             }
         });
+    }
+
+    fn show_invalid_repository_and_retry(&self, path: &Path) {
+        let folder = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_else(|| path.to_str().unwrap_or(""));
+        let message = format!(
+            "{}\n\n{}: {}",
+            gettext(
+                "No Git repository was found in the selected folder. Choose a folder that contains a Git project."
+            ),
+            gettext("Selected folder"),
+            folder
+        );
+
+        let dialog = adw::AlertDialog::builder()
+            .heading(gettext("Repository Not Found"))
+            .body(message)
+            .build();
+        dialog.add_response("cancel", &gettext("Cancel"));
+        dialog.add_response("choose-again", &gettext("Choose Another Folder"));
+        dialog.set_default_response(Some("choose-again"));
+        dialog.set_close_response("cancel");
+
+        let win = self.clone();
+        dialog.connect_response(Some("choose-again"), move |_, _| {
+            win.open_repo_dialog();
+        });
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
     fn show_clone_repository_dialog(&self) {
         let dialog = CloneRepositoryDialog::new();
 
         let win = self.clone();
-        dialog.connect_clone_requested(move |_, url, destination| {
-            win.clone_repository(url.to_string(), PathBuf::from(destination));
+        dialog.connect_clone_requested(move |_, url, destination, save, include_files| {
+            let destination = if save {
+                PathBuf::from(destination)
+            } else {
+                win.temporary_clone_destination(url)
+            };
+            win.clone_repository(url.to_string(), destination, save, include_files);
         });
 
         AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
-    fn clone_repository(&self, url: String, destination: PathBuf) {
+    fn temporary_clone_destination(&self, url: &str) -> PathBuf {
+        let repository_name = url
+            .trim_end_matches('/')
+            .rsplit('/')
+            .next()
+            .unwrap_or("repository")
+            .trim_end_matches(".git");
+        let repository_name = repository_name
+            .chars()
+            .map(|character| {
+                if character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.') {
+                    character
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>();
+        let unique = format!(
+            "{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_nanos())
+                .unwrap_or_default()
+        );
+        std::env::temp_dir()
+            .join("temporal-explorer")
+            .join("repositories")
+            .join(unique)
+            .join(repository_name)
+    }
+
+    fn clone_repository(&self, url: String, destination: PathBuf, save: bool, include_files: bool) {
         let url = url.trim().to_string();
 
         if url.is_empty() {
@@ -2572,13 +2774,23 @@ impl TemporalExplorerWindow {
                 }
             }
         } else if let Some(parent) = destination.parent() {
-            if !parent.exists() {
+            if !parent.exists() && save {
                 self.show_error(&gettext("Parent folder does not exist"));
                 return;
+            }
+            if !parent.exists() {
+                if let Err(error) = std::fs::create_dir_all(parent) {
+                    self.show_error(&format!(
+                        "{}: {error}",
+                        gettext("Cannot create temporary clone directory")
+                    ));
+                    return;
+                }
             }
         }
 
         let cancel = Arc::new(AtomicBool::new(false));
+        let clone_progress = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let progress = OperationProgressDialog::new();
         progress.setup(
             &gettext("Cloning Repository"),
@@ -2590,10 +2802,18 @@ impl TemporalExplorerWindow {
         let worker_url = url.clone();
         let worker_destination = destination.clone();
         let worker_cancel = cancel.clone();
+        let worker_progress = clone_progress.clone();
+        let saved_clone = save;
         let (tx, rx) = std::sync::mpsc::channel();
 
         std::thread::spawn(move || {
-            let result = clone_git_repository(worker_url, worker_destination, worker_cancel);
+            let result = clone_git_repository(
+                worker_url,
+                worker_destination,
+                worker_cancel,
+                worker_progress,
+                !saved_clone || include_files,
+            );
             tx.send(result).ok();
         });
 
@@ -2602,7 +2822,12 @@ impl TemporalExplorerWindow {
             match rx.try_recv() {
                 Ok(Ok(path)) => {
                     progress.finish_and_close();
-                    win.show_toast(&gettext("Repository cloned"));
+                    let message = if saved_clone {
+                        gettext("Repository saved and opened")
+                    } else {
+                        gettext("Repository opened temporarily")
+                    };
+                    win.show_toast(&message);
                     win.load_repository(path);
                     glib::ControlFlow::Break
                 }
@@ -2617,7 +2842,8 @@ impl TemporalExplorerWindow {
                     } else {
                         gettext("Cloning repository…")
                     };
-                    progress.pulse(&status);
+                    let fraction = clone_progress.load(Ordering::Relaxed) as f64 / 100.0;
+                    progress.set_progress(fraction, &status);
                     glib::ControlFlow::Continue
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
@@ -2647,7 +2873,10 @@ impl TemporalExplorerWindow {
                 let imp = self.imp();
                 *imp.repo_path.borrow_mut() = Some(path.clone());
                 *imp.repository.borrow_mut() = Some(DebugRepository(repo));
+                *imp.file_index_store.borrow_mut() = Some(FileIndexStore::open(&path));
                 *imp.repo_name.borrow_mut() = repo_name.clone();
+                *imp.current_hash.borrow_mut() = None;
+                imp.current_oid.set(None);
                 *imp.current_dir.borrow_mut() = PathBuf::new();
                 imp.history_back.borrow_mut().clear();
                 imp.history_forward.borrow_mut().clear();
@@ -2780,6 +3009,7 @@ impl TemporalExplorerWindow {
         self.imp().year_counts.borrow_mut().clear();
         self.imp().seen_authors.borrow_mut().clear();
         self.imp().changed_files_cache.borrow_mut().clear();
+        self.imp().file_filter_results_cache.borrow_mut().take();
 
         // Show the empty state *before* the worker starts so the UI never
         // displays stale content from a previous repository during loading.
@@ -2829,6 +3059,23 @@ impl TemporalExplorerWindow {
                 // ── End-of-stream sentinel ────────────────────────────────────
                 Ok(Ok(page)) if page.is_empty() => {
                     win.imp().loading_commits.set(false);
+
+                    let reachable = win
+                        .imp()
+                        .all_commits
+                        .borrow()
+                        .iter()
+                        .enumerate()
+                        .map(|(index, commit)| (commit.oid(), index))
+                        .collect::<HashMap<_, _>>();
+                    if let Some(store) = win.imp().file_index_store.borrow_mut().as_mut() {
+                        store.retain_oids(&reachable);
+                        let store_to_save = store.clone();
+                        std::thread::spawn(move || {
+                            let _ = store_to_save.save();
+                        });
+                    }
+                    win.start_background_file_index(cancel.clone());
 
                     // Guard: if no commits arrived at all the repository has no
                     // history reachable from HEAD (empty repo, unborn branch, or
@@ -2895,6 +3142,104 @@ impl TemporalExplorerWindow {
         });
     }
 
+    fn start_background_file_index(&self, cancel: Arc<AtomicBool>) {
+        let repo_path = match self.imp().repo_path.borrow().clone() {
+            Some(path) => path,
+            None => return,
+        };
+
+        let existing = self
+            .imp()
+            .file_index_store
+            .borrow()
+            .as_ref()
+            .map(FileIndexStore::snapshot)
+            .unwrap_or_default();
+
+        let missing_oids = {
+            let commits = self.imp().all_commits.borrow();
+            commits
+                .iter()
+                .map(|commit| commit.oid())
+                .filter(|oid| !existing.contains_key(oid))
+                .collect::<Vec<_>>()
+        };
+
+        if missing_oids.is_empty() {
+            return;
+        }
+
+        // Index newest commits first so the first extension search becomes useful sooner.
+        let mut missing_oids = missing_oids;
+        missing_oids.reverse();
+
+        let (tx, rx) = std::sync::mpsc::sync_channel::<BackgroundIndexMessage>(4);
+        let worker_cancel = cancel.clone();
+
+        std::thread::spawn(move || {
+            let Ok(repo) = git2::Repository::open(&repo_path) else {
+                let _ = tx.send(BackgroundIndexMessage::Done);
+                return;
+            };
+
+            let mut batch = Vec::with_capacity(64);
+            for oid in missing_oids {
+                if worker_cancel.load(Ordering::Relaxed) {
+                    break;
+                }
+
+                if let Ok(index) = build_commit_file_index(&repo, oid) {
+                    batch.push((oid, index));
+                }
+
+                if batch.len() >= 64 {
+                    let _ = tx.send(BackgroundIndexMessage::Batch(std::mem::take(&mut batch)));
+                }
+
+                if batch.len() % 16 == 0 {
+                    std::thread::yield_now();
+                }
+            }
+
+            if !batch.is_empty() {
+                let _ = tx.send(BackgroundIndexMessage::Batch(batch));
+            }
+            let _ = tx.send(BackgroundIndexMessage::Done);
+        });
+
+        let win = self.clone();
+        glib::idle_add_local(move || {
+            if cancel.load(Ordering::Relaxed) {
+                return glib::ControlFlow::Break;
+            }
+
+            loop {
+                match rx.try_recv() {
+                    Ok(BackgroundIndexMessage::Batch(batch)) => {
+                        if let Some(store) = win.imp().file_index_store.borrow_mut().as_mut() {
+                            store.insert_many(batch);
+                        }
+                    }
+                    Ok(BackgroundIndexMessage::Done) => {
+                        if let Some(store) = win.imp().file_index_store.borrow().as_ref() {
+                            let store_to_save = store.clone();
+                            std::thread::spawn(move || {
+                                let _ = store_to_save.save();
+                            });
+                        }
+                        return glib::ControlFlow::Break;
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                        return glib::ControlFlow::Continue;
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        return glib::ControlFlow::Break;
+                    }
+                }
+            }
+        });
+    }
+
     fn visible_timeline_commits<'a>(&'a self, commits: &'a [CommitInfo]) -> Vec<&'a CommitInfo> {
         let filter = self.imp().filter_state.borrow().clone();
 
@@ -2904,7 +3249,7 @@ impl TemporalExplorerWindow {
                 // Author filter
                 if let Some(ref author) = filter.author {
                     let wanted_author = author.to_lowercase();
-                    if !commit.author.to_lowercase().contains(&wanted_author) {
+                    if !commit.author_matches_query(&wanted_author) {
                         return false;
                     }
                 }
@@ -2976,17 +3321,98 @@ impl TemporalExplorerWindow {
     fn reapply_active_file_filter(&self) {
         let file_filter_active = self.imp().filter_state.borrow().files.is_active();
         if file_filter_active {
-            let q = self.imp().last_query.borrow().clone();
-            self.run_search(q);
+            if !self.apply_cached_file_filter_for_current_scope() {
+                let q = self.imp().last_query.borrow().clone();
+                self.run_search(q);
+            }
         }
+    }
+
+    fn apply_cached_file_filter_for_current_scope(&self) -> bool {
+        let imp = self.imp();
+        let filter = imp.filter_state.borrow().clone();
+        let query = imp.last_query.borrow().to_lowercase();
+        let cache = imp.file_filter_results_cache.borrow().clone();
+        let Some(cache) = cache.filter(|cache| cache.filter == filter && cache.query == query)
+        else {
+            return false;
+        };
+
+        let level = *imp.timeline_level.borrow();
+        let selected_year = imp.selected_year.get();
+        let selected_month = imp.selected_month.get();
+        let requested_scope = match level {
+            TimelineLevel::Commits if selected_year > 0 && selected_month > 0 => {
+                Some((selected_year, selected_month))
+            }
+            TimelineLevel::Months | TimelineLevel::Commits if selected_year > 0 => {
+                Some((selected_year, 0))
+            }
+            _ => None,
+        };
+        let cache_covers_scope = match (cache.scope, requested_scope) {
+            (None, _) => true,
+            (Some((cached_year, 0)), Some((year, _))) => cached_year == year,
+            (Some(cached), Some(requested)) => cached == requested,
+            (Some(_), None) => false,
+        };
+        if !cache_covers_scope {
+            return false;
+        }
+
+        let commits = imp.all_commits.borrow();
+        let scoped_indices = cache
+            .result_indices
+            .iter()
+            .copied()
+            .filter(|index| {
+                commits.get(*index).is_some_and(|commit| match level {
+                    TimelineLevel::Years => true,
+                    TimelineLevel::Months if selected_year > 0 => {
+                        year_from_timestamp(commit.timestamp) == Some(selected_year)
+                    }
+                    TimelineLevel::Commits if selected_year > 0 && selected_month > 0 => {
+                        year_month_from_timestamp(commit.timestamp)
+                            == Some((selected_year, selected_month))
+                    }
+                    TimelineLevel::Commits if selected_year > 0 => {
+                        year_from_timestamp(commit.timestamp) == Some(selected_year)
+                    }
+                    _ => true,
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let scoped_counts = scoped_indices
+            .iter()
+            .filter_map(|index| {
+                let commit = commits.get(*index)?;
+                cache
+                    .file_match_counts
+                    .get(&commit.oid())
+                    .map(|count| (commit.oid(), *count))
+            })
+            .collect::<HashMap<_, _>>();
+
+        if level == TimelineLevel::Commits {
+            let refs = scoped_indices
+                .iter()
+                .filter_map(|index| commits.get(*index))
+                .collect::<Vec<_>>();
+            commit_controller::populate_commit_list_refs(&imp.commit_list, &refs);
+        }
+        drop(commits);
+        self.update_file_filter_timeline(&scoped_indices, &scoped_counts);
+        true
     }
 
     fn update_file_filter_timeline(
         &self,
-        results: &[CommitInfo],
-        file_match_counts: &HashMap<String, usize>,
+        result_indices: &[usize],
+        file_match_counts: &HashMap<git2::Oid, usize>,
     ) {
         let imp = self.imp();
+        let commits = imp.all_commits.borrow();
         let selected_year = imp.selected_year.get();
         let selected_month = imp.selected_month.get();
         let level = *imp.timeline_level.borrow();
@@ -2998,7 +3424,7 @@ impl TemporalExplorerWindow {
                 timeline_filter::month_name(selected_month),
                 selected_year,
                 total_files,
-                results.len(),
+                result_indices.len(),
             ));
             return;
         }
@@ -3006,7 +3432,10 @@ impl TemporalExplorerWindow {
         if selected_year > 0 {
             let mut month_counts: Vec<(u32, usize)> = Vec::new();
 
-            for commit in results {
+            for index in result_indices {
+                let Some(commit) = commits.get(*index) else {
+                    continue;
+                };
                 let Some((year, month)) = year_month_from_timestamp(commit.timestamp) else {
                     continue;
                 };
@@ -3015,7 +3444,7 @@ impl TemporalExplorerWindow {
                     continue;
                 }
 
-                let count = file_match_counts.get(&commit.hash).copied().unwrap_or(0);
+                let count = file_match_counts.get(&commit.oid()).copied().unwrap_or(0);
                 if count == 0 {
                     continue;
                 }
@@ -3037,19 +3466,22 @@ impl TemporalExplorerWindow {
             imp.timeline_header_title.set_subtitle(&format!(
                 "{} file(s) · {} commit(s)",
                 total_files,
-                results.len()
+                result_indices.len()
             ));
             return;
         }
 
         let mut year_counts: Vec<(i32, usize)> = Vec::new();
 
-        for commit in results {
+        for index in result_indices {
+            let Some(commit) = commits.get(*index) else {
+                continue;
+            };
             let Some(year) = year_from_timestamp(commit.timestamp) else {
                 continue;
             };
 
-            let count = file_match_counts.get(&commit.hash).copied().unwrap_or(0);
+            let count = file_match_counts.get(&commit.oid()).copied().unwrap_or(0);
             if count == 0 {
                 continue;
             }
@@ -3183,6 +3615,7 @@ impl TemporalExplorerWindow {
         self.push_commit_nav(&hash);
 
         *imp.current_hash.borrow_mut() = Some(hash.clone());
+        imp.current_oid.set(None);
         *imp.current_dir.borrow_mut() = PathBuf::new();
         imp.history_back.borrow_mut().clear();
         imp.history_forward.borrow_mut().clear();
@@ -3201,6 +3634,7 @@ impl TemporalExplorerWindow {
                 });
 
             if let Some(commit) = commit {
+                imp.current_oid.set(Some(commit.oid()));
                 imp.commit_hash_label.set_label(display_hash(&commit.hash));
                 imp.commit_message_label.set_label(&commit.summary);
                 imp.commit_date_label
@@ -3256,6 +3690,7 @@ impl TemporalExplorerWindow {
             None => return,
         };
         let repo_name = imp.repo_name.borrow().clone();
+        let current_oid = imp.current_oid.get();
 
         *imp.current_dir.borrow_mut() = dir.clone();
 
@@ -3306,9 +3741,15 @@ impl TemporalExplorerWindow {
             let result = git2::Repository::open(&repo_path)
                 .map_err(|e| e.to_string())
                 .and_then(|repo| {
-                    SnapshotResolver::new(&repo)
-                        .resolve_dir(&hash, &dir_clone)
-                        .map_err(|e| e.to_string())
+                    let resolver = SnapshotResolver::new(&repo);
+                    match current_oid {
+                        Some(oid) => resolver
+                            .resolve_dir_oid(oid, &dir_clone)
+                            .map_err(|e| e.to_string()),
+                        None => resolver
+                            .resolve_dir(&hash, &dir_clone)
+                            .map_err(|e| e.to_string()),
+                    }
                 });
             let _ = tx.send(result);
         });
@@ -3828,44 +4269,40 @@ impl TemporalExplorerWindow {
         let menu = gio::Menu::new();
 
         let open_section = gio::Menu::new();
-        open_section.append(Some(&gettext("Open")), Some("win.context-open"));
-        open_section.append(
-            Some(&gettext("Open in New Tab")),
-            Some("win.context-open-new-tab"),
-        );
-        open_section.append(
-            Some(&gettext("Open in New Window")),
-            Some("win.context-open-new-window"),
-        );
-        open_section.append(Some(&gettext("Preview")), Some("win.context-preview"));
-        open_section.append(Some(&gettext("Open With…")), Some("win.context-open-with"));
-        open_section.append(
-            Some(&gettext("Open Item Location")),
-            Some("win.context-open-location"),
-        );
+        open_section.append(Some(&gettext("Open")), Some("ctx.context-open"));
+        if !is_file {
+            open_section.append(
+                Some(&gettext("Open in New Window")),
+                Some("ctx.context-open-new-window"),
+            );
+        }
+        if is_file {
+            open_section.append(Some(&gettext("Preview")), Some("ctx.context-preview"));
+        }
+        open_section.append(Some(&gettext("Open With…")), Some("ctx.context-open-with"));
         menu.append_section(None, &open_section);
 
         let edit_section = gio::Menu::new();
-        edit_section.append(Some(&gettext("Export File…")), Some("win.context-export"));
+        edit_section.append(Some(&gettext("Export File…")), Some("ctx.context-export"));
         edit_section.append(
             Some(&gettext("Copy Snapshot Path")),
-            Some("win.context-copy-path"),
+            Some("ctx.context-copy-path"),
         );
         edit_section.append(
             Some(&gettext("Copy Content")),
-            Some("win.context-copy-content"),
+            Some("ctx.context-copy-content"),
         );
         menu.append_section(None, &edit_section);
 
         let system_section = gio::Menu::new();
         system_section.append(
             Some(&gettext("Show in System")),
-            Some("win.context-show-system"),
+            Some("ctx.context-show-system"),
         );
         menu.append_section(None, &system_section);
 
         let properties_section = gio::Menu::new();
-        properties_section.append(Some(&gettext("Properties")), Some("win.context-properties"));
+        properties_section.append(Some(&gettext("Properties")), Some("ctx.context-properties"));
         menu.append_section(None, &properties_section);
 
         let group = gio::SimpleActionGroup::new();
@@ -3911,7 +4348,6 @@ impl TemporalExplorerWindow {
         group.add_action(&open_new_window_action);
 
         let open_with_action = gio::SimpleAction::new("context-open-with", None);
-        open_with_action.set_enabled(is_file);
         {
             let win = self.clone();
             let node = node.clone();
@@ -3924,14 +4360,17 @@ impl TemporalExplorerWindow {
         group.add_action(&open_with_action);
 
         let preview_action = gio::SimpleAction::new("context-preview", None);
-        preview_action.set_enabled(is_file);
         {
             let win = self.clone();
             let node = node.clone();
 
             preview_action.connect_activate(move |_, _| {
                 win.close_active_context_popover();
-                win.preview_file(node.path());
+                if node.is_dir() || node.is_submodule() {
+                    win.open_snapshot_node_with_default_app(&node);
+                } else {
+                    win.preview_file(node.path());
+                }
             });
         }
         group.add_action(&preview_action);
@@ -3948,8 +4387,7 @@ impl TemporalExplorerWindow {
 
             open_location_action.connect_activate(move |_, _| {
                 win.close_active_context_popover();
-                let parent = node.path().parent().map(PathBuf::from).unwrap_or_default();
-                win.push_dir(parent);
+                win.open_snapshot_node_location(&node);
             });
         }
         group.add_action(&open_location_action);
@@ -4016,10 +4454,10 @@ impl TemporalExplorerWindow {
         }
         group.add_action(&properties_action);
 
-        // Não muda o design: continua Gtk.PopoverMenu nativo.
-        // O grupo "win" local garante que win.context-* seja resolvido.
+        // Keep context actions in their own namespace.  Using "win" here made
+        // GTK resolve identically named window actions instead of these actions.
         let popover = gtk::PopoverMenu::from_model(Some(&menu));
-        popover.insert_action_group("win", Some(&group));
+        popover.insert_action_group("ctx", Some(&group));
         popover.set_has_arrow(false);
         popover.add_css_class("nautilus-context-menu");
         popover.set_parent(anchor);
@@ -4070,11 +4508,10 @@ impl TemporalExplorerWindow {
     }
 
     fn open_snapshot_node_in_new_tab(&self, node: &TreeNode) {
-        if node.is_dir() || node.is_submodule() {
-            self.push_dir(node.path().to_path_buf());
-        } else {
-            self.open_snapshot_node_with_default_app(node);
-        }
+        // GIO delegates tab placement to the user's file manager.  This is the
+        // portable native API; file managers that reuse an existing window open
+        // the location as a tab according to their own preference.
+        self.open_snapshot_node_with_default_app(node);
     }
 
     fn open_snapshot_node_in_new_window(&self, node: &TreeNode) {
@@ -4172,13 +4609,6 @@ impl TemporalExplorerWindow {
     ) where
         F: FnOnce(&Self, PathBuf) + 'static,
     {
-        if node.is_dir() || node.is_submodule() {
-            self.show_toast(&gettext(
-                "Only files can be opened or exported from a snapshot",
-            ));
-            return;
-        }
-
         let Some(repo_path) = self.imp().repo_path.borrow().clone() else {
             self.show_error(&gettext("No repository loaded"));
             return;
@@ -4188,6 +4618,7 @@ impl TemporalExplorerWindow {
             self.show_error(&gettext("No snapshot selected"));
             return;
         };
+        let current_oid = self.imp().current_oid.get();
 
         let node_path = node.path().to_path_buf();
         let cancel = Arc::new(AtomicBool::new(false));
@@ -4204,13 +4635,16 @@ impl TemporalExplorerWindow {
                 let repo = git2::Repository::open(&repo_path)
                     .map_err(|e| format!("Cannot open repository: {e}"))?;
 
-                let obj = repo
-                    .revparse_single(&hash)
-                    .map_err(|e| format!("Cannot read snapshot: {e}"))?;
-
-                let commit = obj
-                    .peel_to_commit()
-                    .map_err(|e| format!("Cannot peel commit: {e}"))?;
+                let commit = match current_oid {
+                    Some(oid) => repo
+                        .find_commit(oid)
+                        .map_err(|e| format!("Cannot read snapshot: {e}"))?,
+                    None => repo
+                        .revparse_single(&hash)
+                        .map_err(|e| format!("Cannot read snapshot: {e}"))?
+                        .peel_to_commit()
+                        .map_err(|e| format!("Cannot peel commit: {e}"))?,
+                };
 
                 let tree = commit
                     .tree()
@@ -4218,42 +4652,95 @@ impl TemporalExplorerWindow {
 
                 let entry = tree
                     .get_path(&node_path)
-                    .map_err(|e| format!("Cannot find file in snapshot: {e}"))?;
+                    .map_err(|e| format!("Cannot find item in snapshot: {e}"))?;
 
-                let blob = repo
-                    .find_blob(entry.id())
-                    .map_err(|e| format!("Cannot read file blob: {e}"))?;
-
-                if let Some(parent) = target.parent() {
-                    std::fs::create_dir_all(parent)
+                fn materialize_tree(
+                    repo: &git2::Repository,
+                    tree: &git2::Tree<'_>,
+                    destination: &std::path::Path,
+                    cancel: &AtomicBool,
+                ) -> Result<(), String> {
+                    std::fs::create_dir_all(destination)
                         .map_err(|e| format!("Cannot create destination directory: {e}"))?;
-                }
 
-                let content = blob.content();
-                let total = content.len().max(1);
-                let mut written = 0usize;
-
-                let mut file = std::fs::File::create(&target)
-                    .map_err(|e| format!("Cannot create destination file: {e}"))?;
-
-                for chunk in content.chunks(64 * 1024) {
-                    if worker_cancel.load(Ordering::Relaxed) {
-                        return Err("Operation cancelled".to_string());
+                    for child in tree.iter() {
+                        if cancel.load(Ordering::Relaxed) {
+                            return Err("Operation cancelled".to_string());
+                        }
+                        let Some(name) = child.name() else { continue };
+                        let child_target = destination.join(name);
+                        match child.kind() {
+                            Some(git2::ObjectType::Tree) => {
+                                let child_tree = repo
+                                    .find_tree(child.id())
+                                    .map_err(|e| format!("Cannot read snapshot directory: {e}"))?;
+                                materialize_tree(repo, &child_tree, &child_target, cancel)?;
+                            }
+                            Some(git2::ObjectType::Blob) => {
+                                let blob = repo
+                                    .find_blob(child.id())
+                                    .map_err(|e| format!("Cannot read snapshot file: {e}"))?;
+                                if let Some(parent) = child_target.parent() {
+                                    std::fs::create_dir_all(parent).map_err(|e| {
+                                        format!("Cannot create destination directory: {e}")
+                                    })?;
+                                }
+                                std::fs::write(&child_target, blob.content())
+                                    .map_err(|e| format!("Cannot write snapshot file: {e}"))?;
+                            }
+                            // A gitlink has no content in the containing repository,
+                            // but exposing it as a folder is useful to the file manager.
+                            Some(git2::ObjectType::Commit) => {
+                                std::fs::create_dir_all(&child_target).map_err(|e| {
+                                    format!("Cannot create submodule directory: {e}")
+                                })?;
+                            }
+                            _ => {}
+                        }
                     }
-
-                    file.write_all(chunk)
-                        .map_err(|e| format!("Cannot write destination file: {e}"))?;
-
-                    written += chunk.len();
-
-                    let fraction = written as f64 / total as f64;
-                    let status = format!("Writing {} / {} bytes", written, total);
-
-                    let _ = tx.send(SnapshotWriteMessage::Progress { fraction, status });
+                    Ok(())
                 }
 
-                file.flush()
-                    .map_err(|e| format!("Cannot flush destination file: {e}"))?;
+                match entry.kind() {
+                    Some(git2::ObjectType::Tree) => {
+                        let selected_tree = repo
+                            .find_tree(entry.id())
+                            .map_err(|e| format!("Cannot read snapshot directory: {e}"))?;
+                        materialize_tree(&repo, &selected_tree, &target, &worker_cancel)?;
+                    }
+                    Some(git2::ObjectType::Blob) => {
+                        let blob = repo
+                            .find_blob(entry.id())
+                            .map_err(|e| format!("Cannot read snapshot file: {e}"))?;
+                        if let Some(parent) = target.parent() {
+                            std::fs::create_dir_all(parent)
+                                .map_err(|e| format!("Cannot create destination directory: {e}"))?;
+                        }
+                        let content = blob.content();
+                        let total = content.len().max(1);
+                        let mut file = std::fs::File::create(&target)
+                            .map_err(|e| format!("Cannot create destination file: {e}"))?;
+                        for (index, chunk) in content.chunks(64 * 1024).enumerate() {
+                            if worker_cancel.load(Ordering::Relaxed) {
+                                return Err("Operation cancelled".to_string());
+                            }
+                            file.write_all(chunk)
+                                .map_err(|e| format!("Cannot write destination file: {e}"))?;
+                            let written = ((index + 1) * 64 * 1024).min(content.len());
+                            let _ = tx.send(SnapshotWriteMessage::Progress {
+                                fraction: written as f64 / total as f64,
+                                status: format!("Writing {} / {} bytes", written, total),
+                            });
+                        }
+                        file.flush()
+                            .map_err(|e| format!("Cannot flush destination file: {e}"))?;
+                    }
+                    Some(git2::ObjectType::Commit) => {
+                        std::fs::create_dir_all(&target)
+                            .map_err(|e| format!("Cannot create submodule directory: {e}"))?;
+                    }
+                    _ => return Err(gettext("Unsupported snapshot item type")),
+                }
 
                 Ok(target)
             })();
@@ -4303,19 +4790,12 @@ impl TemporalExplorerWindow {
 
     fn temp_target_for_snapshot_node(&self, node: &TreeNode) -> Option<PathBuf> {
         let hash = self.imp().current_hash.borrow().clone()?;
-
-        let file_name = node
-            .path()
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("snapshot-file");
-
-        Some(
-            std::env::temp_dir()
-                .join("temporal-explorer")
-                .join(short_hash(&hash))
-                .join(file_name),
-        )
+        let cache_root = if Path::new("/.flatpak-info").exists() {
+            glib::home_dir().join(".cache").join("temporal-explorer")
+        } else {
+            std::env::temp_dir().join("temporal-explorer")
+        };
+        Some(cache_root.join(short_hash(&hash)).join(node.path()))
     }
 
     #[allow(dead_code)]
@@ -4328,11 +4808,14 @@ impl TemporalExplorerWindow {
         }
 
         let hash = self.imp().current_hash.borrow().clone()?;
+        let current_oid = self.imp().current_oid.get();
         let repo_ref = self.imp().repository.borrow();
         let repo = &repo_ref.as_ref()?.0;
 
-        let obj = repo.revparse_single(&hash).ok()?;
-        let commit = obj.peel_to_commit().ok()?;
+        let commit = match current_oid {
+            Some(oid) => repo.find_commit(oid).ok()?,
+            None => repo.revparse_single(&hash).ok()?.peel_to_commit().ok()?,
+        };
         let tree = commit.tree().ok()?;
         let entry = tree.get_path(node.path()).ok()?;
         let blob = repo.find_blob(entry.id()).ok()?;
@@ -4365,27 +4848,100 @@ impl TemporalExplorerWindow {
             &gettext("Opening File"),
             &gettext("Materializing snapshot file…"),
             |win, path| {
-                let win = win.clone();
-                glib::idle_add_local_once(move || {
-                    let file = gio::File::for_path(&path);
-                    let launcher = gtk::FileLauncher::new(Some(&file));
-                    let parent = win.clone();
-
-                    launcher.launch(Some(&parent), None::<&gio::Cancellable>, move |result| {
-                        if let Err(err) = result {
-                            if !err.matches(gio::IOErrorEnum::Cancelled) {
-                                win.show_error(&format!(
-                                    "{}: {err}",
-                                    gettext("Could not open file with the default application")
-                                ));
-                            }
-                        }
-                    });
-                });
+                if Path::new("/.flatpak-info").exists() {
+                    if let Err(err) = Self::launch_path_with_host_default(&path) {
+                        win.show_error(&format!(
+                            "{}: {err}",
+                            gettext("Could not open the item with the default application")
+                        ));
+                    }
+                } else if let Err(err) = Self::launch_path_with_default_app(&path) {
+                    win.show_error(&format!(
+                        "{}\n\n{}: {}\n{}: {err}",
+                        gettext("Could not open the item with the default application."),
+                        gettext("Temporary item"),
+                        path.display(),
+                        gettext("System error")
+                    ));
+                }
             },
         );
     }
 
+    fn launch_path_through_portal(&self, path: PathBuf, always_ask: bool) {
+        let file = gio::File::for_path(&path);
+        let launcher = gtk::FileLauncher::new(Some(&file));
+        launcher.set_always_ask(always_ask);
+        let win = self.clone();
+        launcher.launch(Some(self), None::<&gio::Cancellable>, move |result| {
+            if let Err(error) = result {
+                let dismissed = error.message().to_ascii_lowercase().contains("dismissed");
+                if !error.matches(gio::IOErrorEnum::Cancelled) && !dismissed {
+                    let action = if always_ask {
+                        gettext("Could not open the item with the selected application")
+                    } else {
+                        gettext("Could not open the item with the default application")
+                    };
+                    win.show_error(&format!("{action}: {error}"));
+                }
+            }
+        });
+    }
+
+    fn launch_path_with_host_default(path: &Path) -> Result<(), String> {
+        Command::new("flatpak-spawn")
+            .arg("--host")
+            .arg("gio")
+            .arg("open")
+            .arg(path)
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+
+    fn launch_path_with_default_app(path: &Path) -> Result<(), String> {
+        let file = gio::File::for_path(path);
+        let info = file
+            .query_info(
+                gio::FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE,
+                gio::FileQueryInfoFlags::NONE,
+                None::<&gio::Cancellable>,
+            )
+            .map_err(|error| error.to_string())?;
+        let content_type = info
+            .content_type()
+            .ok_or_else(|| gettext("The system could not determine the item type"))?;
+        if let Some(app) = gio::AppInfo::default_for_type(&content_type, false)
+            .or_else(|| {
+                gio::AppInfo::recommended_for_type(&content_type)
+                    .into_iter()
+                    .next()
+            })
+            .or_else(|| gio::AppInfo::all_for_type(&content_type).into_iter().next())
+        {
+            if app.launch(&[file], None::<&gio::AppLaunchContext>).is_ok() {
+                return Ok(());
+            }
+        }
+
+        // Some desktop environments expose associations to `gio open` while
+        // g_app_info_get_default_for_type() returns NULL to the application.
+        // Delegate to the system dispatcher in that case.
+        Command::new("gio")
+            .arg("open")
+            .arg(path)
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| {
+                format!(
+                    "{}: {} ({error})",
+                    gettext("No application is available for this item type"),
+                    content_type
+                )
+            })
+    }
+
+    #[allow(deprecated)] // GtkAppChooserDialog is the reliable non-portal fallback on GTK 4.
     fn open_snapshot_node_with_app_chooser(&self, node: &TreeNode) {
         let Some(target) = self.temp_target_for_snapshot_node(node) else {
             return;
@@ -4397,24 +4953,74 @@ impl TemporalExplorerWindow {
             &gettext("Preparing File"),
             &gettext("Materializing snapshot file…"),
             |win, path| {
-                let win = win.clone();
-                glib::idle_add_local_once(move || {
-                    let parent = win.clone();
-                    let file = gio::File::for_path(&path);
-                    let launcher = gtk::FileLauncher::new(Some(&file));
-                    launcher.set_always_ask(true);
+                if Path::new("/.flatpak-info").exists() {
+                    win.launch_path_through_portal(path, true);
+                } else {
+                    win.show_native_app_chooser(path);
+                }
+            },
+        );
+    }
 
-                    launcher.launch(Some(&parent), None::<&gio::Cancellable>, move |result| {
-                        if let Err(err) = result {
-                            if !err.matches(gio::IOErrorEnum::Cancelled) {
-                                win.show_error(&format!(
-                                    "{}: {err}",
-                                    gettext("Could not open file with the selected application")
-                                ));
-                            }
-                        }
-                    });
-                });
+    #[allow(deprecated)]
+    fn show_native_app_chooser(&self, path: PathBuf) {
+        let dialog = gtk::AppChooserDialog::new(
+            Some(self),
+            gtk::DialogFlags::MODAL,
+            &gio::File::for_path(&path),
+        );
+        dialog.set_heading(&gettext("Open With"));
+
+        let win = self.clone();
+        dialog.connect_response(move |dialog, response| {
+            if response == gtk::ResponseType::Ok {
+                if let Some(app) = dialog.app_info() {
+                    let file = gio::File::for_path(&path);
+                    if let Err(err) = app.launch(&[file], None::<&gio::AppLaunchContext>) {
+                        win.show_error(&format!(
+                            "{}: {err}",
+                            gettext("Could not open the item with the selected application")
+                        ));
+                    }
+                }
+            }
+            dialog.close();
+        });
+        dialog.present();
+    }
+
+    fn open_snapshot_node_location(&self, node: &TreeNode) {
+        let Some(target) = self.temp_target_for_snapshot_node(node) else {
+            return;
+        };
+
+        self.write_snapshot_node_to_path_with_progress(
+            node,
+            target,
+            &gettext("Preparing Item"),
+            &gettext("Materializing snapshot item…"),
+            |win, path| {
+                let location = if path.is_dir() {
+                    path.clone()
+                } else {
+                    path.parent().map(PathBuf::from).unwrap_or(path)
+                };
+                if Path::new("/.flatpak-info").exists() {
+                    if let Err(err) = Self::launch_path_with_host_default(&location) {
+                        win.show_error(&format!(
+                            "{}: {err}",
+                            gettext("Could not open the item location")
+                        ));
+                    }
+                } else if let Err(err) = Self::launch_path_with_default_app(&location) {
+                    win.show_error(&format!(
+                        "{}\n\n{}: {}\n{}: {err}",
+                        gettext("Could not open the item location."),
+                        gettext("Temporary location"),
+                        location.display(),
+                        gettext("System error")
+                    ));
+                }
             },
         );
     }
@@ -4480,6 +5086,7 @@ impl TemporalExplorerWindow {
         let Some(hash) = self.imp().current_hash.borrow().clone() else {
             return;
         };
+        let current_oid = self.imp().current_oid.get();
 
         let repo_ref = self.imp().repository.borrow();
         let Some(repo_wrapper) = repo_ref.as_ref() else {
@@ -4487,18 +5094,21 @@ impl TemporalExplorerWindow {
         };
         let repo = &repo_wrapper.0;
 
-        let content = repo
-            .revparse_single(&hash)
-            .ok()
-            .and_then(|obj| obj.peel_to_commit().ok())
-            .and_then(|commit| commit.tree().ok())
-            .and_then(|tree| tree.get_path(node.path()).ok())
-            .and_then(|entry| repo.find_blob(entry.id()).ok())
-            .and_then(|blob| {
-                std::str::from_utf8(blob.content())
-                    .ok()
-                    .map(ToOwned::to_owned)
-            });
+        let content = match current_oid {
+            Some(oid) => repo.find_commit(oid).ok(),
+            None => repo
+                .revparse_single(&hash)
+                .ok()
+                .and_then(|obj| obj.peel_to_commit().ok()),
+        }
+        .and_then(|commit| commit.tree().ok())
+        .and_then(|tree| tree.get_path(node.path()).ok())
+        .and_then(|entry| repo.find_blob(entry.id()).ok())
+        .and_then(|blob| {
+            std::str::from_utf8(blob.content())
+                .ok()
+                .map(ToOwned::to_owned)
+        });
 
         if let Some(text) = content {
             if let Some(display) = gtk::gdk::Display::default() {
@@ -4594,15 +5204,21 @@ impl TemporalExplorerWindow {
         let mut size = gettext("Not available");
 
         if let Some(hash) = self.imp().current_hash.borrow().clone() {
+            let current_oid = self.imp().current_oid.get();
             let repo_ref = self.imp().repository.borrow();
 
             if let Some(repo_wrapper) = repo_ref.as_ref() {
                 let repo = &repo_wrapper.0;
 
-                if let Some((object_id, object_mode, object_size)) = repo
-                    .revparse_single(&hash)
-                    .ok()
-                    .and_then(|obj| obj.peel_to_commit().ok())
+                let commit = match current_oid {
+                    Some(oid) => repo.find_commit(oid).ok(),
+                    None => repo
+                        .revparse_single(&hash)
+                        .ok()
+                        .and_then(|obj| obj.peel_to_commit().ok()),
+                };
+
+                if let Some((object_id, object_mode, object_size)) = commit
                     .and_then(|commit| commit.tree().ok())
                     .and_then(|tree| tree.get_path(node.path()).ok())
                     .and_then(|entry| {
@@ -4642,6 +5258,25 @@ impl TemporalExplorerWindow {
             gettext("Only available in selected snapshot")
         };
 
+        let repository_root = self.imp().repo_path.borrow().clone().unwrap_or_default();
+        let favorite_id = format!(
+            "{}\n{}\n{}",
+            repository_root.display(),
+            hash,
+            node.path().display()
+        );
+        let favorite = self
+            .imp()
+            .settings
+            .get()
+            .map(|settings| {
+                settings
+                    .strv("favorite-snapshot-items")
+                    .iter()
+                    .any(|item| item.as_str() == favorite_id)
+            })
+            .unwrap_or(false);
+
         let props = NodeProperties {
             name,
             kind,
@@ -4656,13 +5291,29 @@ impl TemporalExplorerWindow {
             git_mode,
             size,
             system_status,
+            favorite,
         };
 
         let dialog = NodePropertiesDialog::new();
         dialog.set_properties(&props);
 
         let win = self.clone();
+        let favorite_id_for_signal = favorite_id.clone();
         dialog.connect_favorite_toggled(move |_, active| {
+            if let Some(settings) = win.imp().settings.get() {
+                let mut favorites = settings
+                    .strv("favorite-snapshot-items")
+                    .iter()
+                    .map(|item| item.to_string())
+                    .collect::<Vec<_>>();
+                favorites.retain(|item| item != &favorite_id_for_signal);
+                if active {
+                    favorites.push(favorite_id_for_signal.clone());
+                }
+                settings
+                    .set_value("favorite-snapshot-items", &favorites.to_variant())
+                    .ok();
+            }
             let msg = if active {
                 gettext("Marked as favorite")
             } else {
@@ -4725,6 +5376,7 @@ impl TemporalExplorerWindow {
             Some(h) => h,
             None => return,
         };
+        let oid = self.imp().current_oid.get();
         let repo_path = match self.imp().repo_path.borrow().clone() {
             Some(p) => p,
             None => return,
@@ -4734,11 +5386,15 @@ impl TemporalExplorerWindow {
         let (tx, rx) = std::sync::mpsc::sync_channel::<Result<(String, String), String>>(1);
         let worker_path = file_path.clone();
         let worker_hash = hash.clone();
+        let worker_oid = oid;
 
         std::thread::spawn(move || {
             let result = git2::Repository::open(&repo_path)
                 .map_err(|e| e.to_string())
-                .map(|repo| file_preview::read_file_preview(&repo, &worker_hash, &worker_path));
+                .map(|repo| match worker_oid {
+                    Some(oid) => file_preview::read_file_preview_oid(&repo, oid, &worker_path),
+                    None => file_preview::read_file_preview(&repo, &worker_hash, &worker_path),
+                });
 
             let _ = tx.send(result);
         });
@@ -4817,6 +5473,10 @@ impl TemporalExplorerWindow {
     }
 
     fn update_dir_nav_buttons(&self) {
+        self.update_navigation_buttons();
+    }
+
+    fn update_navigation_buttons(&self) {
         let imp = self.imp();
         let can_back = !imp.history_back.borrow().is_empty();
         let can_forward = !imp.history_forward.borrow().is_empty();
@@ -5108,11 +5768,7 @@ impl TemporalExplorerWindow {
         let q = query.to_lowercase();
         let file_filter_active = filter.files.is_active();
         let file_filter_active_for_ui = file_filter_active;
-        let file_filter_pathspecs = if file_filter_active {
-            file_filter_pathspecs(&filter.files)
-        } else {
-            Vec::new()
-        };
+        let (include_folders, wanted_extensions) = filter.files.textual_match_terms();
         let file_filter_scope = if file_filter_active {
             let imp = self.imp();
             let level = *imp.timeline_level.borrow();
@@ -5131,11 +5787,12 @@ impl TemporalExplorerWindow {
         } else {
             None
         };
-        let candidates: Vec<CommitInfo> = {
+        let candidates: Vec<(usize, git2::Oid)> = {
             let commits = self.imp().all_commits.borrow();
             commits
                 .iter()
-                .filter(|commit| {
+                .enumerate()
+                .filter(|(_, commit)| {
                     if let Some((scope_year, scope_month)) = file_filter_scope {
                         match year_month_from_timestamp(commit.timestamp) {
                             Some((year, month))
@@ -5147,20 +5804,17 @@ impl TemporalExplorerWindow {
 
                     commit_matches_lightweight_filters(commit, &filter, branch_hashes.as_ref(), &q)
                 })
-                .cloned()
+                .map(|(index, commit)| (index, commit.oid()))
                 .collect()
         };
 
-        let changed_files_cache_snapshot = if file_filter_active {
-            let cache = self.imp().changed_files_cache.borrow();
-            candidates
-                .iter()
-                .filter_map(|commit| {
-                    cache
-                        .get(&commit.hash)
-                        .map(|files| (commit.hash.clone(), files.clone()))
-                })
-                .collect::<HashMap<_, _>>()
+        let file_index_snapshot = if file_filter_active {
+            self.imp()
+                .file_index_store
+                .borrow()
+                .as_ref()
+                .map(FileIndexStore::snapshot)
+                .unwrap_or_default()
         } else {
             HashMap::new()
         };
@@ -5181,11 +5835,14 @@ impl TemporalExplorerWindow {
         let total_commits = candidates.len().max(1);
         let (tx, rx) = std::sync::mpsc::sync_channel::<SearchProgressMessage>(32);
         let worker_cancel = cancel.clone();
+        let completed_filter = filter.clone();
+        let completed_query = q.clone();
+        let completed_scope = file_filter_scope;
 
         std::thread::spawn(move || {
-            let mut results = Vec::new();
-            let mut newly_cached_changed_files: Vec<(String, Vec<String>)> = Vec::new();
-            let mut file_match_counts: HashMap<String, usize> = HashMap::new();
+            let mut result_indices = Vec::new();
+            let mut newly_indexed_files: Vec<(git2::Oid, CommitFileIndex)> = Vec::new();
+            let mut file_match_counts: HashMap<git2::Oid, usize> = HashMap::new();
             let mut cache_hits = 0usize;
             let mut diff_errors = 0usize;
             let mut indexed = 0usize;
@@ -5215,7 +5872,7 @@ impl TemporalExplorerWindow {
                 None
             };
 
-            for mut commit in candidates {
+            for (candidate_index, oid) in candidates {
                 if worker_cancel.load(Ordering::Relaxed) {
                     let _ = tx.send(SearchProgressMessage::Cancelled);
                     return;
@@ -5223,35 +5880,23 @@ impl TemporalExplorerWindow {
 
                 // ── File-type / extension filter ──────────────────────────
                 if filter.files.is_active() {
-                    if let Some(cached_files) = changed_files_cache_snapshot.get(&commit.hash) {
-                        commit.set_changed_files_loaded(cached_files.clone());
+                    let file_index = if let Some(cached_index) = file_index_snapshot.get(&oid) {
                         cache_hits += 1;
-                    } else if commit.has_changed_files_loaded() {
-                        // The cloned commit already has a full changed-file list.
+                        Arc::clone(cached_index)
                     } else if let Some(ref repo) = repo_for_file_filter {
-                        if file_filter_pathspecs.is_empty() {
-                            match commit.load_changed_files_result(repo) {
-                                Ok(()) => {
-                                    newly_cached_changed_files
-                                        .push((commit.hash.clone(), commit.changed_files.clone()));
-                                }
-                                Err(_) => {
-                                    diff_errors += 1;
-                                }
+                        match build_commit_file_index(repo, oid) {
+                            Ok(index) => {
+                                newly_indexed_files.push((oid, index.clone()));
+                                Arc::new(index)
                             }
-                        } else {
-                            match commit
-                                .changed_files_matching_pathspecs(repo, &file_filter_pathspecs)
-                            {
-                                Ok(files) => {
-                                    commit.changed_files = files;
-                                }
-                                Err(_) => {
-                                    diff_errors += 1;
-                                }
+                            Err(_) => {
+                                diff_errors += 1;
+                                Arc::new(CommitFileIndex::default())
                             }
                         }
-                    }
+                    } else {
+                        Arc::new(CommitFileIndex::default())
+                    };
 
                     indexed += 1;
                     if indexed == 1 || indexed % 25 == 0 || indexed == total_commits {
@@ -5259,31 +5904,28 @@ impl TemporalExplorerWindow {
                             indexed,
                             total: total_commits,
                             cache_hits,
-                            matches: results.len(),
+                            matches: result_indices.len(),
                         });
                     }
 
-                    let file_match_count = commit
-                        .changed_files
-                        .iter()
-                        .filter(|file| file_matches_search_category(file, &filter.files))
-                        .count();
+                    let file_match_count =
+                        file_index.match_count_textual(include_folders, &wanted_extensions);
 
                     if file_match_count == 0 {
                         continue;
                     }
 
-                    file_match_counts.insert(commit.hash.clone(), file_match_count);
-                    results.push(commit);
+                    file_match_counts.insert(oid, file_match_count);
+                    result_indices.push(candidate_index);
                     continue;
                 }
 
-                results.push(commit);
+                result_indices.push(candidate_index);
             }
 
             let _ = tx.send(SearchProgressMessage::Done(SearchRunResult {
-                results,
-                newly_cached_changed_files,
+                result_indices,
+                newly_indexed_files,
                 file_match_counts,
                 indexed,
                 cache_hits,
@@ -5327,8 +5969,8 @@ impl TemporalExplorerWindow {
                     }
 
                     Ok(SearchProgressMessage::Done(SearchRunResult {
-                        results,
-                        newly_cached_changed_files,
+                        result_indices,
+                        newly_indexed_files,
                         file_match_counts,
                         indexed,
                         cache_hits,
@@ -5349,38 +5991,48 @@ impl TemporalExplorerWindow {
                         }
 
                         if !cancel.load(Ordering::Relaxed) {
-                            if !newly_cached_changed_files.is_empty() || cache_hits > 0 {
-                                let imp = win.imp();
+                            if file_filter_active_for_ui {
+                                *win.imp().file_filter_results_cache.borrow_mut() =
+                                    Some(FileFilterResultsCache {
+                                        filter: completed_filter.clone(),
+                                        query: completed_query.clone(),
+                                        scope: completed_scope,
+                                        result_indices: result_indices.clone(),
+                                        file_match_counts: file_match_counts.clone(),
+                                    });
+                            } else {
+                                win.imp().file_filter_results_cache.borrow_mut().take();
+                            }
 
+                            if !newly_indexed_files.is_empty() {
+                                if let Some(store) =
+                                    win.imp().file_index_store.borrow_mut().as_mut()
                                 {
-                                    let mut cache = imp.changed_files_cache.borrow_mut();
-                                    for (hash, files) in newly_cached_changed_files {
-                                        cache.insert(hash.clone(), files.clone());
-                                    }
-                                }
-
-                                {
-                                    let cache = imp.changed_files_cache.borrow();
-                                    let mut commits = imp.all_commits.borrow_mut();
-                                    let index = imp.commit_index.borrow();
-
-                                    for (hash, files) in cache.iter() {
-                                        if let Some(idx) = index.get(hash) {
-                                            if let Some(commit) = commits.get_mut(*idx) {
-                                                commit.set_changed_files_loaded(files.clone());
-                                            }
-                                        }
-                                    }
+                                    store.insert_many(newly_indexed_files);
+                                    let store_to_save = store.clone();
+                                    std::thread::spawn(move || {
+                                        let _ = store_to_save.save();
+                                    });
                                 }
                             }
 
-                            commit_controller::populate_commit_list(
-                                &win.imp().commit_list,
-                                &results,
-                            );
+                            {
+                                let commits = win.imp().all_commits.borrow();
+                                let refs = result_indices
+                                    .iter()
+                                    .filter_map(|index| commits.get(*index))
+                                    .collect::<Vec<_>>();
+                                commit_controller::populate_commit_list_refs(
+                                    &win.imp().commit_list,
+                                    &refs,
+                                );
+                            }
 
                             if file_filter_active_for_ui {
-                                win.update_file_filter_timeline(&results, &file_match_counts);
+                                win.update_file_filter_timeline(
+                                    &result_indices,
+                                    &file_match_counts,
+                                );
                             }
 
                             if diff_errors > 0 {

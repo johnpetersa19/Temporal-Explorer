@@ -27,6 +27,7 @@ pub struct NodeProperties {
     pub git_mode: String,
     pub size: String,
     pub system_status: String,
+    pub favorite: bool,
 }
 
 mod imp {
@@ -217,6 +218,18 @@ impl NodePropertiesDialog {
         imp.object_label.set_tooltip_text(Some(&props.git_object));
 
         *imp.path_text.borrow_mut() = props.repository_path.clone();
+        imp.favorite_active.set(props.favorite);
+        imp.favorite_button.set_icon_name(if props.favorite {
+            "starred-symbolic"
+        } else {
+            "non-starred-symbolic"
+        });
+        imp.favorite_button
+            .set_tooltip_text(Some(&if props.favorite {
+                gettext("Unstar")
+            } else {
+                gettext("Star")
+            }));
 
         let details = format!(
             "{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}",

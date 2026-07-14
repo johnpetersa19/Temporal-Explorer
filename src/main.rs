@@ -5,6 +5,7 @@ mod branch_sidebar_row;
 mod clone_repository_dialog;
 mod column_chooser;
 mod commit_controller;
+mod commit_details_dialog;
 mod commit_name_cell;
 mod config;
 mod date_range_dialog;

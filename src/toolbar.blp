@@ -53,14 +53,6 @@ template $TemporalToolbar : Adw.Bin {
                 styles ["nautilus-pathbar-segments"]
               }
             }
-
-            MenuButton main_menu_button {
-              primary: true;
-              icon-name: "view-more-symbolic";
-              tooltip-text: _("Main Menu");
-              menu-model: primary_menu;
-              styles ["flat", "pathbar-menu-button"]
-            }
           };
         }
 
@@ -84,20 +76,35 @@ template $TemporalToolbar : Adw.Bin {
             }
           };
         }
-
       }
 
-      ToggleButton search_button {
-        icon-name: "nautilus-folder-search-symbolic";
-        tooltip-text: _("Search Commits");
-        halign: center;
-        valign: center;
-        styles ["flat"]
+      Stack search_button_stack {
+        hhomogeneous: true;
+        transition-type: crossfade;
+
+        ToggleButton search_button {
+          tooltip-text: _("Search Commits");
+          halign: center;
+          valign: center;
+          icon-name: "nautilus-folder-search-symbolic";
+          styles ["flat"]
+        }
+
+        Adw.Bin search_button_placeholder {}
       }
     }
 
     [end]
     $ViewControls view_controls {}
+
+    [end]
+    MenuButton main_menu_button {
+      primary: true;
+      icon-name: "view-more-symbolic";
+      tooltip-text: _("Main Menu");
+      menu-model: primary_menu;
+      styles ["flat"]
+    }
 
     // Kept as hidden template children because toolbar.rs/window.rs still use them.
     [end]
@@ -265,7 +272,7 @@ menu primary_menu {
         }
 
         item {
-          label: _("Merge Conflicts…");
+          label: _("Compare Merge Parents…");
           action: "win.show-merge-conflicts";
         }
       }

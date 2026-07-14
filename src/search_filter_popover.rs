@@ -153,6 +153,23 @@ impl FilterDateRange {
 
 // ── FileTypeFilter ─────────────────────────────────────────────────────────────
 
+const AUDIO_EXTENSIONS: &[&str] = &[
+    "mp3", "flac", "wav", "ogg", "opus", "m4a", "aac", "mid", "midi",
+];
+const DOCUMENT_EXTENSIONS: &[&str] = &["doc", "docx", "odt", "ott", "rtf", "abw", "pages"];
+const IMAGE_EXTENSIONS: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tif", "tiff", "heic", "avif",
+];
+const TEXT_EXTENSIONS: &[&str] = &[
+    "txt", "md", "markdown", "rst", "log", "csv", "json", "jsonc", "yaml", "yml", "toml", "xml",
+    "html", "css", "scss", "js", "ts", "jsx", "tsx", "rs", "c", "h", "cpp", "hpp", "cc", "py",
+    "sh", "bash", "zsh", "fish", "go", "java", "kt", "swift", "php", "rb", "lua", "blp", "ui",
+    "desktop", "service",
+];
+const VIDEO_EXTENSIONS: &[&str] = &[
+    "mp4", "mkv", "webm", "mov", "avi", "m4v", "flv", "wmv", "mpeg", "mpg",
+];
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FileTypeFilter {
     pub audio: bool,
@@ -175,6 +192,40 @@ impl FileTypeFilter {
             || self.text
             || self.videos
             || self.other_ext.is_some()
+    }
+
+    /// Returns the textual extension list used by the fast file-type search.
+    ///
+    /// `folders` is kept separate because it is not extension-based.
+    pub fn textual_match_terms(&self) -> (bool, Vec<String>) {
+        let mut extensions = Vec::new();
+
+        if self.audio {
+            extensions.extend(AUDIO_EXTENSIONS.iter().copied().map(str::to_owned));
+        }
+        if self.documents {
+            extensions.extend(DOCUMENT_EXTENSIONS.iter().copied().map(str::to_owned));
+        }
+        if self.images {
+            extensions.extend(IMAGE_EXTENSIONS.iter().copied().map(str::to_owned));
+        }
+        if self.pdf {
+            extensions.push("pdf".to_string());
+        }
+        if self.text {
+            extensions.extend(TEXT_EXTENSIONS.iter().copied().map(str::to_owned));
+        }
+        if self.videos {
+            extensions.extend(VIDEO_EXTENSIONS.iter().copied().map(str::to_owned));
+        }
+        if let Some(other) = self.other_ext.as_deref() {
+            let normalized = other.trim_start_matches('.').to_lowercase();
+            if !normalized.is_empty() {
+                extensions.push(normalized);
+            }
+        }
+
+        (self.folders, extensions)
     }
 }
 

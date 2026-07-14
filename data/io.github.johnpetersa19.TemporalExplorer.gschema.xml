@@ -116,10 +116,10 @@
       <description>List commits from submodule repositories as well.</description>
     </key>
 
-    <key name="git-binary-path" type="s">
-      <default>''</default>
-      <summary>Git binary path</summary>
-      <description>Optional path to the git executable used by external Git operations.</description>
+    <key name="favorite-snapshot-items" type="as">
+      <default>[]</default>
+      <summary>Favorite snapshot items</summary>
+      <description>Repository, commit, and path identifiers marked as favorites.</description>
     </key>
 
     <key name="background-fetch" type="b">

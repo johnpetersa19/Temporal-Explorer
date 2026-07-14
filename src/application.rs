@@ -88,8 +88,25 @@ impl TemporalExplorerApplication {
             return;
         };
 
-        gtk::IconTheme::for_display(&display)
-            .add_resource_path("/io/github/johnpetersa19/TemporalExplorer/icons");
+        let icon_theme = gtk::IconTheme::for_display(&display);
+        icon_theme.add_resource_path("/io/github/johnpetersa19/TemporalExplorer/icons");
+
+        // Flatpak's GTK icon theme only searches the runtime by default.  The
+        // repository browser should render the same MIME icons as the host file
+        // manager, so include the read-only host and per-user icon locations.
+        if std::path::Path::new("/.flatpak-info").exists() {
+            let home = glib::home_dir();
+            for path in [
+                home.join(".local/share/icons"),
+                home.join(".icons"),
+                std::path::PathBuf::from("/run/host/usr/local/share/icons"),
+                std::path::PathBuf::from("/run/host/usr/share/icons"),
+            ] {
+                if path.is_dir() {
+                    icon_theme.add_search_path(path);
+                }
+            }
+        }
     }
 
     fn setup_gactions(&self) {

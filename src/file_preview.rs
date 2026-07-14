@@ -79,6 +79,49 @@ pub fn read_file_preview(
     }
 }
 
+/// Same as [`read_file_preview`], but uses a pre-resolved commit OID.
+pub fn read_file_preview_oid(
+    repo: &git2::Repository,
+    revision_oid: git2::Oid,
+    file_path: &Path,
+) -> (String, String) {
+    let materializer = SnapshotMaterializer::new(repo);
+
+    match materializer.read_file_oid(revision_oid, file_path) {
+        Err(e) => (
+            file_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("File")
+                .to_owned(),
+            format!("{}: {e}", gettext("Could not read file")),
+        ),
+        Ok(bytes) => {
+            let name = file_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("File")
+                .to_owned();
+
+            let preview_bytes = &bytes[..bytes.len().min(MAX_PREVIEW_BYTES)];
+
+            if preview_bytes.contains(&0u8) {
+                (name, gettext("Binary file -- preview not available."))
+            } else {
+                let mut text = String::from_utf8_lossy(preview_bytes).into_owned();
+                if bytes.len() > MAX_PREVIEW_BYTES {
+                    text.push_str(&format!(
+                        "\n\n[{} {}]",
+                        gettext("Preview truncated at"),
+                        format_size(MAX_PREVIEW_BYTES),
+                    ));
+                }
+                (name, text)
+            }
+        }
+    }
+}
+
 /// Shows a modal dialog previewing already-read file content.
 pub fn show_file_preview_text(
     parent: &impl IsA<gtk::Window>,

@@ -5,12 +5,19 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
   title: _("Temporal Explorer");
   default-width: 1100;
   default-height: 700;
+  show-menubar: false;
+
+  styles [
+    "view",
+  ]
 
   content: Adw.ToastOverlay toast_overlay {
     child: Adw.OverlaySplitView split_view {
-      min-sidebar-width: 260;
-      max-sidebar-width: 320;
-      sidebar-width-fraction: 0.25;
+      enable-show-gesture: false;
+      enable-hide-gesture: false;
+      max-sidebar-width: 240;
+      min-sidebar-width: 240;
+      sidebar-width-fraction: 0.2;
 
       sidebar: Adw.ToolbarView {
         [top]
@@ -170,6 +177,16 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
       };
     };
   };
+
+  Adw.Breakpoint {
+    condition ("max-width: 682sp")
+
+    setters {
+      split_view.collapsed: true;
+      split_view.enable-show-gesture: true;
+      split_view.enable-hide-gesture: true;
+    }
+  }
 }
 
 menu primary_menu {

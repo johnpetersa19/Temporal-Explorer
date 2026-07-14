@@ -9,6 +9,7 @@ src/clone-repository-dialog.blp
 src/clone_repository_dialog.rs
 src/column-chooser.blp
 src/commit_controller.rs
+src/commit-details-dialog.blp
 src/commit-name-cell.blp
 src/date-range-dialog.blp
 src/file-grid-captions-dialog.blp

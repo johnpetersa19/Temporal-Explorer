@@ -10,25 +10,20 @@ using Adw 1;
 template $PreferencesDialog : Adw.PreferencesDialog {
   search-enabled: true;
 
-  // ── Page: General ──────────────────────────────────────────────────
   Adw.PreferencesPage {
     title: _("General");
-    icon-name: "preferences-system-symbolic";
 
     Adw.PreferencesGroup {
       title: _("Repository");
-      description: _("Behaviour when opening and loading repositories.");
 
       Adw.SwitchRow fetch_on_open_row {
-        title: _("_Fetch on Open");
-        subtitle: _("Run git fetch automatically when a repository is opened.");
-        use-underline: true;
+        title: _("Fetch on Open");
+        subtitle: _("Refresh remote tracking branches when a repository is opened.");
       }
 
       Adw.SpinRow commits_per_page_row {
-        title: _("_Commits per Page");
-        subtitle: _("Number of commits loaded in each batch.");
-        use-underline: true;
+        title: _("Commits per Page");
+        subtitle: _("How many commits to load in each batch.");
 
         adjustment: Adjustment {
           lower: 10;
@@ -39,14 +34,12 @@ template $PreferencesDialog : Adw.PreferencesDialog {
       }
 
       Adw.EntryRow default_branch_row {
-        title: _("_Default Branch");
-        use-underline: true;
+        title: _("Default Branch");
       }
 
       Adw.SpinRow clone_depth_row {
-        title: _("Shallow Clone _Depth");
+        title: _("Shallow Clone Depth");
         subtitle: _("Set to 0 to clone the full history.");
-        use-underline: true;
 
         adjustment: Adjustment {
           lower: 0;
@@ -59,12 +52,10 @@ template $PreferencesDialog : Adw.PreferencesDialog {
 
     Adw.PreferencesGroup {
       title: _("Date and Time");
-      description: _("Choose how commit timestamps are displayed.");
 
       Adw.ActionRow date_format_relative_row {
-        title: _("_Relative");
-        subtitle: _("e.g. \"3 days ago\"");
-        use-underline: true;
+        title: _("Relative");
+        subtitle: _("Example: 3 days ago");
 
         [prefix]
         CheckButton date_format_relative_button {
@@ -77,9 +68,8 @@ template $PreferencesDialog : Adw.PreferencesDialog {
       }
 
       Adw.ActionRow date_format_short_row {
-        title: _("_Short");
-        subtitle: _("e.g. \"13 Jun 2026\"");
-        use-underline: true;
+        title: _("Short");
+        subtitle: _("Example: 13 Jun 2026");
 
         [prefix]
         CheckButton date_format_short_button {
@@ -93,9 +83,8 @@ template $PreferencesDialog : Adw.PreferencesDialog {
       }
 
       Adw.ActionRow date_format_iso_row {
-        title: _("_ISO 8601");
-        subtitle: _("e.g. \"2026-06-13 14:30:00\"");
-        use-underline: true;
+        title: _("ISO 8601");
+        subtitle: _("Example: 2026-06-13 14:30:00");
 
         [prefix]
         CheckButton date_format_iso_button {
@@ -110,18 +99,14 @@ template $PreferencesDialog : Adw.PreferencesDialog {
     }
   }
 
-  // ── Page: Appearance ──────────────────────────────────────────────
   Adw.PreferencesPage {
     title: _("Appearance");
-    icon-name: "applications-graphics-symbolic";
 
     Adw.PreferencesGroup {
       title: _("File Browser");
 
       Adw.ComboRow default_view_row {
-        title: _("_Default View");
-        subtitle: _("Layout used when a repository is first opened.");
-        use-underline: true;
+        title: _("Default View");
 
         model: StringList {
           strings [
@@ -132,9 +117,7 @@ template $PreferencesDialog : Adw.PreferencesDialog {
       }
 
       Adw.ComboRow grid_zoom_row {
-        title: _("Default _Grid Zoom");
-        subtitle: _("Icon size used by the grid view.");
-        use-underline: true;
+        title: _("Default Grid Zoom");
 
         model: StringList {
           strings [
@@ -146,9 +129,7 @@ template $PreferencesDialog : Adw.PreferencesDialog {
       }
 
       Adw.ComboRow file_sort_row {
-        title: _("Default _Sort Order");
-        subtitle: _("How files and folders are ordered when browsing a snapshot.");
-        use-underline: true;
+        title: _("Default Sort Order");
 
         model: StringList {
           strings [
@@ -163,38 +144,27 @@ template $PreferencesDialog : Adw.PreferencesDialog {
       }
 
       Adw.SwitchRow show_hidden_files_row {
-        title: _("Show _Hidden Files");
-        subtitle: _("Show files and folders whose names start with a dot.");
-        use-underline: true;
+        title: _("Show Hidden Files");
       }
     }
 
     Adw.PreferencesGroup {
       title: _("Grid Captions");
-      description: _("Information shown under items in grid view.");
 
       Adw.SwitchRow caption_status_row {
-        title: _("_Status");
-        subtitle: _("Show Git status below grid items.");
-        use-underline: true;
+        title: _("Status");
       }
 
       Adw.SwitchRow caption_extension_row {
-        title: _("File _Extension");
-        subtitle: _("Show file extensions below grid items.");
-        use-underline: true;
+        title: _("File Extension");
       }
 
       Adw.SwitchRow caption_size_row {
-        title: _("_Size");
-        subtitle: _("Show object size below grid items.");
-        use-underline: true;
+        title: _("Size");
       }
 
       Adw.SwitchRow caption_date_row {
-        title: _("_Date");
-        subtitle: _("Show snapshot date below grid items.");
-        use-underline: true;
+        title: _("Date");
       }
     }
 
@@ -202,21 +172,15 @@ template $PreferencesDialog : Adw.PreferencesDialog {
       title: _("Commit List");
 
       Adw.SwitchRow show_avatars_row {
-        title: _("Show _Author Avatars");
-        subtitle: _("Display Gravatar / Git author avatar in the commit list.");
-        use-underline: true;
+        title: _("Show Author Avatars");
       }
 
       Adw.SwitchRow dense_mode_row {
-        title: _("_Dense Mode");
-        subtitle: _("Reduce row height for more commits on screen at once.");
-        use-underline: true;
+        title: _("Dense Mode");
       }
 
       Adw.SwitchRow show_graph_row {
-        title: _("Show Branch _Graph");
-        subtitle: _("Render the commit graph lines in the timeline.");
-        use-underline: true;
+        title: _("Show Branch Graph");
       }
     }
 
@@ -224,21 +188,15 @@ template $PreferencesDialog : Adw.PreferencesDialog {
       title: _("Diff View");
 
       Adw.SwitchRow syntax_highlight_row {
-        title: _("_Syntax Highlighting");
-        subtitle: _("Highlight diff output using language-specific colours.");
-        use-underline: true;
+        title: _("Syntax Highlighting");
       }
 
       Adw.SwitchRow word_diff_row {
-        title: _("_Word-level Diff");
-        subtitle: _("Highlight individual changed words within lines.");
-        use-underline: true;
+        title: _("Word-level Diff");
       }
 
       Adw.SpinRow context_lines_row {
-        title: _("_Context Lines");
-        subtitle: _("Unchanged lines shown above and below each diff hunk.");
-        use-underline: true;
+        title: _("Context Lines");
 
         adjustment: Adjustment {
           lower: 0;
@@ -250,35 +208,22 @@ template $PreferencesDialog : Adw.PreferencesDialog {
     }
   }
 
-  // ── Page: Advanced ─────────────────────────────────────────────────
   Adw.PreferencesPage {
     title: _("Advanced");
-    icon-name: "applications-engineering-symbolic";
 
     Adw.PreferencesGroup {
       title: _("Git");
 
       Adw.SwitchRow verify_signatures_row {
-        title: _("_Verify Commit Signatures");
-        subtitle: _("Show GPG/SSH signature status in the commit detail.");
-        use-underline: true;
+        title: _("Verify Commit Signatures");
       }
 
       Adw.SwitchRow follow_renames_row {
-        title: _("_Follow Renames");
-        subtitle: _("Track file history across renames when loading diffs.");
-        use-underline: true;
+        title: _("Follow Renames");
       }
 
       Adw.SwitchRow include_submodules_row {
-        title: _("Include _Submodules");
-        subtitle: _("List commits from submodule repositories as well.");
-        use-underline: true;
-      }
-
-      Adw.EntryRow git_binary_row {
-        title: _("_Git Binary Path");
-        use-underline: true;
+        title: _("Include Submodules");
       }
     }
 
@@ -286,14 +231,11 @@ template $PreferencesDialog : Adw.PreferencesDialog {
       title: _("Performance");
 
       Adw.SwitchRow background_fetch_row {
-        title: _("_Background Fetch");
-        subtitle: _("Periodically refresh remote tracking branches in the background.");
-        use-underline: true;
+        title: _("Background Fetch");
       }
 
       Adw.SpinRow background_fetch_interval_row {
-        title: _("Fetch _Interval (minutes)");
-        use-underline: true;
+        title: _("Fetch Interval (minutes)");
 
         adjustment: Adjustment {
           lower: 5;

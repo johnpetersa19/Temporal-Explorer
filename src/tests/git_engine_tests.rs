@@ -38,7 +38,9 @@ mod git_engine_tests {
     use std::path::{Path, PathBuf};
 
     use crate::git_engine::{
-        CommitInfo, DirCache, HistoryReader, SnapshotMaterializer, SnapshotResolver, TreeNode,
+        CommitFileIndex, CommitInfo, DirCache, HistoryReader, SnapshotMaterializer,
+        SnapshotResolver, TreeNode, FILE_CATEGORY_DOCUMENTS, FILE_CATEGORY_FOLDERS,
+        FILE_CATEGORY_IMAGES, FILE_CATEGORY_TEXT,
     };
 
     // ── Fixture helpers ───────────────────────────────────────────────────────
@@ -631,5 +633,37 @@ mod git_engine_tests {
         let hash = &commits[0].hash;
         assert_eq!(hash.len(), 40);
         assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn commit_info_matches_text_query_without_allocating() {
+        let info = CommitInfo::for_test(
+            "abcd1234".to_string(),
+            "Fix search path".to_string(),
+            "Jane Doe".to_string(),
+            "Jane@Example.com".to_string(),
+            42,
+        );
+
+        assert!(info.matches_text_query("fix"));
+        assert!(info.matches_text_query("jane@example.com"));
+        assert!(info.author_matches_query("jane"));
+        assert!(!info.matches_text_query("missing"));
+    }
+
+    #[test]
+    fn commit_file_index_compacts_and_matches_categories() {
+        let index = CommitFileIndex::from_paths(&[
+            "docs/readme.md".to_string(),
+            "src/lib.rs".to_string(),
+            "assets/logo.png".to_string(),
+            "notes.txt".to_string(),
+        ]);
+
+        assert_eq!(index.match_count(FILE_CATEGORY_TEXT, None), 3);
+        assert_eq!(index.match_count(FILE_CATEGORY_IMAGES, None), 1);
+        assert_eq!(index.match_count(FILE_CATEGORY_DOCUMENTS, None), 0);
+        assert_eq!(index.match_count(FILE_CATEGORY_FOLDERS, None), 3);
+        assert_eq!(index.match_count(0, Some("md")), 1);
     }
 }

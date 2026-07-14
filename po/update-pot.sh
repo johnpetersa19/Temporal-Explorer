@@ -33,7 +33,6 @@ trap 'rm -rf "$TMP"' EXIT
 # ── Dependency check ─────────────────────────────────────────────────────────
 REQUIRED_CMDS=(
     date
-    find
     grep
     mktemp
     python3
@@ -63,63 +62,18 @@ DATE=$(date +"%Y-%m-%d %H:%M%z")
 # ── Helpers ─────────────────────────────────────────────────────────────────
 count_po_entries() {
     local file="$1"
+    local count
 
     [[ -s "$file" ]] || {
         echo 0
         return
     }
 
-    python3 - "$file" << 'PYEOF'
-import ast
-import re
-import sys
-
-path = sys.argv[1]
-
-with open(path, encoding="utf-8", errors="replace") as f:
-    content = f.read().strip()
-
-if not content:
-    print(0)
-    raise SystemExit
-
-blocks = re.split(r"\n{2,}", content)
-count = 0
-
-def decode_po_literal(value: str) -> str:
-    try:
-        return ast.literal_eval(value)
-    except Exception:
-        return value.strip('"')
-
-for block in blocks:
-    lines = block.splitlines()
-
-    for i, line in enumerate(lines):
-        if not line.startswith("msgid "):
-            continue
-
-        parts = []
-        first = line[6:].strip()
-
-        if first.startswith('"'):
-            parts.append(first)
-
-        j = i + 1
-        while j < len(lines) and lines[j].startswith('"'):
-            parts.append(lines[j].strip())
-            j += 1
-
-        msgid = "".join(decode_po_literal(part) for part in parts)
-
-        # Do not count the PO/POT header.
-        if msgid != "":
-            count += 1
-
-        break
-
-print(count)
-PYEOF
+    # Every PO entry has exactly one `msgid` directive, including entries
+    # whose value continues across multiple quoted lines. Exclude the header.
+    count=$(grep -c '^msgid ' "$file" || true)
+    (( count > 0 )) && count=$((count - 1))
+    echo "$count"
 }
 
 clean_linguas_file() {
@@ -127,9 +81,9 @@ clean_linguas_file() {
 
     [[ -f "$file" ]] || return 0
 
-    sed 's/#.*//' "$file" \
-        | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
-        | sed '/^$/d' \
+    sed -e 's/#.*//' \
+        -e 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+        -e '/^$/d' "$file" \
         | LC_ALL=C sort -u
 }
 
@@ -144,15 +98,44 @@ write_sorted_linguas() {
     } > "$file"
 }
 
+# Discover and classify all translatable sources in a single filesystem walk.
+# NUL-delimited records preserve paths containing spaces or newlines.
+RUST_FILES=()
+BLP_FILES=()
+UI_FILES=()
+
+while IFS= read -r -d '' kind && IFS= read -r -d '' file; do
+    case "$kind" in
+        rust) RUST_FILES+=("$file") ;;
+        blp)  BLP_FILES+=("$file") ;;
+        ui)   UI_FILES+=("$file") ;;
+    esac
+done < <(python3 - "$ROOT/src" << 'PYEOF'
+import sys
+from pathlib import Path
+
+source_dir = Path(sys.argv[1])
+patterns = {
+    ".rs": ("rust", "gettext("),
+    ".blp": ("blp", '_("'),
+    ".ui": ("ui", 'translatable="yes"'),
+}
+
+for path in sorted(source_dir.rglob("*")):
+    match = patterns.get(path.suffix)
+    if match is None or not path.is_file():
+        continue
+
+    kind, marker = match
+    content = path.read_text(encoding="utf-8", errors="replace")
+    if marker in content:
+        sys.stdout.buffer.write(kind.encode() + b"\0")
+        sys.stdout.buffer.write(str(path).encode() + b"\0")
+PYEOF
+)
+
 # ── 1. Rust files ───────────────────────────────────────────────────────────────
 echo "[1/6] Scanning Rust files (.rs with gettext())..."
-mapfile -t RUST_FILES < <(
-    while IFS= read -r -d '' f; do
-        if grep -q -- 'gettext(' "$f"; then
-            printf '%s\n' "$f"
-        fi
-    done < <(find "$ROOT/src" -type f -name "*.rs" -print0) | LC_ALL=C sort
-)
 echo "   → ${#RUST_FILES[@]} .rs files found"
 
 if [[ ${#RUST_FILES[@]} -gt 0 ]]; then
@@ -173,13 +156,6 @@ fi
 
 # ── 2. Blueprint files (.blp) ───────────────────────────────────────────────────
 echo "[2/6] Scanning Blueprint files (.blp with _(\"...\"))..."
-mapfile -t BLP_FILES < <(
-    while IFS= read -r -d '' f; do
-        if grep -q -- '_("' "$f"; then
-            printf '%s\n' "$f"
-        fi
-    done < <(find "$ROOT/src" -type f -name "*.blp" -print0) | LC_ALL=C sort
-)
 echo "   → ${#BLP_FILES[@]} .blp files found"
 
 python3 - "$ROOT" "${BLP_FILES[@]}" > "$TMP/blp.entries" << 'PYEOF'
@@ -228,13 +204,6 @@ echo "   → blp.entries: $BLP_COUNT entries"
 
 # ── 3. Native UI files (.ui with translatable="yes") ────────────────────────
 echo "[3/6] Scanning native UI files (.ui with translatable=\"yes\")..."
-mapfile -t UI_FILES < <(
-    while IFS= read -r -d '' f; do
-        if grep -q -- 'translatable="yes"' "$f"; then
-            printf '%s\n' "$f"
-        fi
-    done < <(find "$ROOT/src" -type f -name "*.ui" -print0) | LC_ALL=C sort
-)
 echo "   → ${#UI_FILES[@]} .ui files found"
 
 if [[ ${#UI_FILES[@]} -gt 0 ]]; then
@@ -326,12 +295,10 @@ TOTAL=$(count_po_entries "$OUT")
 # ── 5. Update POTFILES.in ────────────────────────────────────────────────────────
 echo "[5/6] Updating POTFILES.in..."
 {
-    echo "# Auto-generated by po/update-pot.sh — do not edit manually"
-    echo ""
     for f in "${RUST_FILES[@]}"; do echo "${f#"$ROOT/"}"; done
     for f in "${BLP_FILES[@]}";  do echo "${f#"$ROOT/"}"; done
     for f in "${UI_FILES[@]}";   do echo "${f#"$ROOT/"}"; done
-} | grep -v '^#\|^$' | sort -u > "$TMP/pf_sorted"
+} | sort -u > "$TMP/pf_sorted"
 {
     echo "# Auto-generated by po/update-pot.sh — do not edit manually"
     echo ""
@@ -379,7 +346,7 @@ for lang in "${!LINGUAS_SET[@]}"; do
 done
 
 mapfile -t FINAL_LANGS < <(
-    printf '%s\n' "${!LINGUAS_SET[@]}" | sed '/^$/d' | LC_ALL=C sort -u
+    printf '%s\n' "${!LINGUAS_SET[@]}" | LC_ALL=C sort -u
 )
 
 write_sorted_linguas "$LINGUAS_FILE" "${FINAL_LANGS[@]}"
@@ -393,7 +360,7 @@ echo ""
 echo "✓ Generated : $OUT"
 echo "✓ Entries   : $TOTAL"
 echo "✓ Version   : temporal-explorer $PKG_VER"
-LANGUAGE_LIST="$(clean_linguas_file "$LINGUAS_FILE" | tr '\n' ' ' | xargs)"
+LANGUAGE_LIST="${FINAL_LANGS[*]}"
 echo "✓ Languages : $LANGUAGE_LIST"
 
 # ── Update ALL .po files ───────────────────────────────────────────────────────────

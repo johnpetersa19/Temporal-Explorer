@@ -5,6 +5,7 @@
     <file compressed="true">branch-sidebar-row.ui</file>
     <file compressed="true">clone-repository-dialog.ui</file>
     <file compressed="true">column-chooser.ui</file>
+    <file compressed="true">commit-details-dialog.ui</file>
     <file compressed="true">commit-name-cell.ui</file>
     <file compressed="true">commit-row.ui</file>
     <file compressed="true">date-range-dialog.ui</file>

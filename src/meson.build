@@ -8,6 +8,7 @@ blueprints = custom_target('blueprints',
     'branch-sidebar-row.blp',
     'clone-repository-dialog.blp',
     'column-chooser.blp',
+    'commit-details-dialog.blp',
     'commit-name-cell.blp',
     'commit-row.blp',
     'date-range-dialog.blp',
@@ -74,6 +75,51 @@ cargo_home = meson.project_build_root() / 'cargo-home'
 cargo_manifest = meson.project_source_root() / 'Cargo.toml'
 cargo_target_dir = meson.project_build_root() / 'target'
 
+# Cargo performs its own incremental compilation, but Meson still needs to
+# know when invoking Cargo is necessary.  Keeping these inputs explicit avoids
+# running `cargo build` on every `meson compile` while still rebuilding after a
+# manifest, lockfile, or application source change.
+cargo_inputs = files(
+  '../Cargo.toml',
+  '../Cargo.lock',
+  'address_bar.rs',
+  'application.rs',
+  'batch_operations_dialog.rs',
+  'branch_sidebar_row.rs',
+  'clone_repository_dialog.rs',
+  'column_chooser.rs',
+  'commit_controller.rs',
+  'commit_details_dialog.rs',
+  'commit_name_cell.rs',
+  'config.rs',
+  'date_range_dialog.rs',
+  'file_grid_captions_dialog.rs',
+  'file_grid_cell.rs',
+  'file_list_row.rs',
+  'file_preview.rs',
+  'filter_types_dialog.rs',
+  'git_engine.rs',
+  'history_controls.rs',
+  'icon_helpers.rs',
+  'main.rs',
+  'merge_conflict_dialog.rs',
+  'new_branch_dialog.rs',
+  'node_properties_dialog.rs',
+  'operation_progress_dialog.rs',
+  'preferences_dialog.rs',
+  'search_filter_popover.rs',
+  'select_commits_by_pattern.rs',
+  'ssh_passphrase_dialog.rs',
+  'timeline_filter.rs',
+  'toolbar.rs',
+  'view_controls.rs',
+  'views/file_list_view.rs',
+  'views/grid_view.rs',
+  'views/list_view.rs',
+  'views/mod.rs',
+  'window.rs',
+)
+
 if get_option('buildtype') == 'release'
   cargo_shell_command = 'CARGO_HOME="$1" "$2" build --release --manifest-path "$3" --target-dir "$4" && cp "$4/$5/temporal-explorer" "$6"'
 else
@@ -82,7 +128,7 @@ endif
 
 cargo_build = custom_target('cargo-build',
   build_by_default: true,
-  build_always_stale: true,
+  depend_files: cargo_inputs,
   output: 'temporal-explorer',
   console: true,
   install: true,

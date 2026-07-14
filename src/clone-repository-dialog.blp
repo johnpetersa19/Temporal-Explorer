@@ -19,8 +19,16 @@ template $CloneRepositoryDialog : Adw.Dialog {
       }
 
       [end]
-      Button clone_button {
-        label: _("_Clone");
+      Button open_button {
+        label: _("_Open");
+        use-underline: true;
+        can-shrink: true;
+        sensitive: false;
+      }
+
+      [end]
+      Button save_open_button {
+        label: _("_Save and Open");
         use-underline: true;
         can-shrink: true;
         sensitive: false;
@@ -46,7 +54,7 @@ template $CloneRepositoryDialog : Adw.Dialog {
 
         Adw.PreferencesGroup {
           title: _("Repository");
-          description: _("Clone the Git repository locally, then load its history in Temporal Explorer.");
+          description: _("Open temporarily, or save a local clone and open its history.");
 
           Adw.EntryRow url_entry {
             title: _("Repository _URL");
@@ -71,6 +79,12 @@ template $CloneRepositoryDialog : Adw.Dialog {
               label: _("Choose…");
               valign: center;
             }
+          }
+
+          Adw.SwitchRow include_files_row {
+            title: _("Include Files");
+            subtitle: _("Save the checked-out files in addition to the commit history.");
+            active: true;
           }
         }
       }

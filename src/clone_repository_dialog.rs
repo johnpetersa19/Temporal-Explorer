@@ -18,9 +18,13 @@ mod imp {
         #[template_child]
         pub choose_destination_button: TemplateChild<gtk::Button>,
         #[template_child]
+        pub include_files_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
         pub cancel_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub clone_button: TemplateChild<gtk::Button>,
+        pub open_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub save_open_button: TemplateChild<gtk::Button>,
 
         pub url: RefCell<String>,
         pub destination: RefCell<String>,
@@ -49,7 +53,7 @@ mod imp {
             self.url_entry.connect_changed(move |entry| {
                 if let Some(obj) = obj_weak.upgrade() {
                     *obj.imp().url.borrow_mut() = entry.text().trim().to_string();
-                    obj.update_clone_button();
+                    obj.update_action_buttons();
                 }
             });
 
@@ -57,7 +61,7 @@ mod imp {
             self.destination_entry.connect_changed(move |entry| {
                 if let Some(obj) = obj_weak.upgrade() {
                     *obj.imp().destination.borrow_mut() = entry.text().trim().to_string();
-                    obj.update_clone_button();
+                    obj.update_action_buttons();
                 }
             });
 
@@ -76,23 +80,30 @@ mod imp {
             });
 
             let obj_weak = self.obj().downgrade();
-            self.clone_button.connect_clicked(move |_| {
+            self.open_button.connect_clicked(move |_| {
                 if let Some(obj) = obj_weak.upgrade() {
-                    obj.emit_clone_requested();
+                    obj.emit_clone_requested(false);
+                }
+            });
+
+            let obj_weak = self.obj().downgrade();
+            self.save_open_button.connect_clicked(move |_| {
+                if let Some(obj) = obj_weak.upgrade() {
+                    obj.emit_clone_requested(true);
                 }
             });
 
             let obj_weak = self.obj().downgrade();
             self.url_entry.connect_entry_activated(move |_| {
                 if let Some(obj) = obj_weak.upgrade() {
-                    obj.activate_clone_if_ready();
+                    obj.activate_open_if_ready();
                 }
             });
 
             let obj_weak = self.obj().downgrade();
             self.destination_entry.connect_entry_activated(move |_| {
                 if let Some(obj) = obj_weak.upgrade() {
-                    obj.activate_clone_if_ready();
+                    obj.activate_save_open_if_ready();
                 }
             });
         }
@@ -101,7 +112,12 @@ mod imp {
             static SIGNALS: OnceLock<Vec<glib::subclass::Signal>> = OnceLock::new();
             SIGNALS.get_or_init(|| {
                 vec![glib::subclass::Signal::builder("clone-requested")
-                    .param_types([String::static_type(), String::static_type()])
+                    .param_types([
+                        String::static_type(),
+                        String::static_type(),
+                        bool::static_type(),
+                        bool::static_type(),
+                    ])
                     .build()]
             })
         }
@@ -130,13 +146,15 @@ impl CloneRepositoryDialog {
 
     pub fn connect_clone_requested<F>(&self, f: F) -> glib::SignalHandlerId
     where
-        F: Fn(&Self, &str, &str) + 'static,
+        F: Fn(&Self, &str, &str, bool, bool) + 'static,
     {
         self.connect_local("clone-requested", false, move |values| {
             let dialog = values[0].get::<CloneRepositoryDialog>().unwrap();
             let url = values[1].get::<String>().unwrap_or_default();
             let destination = values[2].get::<String>().unwrap_or_default();
-            f(&dialog, &url, &destination);
+            let save = values[3].get::<bool>().unwrap_or(false);
+            let include_files = values[4].get::<bool>().unwrap_or(true);
+            f(&dialog, &url, &destination, save, include_files);
             None
         })
     }
@@ -165,32 +183,44 @@ impl CloneRepositoryDialog {
         let text = path.to_string_lossy().to_string();
         self.imp().destination_entry.set_text(&text);
         *self.imp().destination.borrow_mut() = text;
-        self.update_clone_button();
+        self.update_action_buttons();
     }
 
-    fn update_clone_button(&self) {
+    fn update_action_buttons(&self) {
         let imp = self.imp();
-        let ready =
-            !imp.url.borrow().trim().is_empty() && !imp.destination.borrow().trim().is_empty();
-        imp.clone_button.set_sensitive(ready);
+        let has_url = !imp.url.borrow().trim().is_empty();
+        let has_destination = !imp.destination.borrow().trim().is_empty();
+        imp.open_button.set_sensitive(has_url);
+        imp.save_open_button
+            .set_sensitive(has_url && has_destination);
     }
 
-    fn activate_clone_if_ready(&self) {
-        if self.imp().clone_button.is_sensitive() {
-            self.emit_clone_requested();
+    fn activate_open_if_ready(&self) {
+        if self.imp().open_button.is_sensitive() {
+            self.emit_clone_requested(false);
         }
     }
 
-    fn emit_clone_requested(&self) {
+    fn activate_save_open_if_ready(&self) {
+        if self.imp().save_open_button.is_sensitive() {
+            self.emit_clone_requested(true);
+        }
+    }
+
+    fn emit_clone_requested(&self, save: bool) {
         let imp = self.imp();
         let url = imp.url.borrow().trim().to_string();
         let destination = imp.destination.borrow().trim().to_string();
+        let include_files = imp.include_files_row.is_active();
 
-        if url.is_empty() || destination.is_empty() {
+        if url.is_empty() || (save && destination.is_empty()) {
             return;
         }
 
         self.close();
-        self.emit_by_name::<()>("clone-requested", &[&url, &destination]);
+        self.emit_by_name::<()>(
+            "clone-requested",
+            &[&url, &destination, &save, &include_files],
+        );
     }
 }

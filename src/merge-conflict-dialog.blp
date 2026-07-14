@@ -8,10 +8,9 @@ using Gtk 4.0;
 using Adw 1;
 
 template $MergeConflictDialog: Adw.Dialog {
-  title: _("Merge Conflict");
+  title: _("Compare Merge Parents");
   content-width: 640;
   content-height: 560;
-  default-widget: use_ours_button;
 
   child: Adw.ToolbarView {
     [top]
@@ -21,14 +20,14 @@ template $MergeConflictDialog: Adw.Dialog {
 
       [start]
       Button cancel_button {
-        label: _("_Cancel");
+        label: _("_Close");
         use-underline: true;
         clicked => $on_cancel_clicked() swapped;
       }
 
       title-widget: Adw.WindowTitle {
-        title: _("Merge Conflict");
-        subtitle: _("Choose how to resolve this conflict");
+        title: _("Compare Merge Parents");
+        subtitle: _("Inspect changes combined by this merge commit");
       };
     }
 
@@ -38,7 +37,7 @@ template $MergeConflictDialog: Adw.Dialog {
 
       // ── File info banner ──────────────────────────────────────────────
       Adw.Banner conflict_banner {
-        title: _("This file has conflicting changes from both sides of the merge.");
+        title: _("This file differs between the two merge parents.");
         button-label: _("Show Diff");
         action-name: "dialog.show-diff";
       }
@@ -53,7 +52,7 @@ template $MergeConflictDialog: Adw.Dialog {
 
         // ── Conflicted file path ──────────────────────────────────────
         Adw.PreferencesGroup {
-          title: _("Conflicted File");
+          title: _("Changed File");
 
           Adw.ActionRow file_path_row {
             title: _("Path");
@@ -81,7 +80,7 @@ template $MergeConflictDialog: Adw.Dialog {
             hexpand: true;
 
             Label {
-              label: _("Ours (HEAD)");
+              label: _("First Parent");
               halign: start;
 
               styles ["heading"]
@@ -112,7 +111,7 @@ template $MergeConflictDialog: Adw.Dialog {
             hexpand: true;
 
             Label {
-              label: _("Theirs (Incoming)");
+              label: _("Second Parent");
               halign: start;
 
               styles ["heading"]
@@ -159,50 +158,6 @@ template $MergeConflictDialog: Adw.Dialog {
           }
         }
 
-        // ── Apply to all checkbox ─────────────────────────────────────
-        CheckButton apply_to_all_check {
-          label: _("_Apply this resolution to all conflicting files");
-          use-underline: true;
-          toggled => $on_apply_to_all_toggled() swapped;
-        }
-      }
-
-      // ── Action bar ───────────────────────────────────────────────────
-      Adw.Bin {
-        styles ["toolbar"]
-
-        Box {
-          homogeneous: true;
-          spacing: 8;
-          margin-start: 18;
-          margin-end: 18;
-          margin-top: 8;
-          margin-bottom: 8;
-
-          Button use_ours_button {
-            label: _("Use _Ours");
-            use-underline: true;
-            action-name: "dialog.use-ours";
-
-            styles ["pill"]
-          }
-
-          Button use_theirs_button {
-            label: _("Use _Theirs");
-            use-underline: true;
-            action-name: "dialog.use-theirs";
-
-            styles ["pill"]
-          }
-
-          Button use_both_button {
-            label: _("Keep _Both");
-            use-underline: true;
-            action-name: "dialog.use-both";
-
-            styles ["pill", "suggested-action"]
-          }
-        }
       }
     };
   };

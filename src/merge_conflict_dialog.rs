@@ -39,21 +39,6 @@ use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::glib;
 use std::cell::RefCell;
-use std::sync::OnceLock;
-
-// ── Public data types ──────────────────────────────────────────────────────────
-
-/// Which side the user chose to keep.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, glib::Enum)]
-#[enum_type(name = "ConflictResolution")]
-pub enum ConflictResolution {
-    /// Keep the HEAD (local) version.
-    Ours,
-    /// Keep the incoming (remote/theirs) version.
-    Theirs,
-    /// Concatenate both versions separated by conflict markers.
-    Both,
-}
 
 /// All information needed to populate the dialog.
 #[derive(Debug, Clone, Default)]
@@ -113,19 +98,8 @@ mod imp {
         #[template_child]
         pub diff_view: TemplateChild<gtk::TextView>,
 
-        // Footer
-        #[template_child]
-        pub apply_to_all_check: TemplateChild<gtk::CheckButton>,
-        #[template_child]
-        pub use_ours_button: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub use_theirs_button: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub use_both_button: TemplateChild<gtk::Button>,
-
         // State
         pub conflict_info: RefCell<ConflictInfo>,
-        pub apply_to_all: RefCell<bool>,
     }
 
     #[glib::object_subclass]
@@ -137,15 +111,6 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
             klass.bind_template_callbacks();
-            klass.install_action("dialog.use-ours", None, |d, _, _| {
-                d.resolve(ConflictResolution::Ours)
-            });
-            klass.install_action("dialog.use-theirs", None, |d, _, _| {
-                d.resolve(ConflictResolution::Theirs)
-            });
-            klass.install_action("dialog.use-both", None, |d, _, _| {
-                d.resolve(ConflictResolution::Both)
-            });
             klass.install_action("dialog.show-diff", None, |d, _, _| {
                 let exp = d.imp().diff_expander.get();
                 exp.set_expanded(!exp.is_expanded());
@@ -164,22 +129,6 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
         }
-
-        fn signals() -> &'static [glib::subclass::Signal] {
-            static SIGNALS: OnceLock<Vec<glib::subclass::Signal>> = OnceLock::new();
-            SIGNALS.get_or_init(|| {
-                vec![glib::subclass::Signal::builder("conflict-resolved")
-                    .param_types([
-                        // resolution: "ours" | "theirs" | "both"
-                        String::static_type(),
-                        // file_path
-                        String::static_type(),
-                        // apply_to_all
-                        bool::static_type(),
-                    ])
-                    .build()]
-            })
-        }
     }
 
     impl WidgetImpl for MergeConflictDialog {}
@@ -190,11 +139,6 @@ mod imp {
         #[template_callback]
         fn on_cancel_clicked(&self) {
             self.obj().close();
-        }
-
-        #[template_callback]
-        fn on_apply_to_all_toggled(&self) {
-            *self.apply_to_all.borrow_mut() = self.apply_to_all_check.is_active();
         }
     }
 }
@@ -266,62 +210,20 @@ impl MergeConflictDialog {
             }
 
             let text = buf.text(&buf.start_iter(), &buf.end_iter(), false);
-            for line in text.lines() {
-                // Locate line in buffer and apply tag
-                if let Some(start_offset) = text.find(line) {
-                    let start = buf.iter_at_offset(start_offset as i32);
-                    let end = buf.iter_at_offset((start_offset + line.len()) as i32);
-                    if line.starts_with('+') && !line.starts_with("+++") {
-                        buf.apply_tag_by_name("add", &start, &end);
-                    } else if line.starts_with('-') && !line.starts_with("---") {
-                        buf.apply_tag_by_name("del", &start, &end);
-                    }
+            let mut offset = 0i32;
+            for line in text.split_inclusive('\n') {
+                let line_len = line.chars().count() as i32;
+                let start = buf.iter_at_offset(offset);
+                let end = buf.iter_at_offset(offset + line_len);
+                if line.starts_with('+') && !line.starts_with("+++") {
+                    buf.apply_tag_by_name("add", &start, &end);
+                } else if line.starts_with('-') && !line.starts_with("---") {
+                    buf.apply_tag_by_name("del", &start, &end);
                 }
+                offset += line_len;
             }
         }
 
         *imp.conflict_info.borrow_mut() = info.clone();
-    }
-
-    /// Connect to the `conflict-resolved` signal.
-    ///
-    /// Callback receives `(resolution: &str, file_path: &str, apply_to_all: bool)`.
-    pub fn connect_conflict_resolved<F>(&self, f: F) -> glib::SignalHandlerId
-    where
-        F: Fn(&Self, &str, &str, bool) + 'static,
-    {
-        self.connect_local("conflict-resolved", false, move |values| {
-            let dialog = values[0].get::<MergeConflictDialog>().unwrap();
-            let resolution = values[1].get::<String>().unwrap();
-            let file_path = values[2].get::<String>().unwrap();
-            let apply_all = values[3].get::<bool>().unwrap();
-            f(&dialog, &resolution, &file_path, apply_all);
-            None
-        })
-    }
-
-    // ── Internal ───────────────────────────────────────────────────────────
-
-    fn resolve(&self, resolution: ConflictResolution) {
-        let imp = self.imp();
-        let info = imp.conflict_info.borrow();
-        let apply_all = *imp.apply_to_all.borrow();
-
-        let label = match resolution {
-            ConflictResolution::Ours => "ours",
-            ConflictResolution::Theirs => "theirs",
-            ConflictResolution::Both => "both",
-        };
-
-        self.emit_by_name::<()>(
-            "conflict-resolved",
-            &[
-                &label.to_value(),
-                &info.file_path.to_value(),
-                &apply_all.to_value(),
-            ],
-        );
-
-        self.close();
     }
 }

@@ -281,41 +281,6 @@ fn build_truncation_hint_row(total: usize, rendered: usize) -> gtk::ListBoxRow {
 
 // ── Public API ────────────────────────────────────────────────────────────────────────
 
-/// Populates `list_box` with rows for each commit in `commits`.
-pub fn populate_commit_list(list_box: &gtk::ListBox, commits: &[CommitInfo]) {
-    let gen = next_generation(list_box);
-    let gen_counter = get_or_create_generation(list_box);
-
-    clear_listbox(list_box);
-
-    if commits.is_empty() {
-        return;
-    }
-
-    let total = commits.len();
-    let render_count = total.min(MAX_RENDERED_ROWS);
-    let truncated = total > MAX_RENDERED_ROWS;
-
-    if render_count <= POPULATE_BATCH {
-        let rows: Vec<gtk::ListBoxRow> = commits[..render_count]
-            .iter()
-            .map(build_commit_row)
-            .collect();
-        for row in &rows {
-            list_box.append(row);
-        }
-        if truncated {
-            list_box.append(&build_truncation_hint_row(total, render_count));
-        }
-        return;
-    }
-
-    let owned: Vec<CommitInfo> = commits[..render_count].to_vec();
-    let list_weak = list_box.downgrade();
-    let remaining = std::rc::Rc::new(std::cell::RefCell::new(owned));
-    schedule_batch_populate(list_weak, remaining, total, truncated, gen, gen_counter);
-}
-
 /// Populates `list_box` from borrowed commit references.
 ///
 /// This avoids cloning every commit in timeline drill-down paths.  For large

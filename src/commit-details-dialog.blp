@@ -1,0 +1,97 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $CommitDetailsDialog : Adw.Dialog {
+  title: _("Commit Details");
+  content-width: 560;
+  content-height: 520;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      [end]
+      Button copy_sha_button {
+        icon-name: "edit-copy-symbolic";
+        tooltip-text: _("Copy Commit SHA");
+        clicked => $on_copy_sha_clicked() swapped;
+        styles ["flat"]
+      }
+    }
+
+    content: ScrolledWindow {
+      hscrollbar-policy: never;
+      vscrollbar-policy: automatic;
+
+      child: Adw.Clamp {
+        maximum-size: 620;
+        tightening-threshold: 480;
+
+        child: Box {
+          orientation: vertical;
+          spacing: 18;
+          margin-top: 18;
+          margin-bottom: 18;
+          margin-start: 18;
+          margin-end: 18;
+
+          Adw.PreferencesGroup {
+            title: _("Commit");
+
+            Adw.ActionRow summary_row {
+              title: _("Summary");
+              subtitle-selectable: true;
+            }
+
+            Adw.ActionRow sha_row {
+              title: _("SHA");
+              subtitle-selectable: true;
+            }
+
+            Adw.ActionRow parents_row {
+              title: _("Parents");
+              subtitle-selectable: true;
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Author");
+
+            Adw.ActionRow author_row {
+              title: _("Name");
+              subtitle-selectable: true;
+            }
+
+            Adw.ActionRow email_row {
+              title: _("Email");
+              subtitle-selectable: true;
+            }
+
+            Adw.ActionRow date_row {
+              title: _("Date");
+              subtitle-selectable: true;
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Full Message");
+
+            Label message_label {
+              xalign: 0;
+              yalign: 0;
+              selectable: true;
+              wrap: true;
+              wrap-mode: word_char;
+              margin-top: 12;
+              margin-bottom: 12;
+              margin-start: 12;
+              margin-end: 12;
+            }
+          }
+        };
+      };
+    };
+  };
+}
