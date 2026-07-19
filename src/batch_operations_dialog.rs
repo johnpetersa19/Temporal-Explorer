@@ -62,7 +62,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/batch-operations-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/batch-operations-dialog.ui")]
     pub struct BatchOperationsDialog {
         #[template_child]
         pub commit_count_label: TemplateChild<gtk::Label>,

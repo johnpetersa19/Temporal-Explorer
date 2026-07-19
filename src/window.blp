@@ -117,41 +117,16 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
         [top]
         $TemporalToolbar toolbar {}
 
-        content: Stack right_panel_stack {
-          transition-type: crossfade;
-          transition-duration: 150;
+        [top]
+        Adw.TabBar tab_bar {
+          view: tab_view;
+          autohide: false;
+          expand-tabs: true;
+        }
+
+        content: Adw.TabView tab_view {
           vexpand: true;
           hexpand: true;
-
-          StackPage {
-            name: "empty";
-            child: Box {
-              orientation: vertical;
-
-              Adw.WindowTitle window_title {
-                title: _("Temporal Explorer");
-                subtitle: _("No repository selected");
-                visible: false;
-              }
-
-              Adw.StatusPage empty_state {
-                icon-name: "folder-symbolic";
-                title: _("Temporal-Explorer");
-                description: _("Open a Git repository and select a commit from the timeline to browse its file tree.");
-                vexpand: true;
-                hexpand: true;
-              }
-            };
-          }
-
-          StackPage {
-            name: "content";
-            child: Box right_panel_content {
-              orientation: vertical;
-              vexpand: true;
-              hexpand: true;
-            };
-          }
         };
 
         [bottom]
@@ -167,6 +142,14 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
           Label commit_message_label {
             ellipsize: end;
             max-width-chars: 60;
+          }
+
+          [end]
+          Button {
+            label: _("Restore Project Files…");
+            tooltip-text: _("Restore the project files from this snapshot without changing the current branch");
+            action-name: "win.restore-project-snapshot";
+            styles ["suggested-action"]
           }
 
           [end]

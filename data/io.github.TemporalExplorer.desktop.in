@@ -2,7 +2,7 @@
 Name=Temporal Explorer
 Comment=Navigate your repository history as a file tree
 Exec=temporal-explorer
-Icon=io.github.johnpetersa19.TemporalExplorer
+Icon=io.github.TemporalExplorer
 Terminal=false
 Type=Application
 Categories=Development;Utility;

@@ -9,7 +9,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/clone-repository-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/clone-repository-dialog.ui")]
     pub struct CloneRepositoryDialog {
         #[template_child]
         pub url_entry: TemplateChild<adw::EntryRow>,

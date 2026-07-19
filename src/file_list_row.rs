@@ -9,7 +9,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/file-list-row.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/file-list-row.ui")]
     pub struct FileListRow {
         #[template_child]
         pub file_row_icon: TemplateChild<gtk::Image>,

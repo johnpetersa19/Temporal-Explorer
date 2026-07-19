@@ -1,4 +1,4 @@
-application_id = 'io.github.johnpetersa19.TemporalExplorer'
+application_id = 'io.github.TemporalExplorer'
 
 scalable_dir = 'hicolor' / 'scalable' / 'apps'
 install_data(

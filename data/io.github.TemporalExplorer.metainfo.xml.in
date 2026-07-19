@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.johnpetersa19.TemporalExplorer</id>
+  <id>io.github.TemporalExplorer</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
 
@@ -19,7 +19,7 @@
     </p>
   </description>
 
-  <developer id="io.github.johnpetersa19">
+  <developer id="io.github.temporalexplorer">
     <name>John Peter Sá</name>
   </developer>
 
@@ -28,7 +28,7 @@
   <url type="bugtracker">https://github.com/johnpetersa19/Temporal-Explorer/issues</url>
 
   <translation type="gettext">temporal-explorer</translation>
-  <launchable type="desktop-id">io.github.johnpetersa19.TemporalExplorer.desktop</launchable>
+  <launchable type="desktop-id">io.github.TemporalExplorer.desktop</launchable>
   <content_rating type="oars-1.1" />
 
   <branding>
@@ -37,6 +37,16 @@
   </branding>
 
   <releases>
+    <release version="0.2.0" date="2026-07-19">
+      <description translate="no">
+        <ul>
+          <li>Added independent snapshot browsing tabs.</li>
+          <li>Added safe project file restoration from historical snapshots.</li>
+          <li>Added persistent window size and maximized state.</li>
+          <li>Updated application identity, icons, packaging, and translations.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-06-06">
       <description translate="no">
         <p>Initial release.</p>

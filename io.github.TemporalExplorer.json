@@ -1,5 +1,5 @@
 {
-    "id": "io.github.johnpetersa19.TemporalExplorer",
+    "id": "io.github.TemporalExplorer",
     "runtime": "org.gnome.Platform",
     "runtime-version": "50",
     "sdk": "org.gnome.Sdk",

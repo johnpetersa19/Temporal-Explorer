@@ -30,7 +30,7 @@
 //!                  background fetch + interval.
 //!
 //! All settings are backed by `gio::Settings` (schema
-//! `io.github.johnpetersa19.TemporalExplorer`).  On construction, current
+//! `io.github.TemporalExplorer`).  On construction, current
 //! values are loaded from GSettings; on change, they are written back.
 //!
 //! # Usage
@@ -51,7 +51,7 @@ mod imp {
     use std::cell::OnceCell;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/preferences-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/preferences-dialog.ui")]
     pub struct PreferencesDialog {
         // ── General page ──
         #[template_child]

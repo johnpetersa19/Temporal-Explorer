@@ -46,7 +46,7 @@
 //! | `filter_button`       | `window.blp`     | `#[template_child]`    |
 //! | `commit_search_entry` | `window.blp`     | `#[template_child]`    |
 //! | `timeline_stack`      | `window.blp`     | `#[template_child]`    |
-//! | `right_panel_stack`   | `window.blp`     | `#[template_child]`    |
+//! | `tab_view`            | `window.blp`     | `#[template_child]`    |
 //! | `commit_info_bar`     | `window.blp`     | `#[template_child]`    |
 //! | `toolbar`             | `window.blp`     | `#[template_child]`    |
 //! | `new_branch_button`   | `toolbar.blp`    | via `TemporalToolbar`  |
@@ -115,6 +115,18 @@ enum SearchProgressMessage {
 enum BackgroundIndexMessage {
     Batch(Vec<(git2::Oid, CommitFileIndex)>),
     Done,
+}
+
+#[derive(Clone, Debug, Default)]
+struct TabState {
+    hash: Option<String>,
+    oid: Option<git2::Oid>,
+    dir: PathBuf,
+    nodes: Vec<TreeNode>,
+    history_back: Vec<PathBuf>,
+    history_forward: Vec<PathBuf>,
+    commit_nav_back: Vec<String>,
+    commit_nav_forward: Vec<String>,
 }
 
 struct SearchRunResult {
@@ -187,16 +199,13 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/window.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/window.ui")]
     pub struct TemporalExplorerWindow {
         // ── Toolbar / title ──────────────────────────────────────────────────
         #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
         #[template_child]
         pub toolbar: TemplateChild<TemporalToolbar>,
-        #[template_child]
-        pub window_title: TemplateChild<adw::WindowTitle>,
-
         // ── Timeline panel ───────────────────────────────────────────────────
         #[template_child]
         pub timeline_stack: TemplateChild<gtk::Stack>,
@@ -227,11 +236,9 @@ mod imp {
         #[template_child]
         pub content_toolbar_view: TemplateChild<adw::ToolbarView>,
         #[template_child]
-        pub right_panel_stack: TemplateChild<gtk::Stack>,
+        pub tab_bar: TemplateChild<adw::TabBar>,
         #[template_child]
-        pub right_panel_content: TemplateChild<gtk::Box>,
-        #[template_child]
-        pub empty_state: TemplateChild<adw::StatusPage>,
+        pub tab_view: TemplateChild<adw::TabView>,
         #[template_child]
         pub split_view: TemplateChild<adw::OverlaySplitView>,
 
@@ -289,6 +296,10 @@ mod imp {
         pub load_cancel: RefCell<Option<Arc<AtomicBool>>>,
         pub context_node: RefCell<Option<TreeNode>>,
         pub active_context_popover: RefCell<Option<gtk::PopoverMenu>>,
+        pub(super) tab_states: RefCell<HashMap<usize, TabState>>,
+        pub(super) switching_tab: Cell<bool>,
+        pub(super) last_window_width: Cell<i32>,
+        pub(super) last_window_height: Cell<i32>,
     }
 
     #[glib::object_subclass]
@@ -311,17 +322,30 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             self.settings
-                .set(gio::Settings::new(
-                    "io.github.johnpetersa19.TemporalExplorer",
-                ))
+                .set(gio::Settings::new("io.github.TemporalExplorer"))
                 .ok();
+            self.obj().restore_window_state();
             self.obj().setup_callbacks();
             self.obj().setup_styles();
         }
     }
 
     impl WidgetImpl for TemporalExplorerWindow {}
-    impl WindowImpl for TemporalExplorerWindow {}
+    impl WindowImpl for TemporalExplorerWindow {
+        fn close_request(&self) -> glib::Propagation {
+            if let Some(settings) = self.settings.get() {
+                let width = self.last_window_width.get().max(500);
+                let height = self.last_window_height.get().max(400);
+                settings.set_int("window-width", width).ok();
+                settings.set_int("window-height", height).ok();
+                settings
+                    .set_boolean("window-maximized", self.obj().is_maximized())
+                    .ok();
+                gio::Settings::sync();
+            }
+            self.parent_close_request()
+        }
+    }
     impl ApplicationWindowImpl for TemporalExplorerWindow {}
     impl AdwApplicationWindowImpl for TemporalExplorerWindow {}
 }
@@ -841,10 +865,43 @@ fn cherry_pick_commits(repo_path: &Path, shas: &[String], signoff: bool) -> Resu
     Ok(applied)
 }
 
+/// Restores the working tree from `revision` without moving HEAD or changing
+/// the current branch. The index is deliberately left untouched, so the
+/// restored snapshot appears as ordinary, unstaged working-tree changes.
+fn restore_project_files(repo_path: &Path, revision: &str) -> Result<(), String> {
+    let repo = git2::Repository::open(repo_path).map_err(|e| e.to_string())?;
+
+    if repo.is_bare() {
+        return Err(gettext("Cannot restore files in a bare repository"));
+    }
+    if !repo.statuses(None).map_err(|e| e.to_string())?.is_empty() {
+        return Err(gettext(
+            "Commit or stash local changes before restoring project files",
+        ));
+    }
+
+    let commit = repo
+        .revparse_single(revision)
+        .and_then(|object| object.peel_to_commit())
+        .map_err(|e| e.to_string())?;
+    let tree = commit.tree().map_err(|e| e.to_string())?;
+
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout
+        .safe()
+        .recreate_missing(true)
+        .remove_untracked(false)
+        .remove_ignored(false)
+        .update_index(false);
+    repo.checkout_tree(tree.as_object(), Some(&mut checkout))
+        .map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod cherry_pick_tests {
-    use super::cherry_pick_commits;
+    use super::{cherry_pick_commits, restore_project_files};
     use git2::{Repository, Signature};
+    use std::path::Path;
 
     #[test]
     fn cherry_pick_replays_an_unattached_commit_onto_head() {
@@ -902,6 +959,65 @@ mod cherry_pick_tests {
         assert_eq!(head.summary(), Some("Add new file"));
         assert!(head.tree().unwrap().get_name("new.txt").is_some());
     }
+
+    #[test]
+    fn restore_project_files_keeps_head_and_leaves_unstaged_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = Repository::init(dir.path()).unwrap();
+        let signature = Signature::now("Test", "test@example.com").unwrap();
+
+        std::fs::write(dir.path().join("file.txt"), "old\n").unwrap();
+        std::fs::write(dir.path().join("old-only.txt"), "old\n").unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(Path::new("file.txt")).unwrap();
+        index.add_path(Path::new("old-only.txt")).unwrap();
+        let tree_id = index.write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+        let old = repo
+            .commit(Some("HEAD"), &signature, &signature, "Old", &tree, &[])
+            .unwrap();
+        drop(tree);
+
+        std::fs::write(dir.path().join("file.txt"), "new\n").unwrap();
+        std::fs::remove_file(dir.path().join("old-only.txt")).unwrap();
+        std::fs::write(dir.path().join("new-only.txt"), "new\n").unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(Path::new("file.txt")).unwrap();
+        index.remove_path(Path::new("old-only.txt")).unwrap();
+        index.add_path(Path::new("new-only.txt")).unwrap();
+        let tree_id = index.write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+        let parent = repo.find_commit(old).unwrap();
+        let head = repo
+            .commit(
+                Some("HEAD"),
+                &signature,
+                &signature,
+                "New",
+                &tree,
+                &[&parent],
+            )
+            .unwrap();
+        drop(tree);
+        drop(parent);
+        repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force()))
+            .unwrap();
+
+        restore_project_files(dir.path(), &old.to_string()).unwrap();
+
+        assert_eq!(repo.head().unwrap().target(), Some(head));
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("file.txt")).unwrap(),
+            "old\n"
+        );
+        assert!(dir.path().join("old-only.txt").exists());
+        assert!(!dir.path().join("new-only.txt").exists());
+        let statuses = repo.statuses(None).unwrap();
+        assert!(!statuses.is_empty());
+        assert!(statuses.iter().all(|entry| !entry.status().is_index_new()
+            && !entry.status().is_index_modified()
+            && !entry.status().is_index_deleted()));
+    }
 }
 
 // ── TemporalExplorerWindow impl ────────────────────────────────────────────────
@@ -913,10 +1029,229 @@ impl TemporalExplorerWindow {
             .build()
     }
 
+    fn restore_window_state(&self) {
+        let Some(settings) = self.imp().settings.get() else {
+            return;
+        };
+        let width = settings.int("window-width").max(500);
+        let height = settings.int("window-height").max(400);
+        self.set_default_size(width, height);
+        self.imp().last_window_width.set(width);
+        self.imp().last_window_height.set(height);
+
+        let win = self.clone();
+        self.connect_notify_local(Some("width"), move |_, _| {
+            if !win.is_maximized() && win.width() >= 500 && win.height() >= 400 {
+                win.imp().last_window_width.set(win.width());
+                win.imp().last_window_height.set(win.height());
+            }
+        });
+        let win = self.clone();
+        self.connect_notify_local(Some("height"), move |_, _| {
+            if !win.is_maximized() && win.width() >= 500 && win.height() >= 400 {
+                win.imp().last_window_width.set(win.width());
+                win.imp().last_window_height.set(win.height());
+            }
+        });
+
+        if settings.boolean("window-maximized") {
+            self.set_maximized(true);
+        }
+    }
+
+    fn tab_key(page: &adw::TabPage) -> usize {
+        page.as_ptr() as usize
+    }
+
+    fn capture_tab_state(&self) -> TabState {
+        let imp = self.imp();
+        TabState {
+            hash: imp.current_hash.borrow().clone(),
+            oid: imp.current_oid.get(),
+            dir: imp.current_dir.borrow().clone(),
+            nodes: imp.current_nodes.borrow().clone(),
+            history_back: imp.history_back.borrow().clone(),
+            history_forward: imp.history_forward.borrow().clone(),
+            commit_nav_back: imp.commit_nav_back.borrow().clone(),
+            commit_nav_forward: imp.commit_nav_forward.borrow().clone(),
+        }
+    }
+
+    fn save_active_tab_state(&self) {
+        if self.imp().switching_tab.get() {
+            return;
+        }
+        if let Some(page) = self.imp().tab_view.selected_page() {
+            self.imp()
+                .tab_states
+                .borrow_mut()
+                .insert(Self::tab_key(&page), self.capture_tab_state());
+            self.update_tab_title(&page);
+        }
+    }
+
+    fn restore_selected_tab_state(&self) {
+        let imp = self.imp();
+        let Some(page) = imp.tab_view.selected_page() else {
+            return;
+        };
+        let Some(state) = imp.tab_states.borrow().get(&Self::tab_key(&page)).cloned() else {
+            return;
+        };
+
+        imp.switching_tab.set(true);
+        *imp.current_hash.borrow_mut() = state.hash.clone();
+        imp.current_oid.set(state.oid);
+        *imp.current_dir.borrow_mut() = state.dir.clone();
+        *imp.current_nodes.borrow_mut() = state.nodes;
+        *imp.history_back.borrow_mut() = state.history_back;
+        *imp.history_forward.borrow_mut() = state.history_forward;
+        *imp.commit_nav_back.borrow_mut() = state.commit_nav_back;
+        *imp.commit_nav_forward.borrow_mut() = state.commit_nav_forward;
+        imp.switching_tab.set(false);
+
+        self.sync_commit_info_for_hash(state.hash.as_deref());
+        self.update_navigation_buttons();
+        if state.hash.is_some() {
+            self.navigate_to_dir(state.dir);
+        } else {
+            self.show_empty_state();
+        }
+    }
+
+    fn sync_commit_info_for_hash(&self, hash: Option<&str>) {
+        let imp = self.imp();
+        let commit = hash.and_then(|hash| {
+            let commits = imp.all_commits.borrow();
+            let index = imp.commit_index.borrow();
+            index
+                .get(hash)
+                .and_then(|position| commits.get(*position))
+                .map(|commit| {
+                    (
+                        commit.hash.clone(),
+                        commit.summary.clone(),
+                        commit.timestamp,
+                    )
+                })
+        });
+        if let Some((hash, summary, timestamp)) = commit {
+            imp.commit_hash_label.set_label(display_hash(&hash));
+            imp.commit_message_label.set_label(&summary);
+            imp.commit_date_label
+                .set_label(&Self::format_timestamp(timestamp));
+            imp.commit_info_bar.set_revealed(true);
+        } else {
+            imp.commit_info_bar.set_revealed(false);
+        }
+    }
+
+    fn update_tab_title(&self, page: &adw::TabPage) {
+        let imp = self.imp();
+        let dir = imp.current_dir.borrow();
+        let title = dir
+            .file_name()
+            .and_then(|name| name.to_str())
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned)
+            .unwrap_or_else(|| {
+                let repo = imp.repo_name.borrow();
+                if repo.is_empty() {
+                    gettext("New Tab")
+                } else {
+                    repo.clone()
+                }
+            });
+        page.set_title(&title);
+        let tooltip = if dir.as_os_str().is_empty() {
+            title.clone()
+        } else {
+            dir.to_string_lossy().into_owned()
+        };
+        page.set_tooltip(&tooltip);
+    }
+
+    fn setup_tabs(&self) {
+        let imp = self.imp();
+        let content = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .vexpand(true)
+            .hexpand(true)
+            .build();
+        let page = imp.tab_view.append(&content);
+        page.set_title(&gettext("New Tab"));
+        imp.tab_states
+            .borrow_mut()
+            .insert(Self::tab_key(&page), TabState::default());
+
+        let win = self.clone();
+        imp.tab_view.connect_selected_page_notify(move |_| {
+            win.restore_selected_tab_state();
+        });
+
+        let win = self.clone();
+        imp.tab_view.connect_close_page(move |view, page| {
+            if view.n_pages() <= 1 {
+                win.close();
+            } else {
+                view.close_page_finish(page, true);
+            }
+            glib::Propagation::Stop
+        });
+
+        let win = self.clone();
+        imp.tab_view.connect_page_detached(move |_, page, _| {
+            win.imp()
+                .tab_states
+                .borrow_mut()
+                .remove(&Self::tab_key(page));
+        });
+
+        self.show_empty_state();
+    }
+
+    fn new_tab(&self) {
+        self.save_active_tab_state();
+        let state = self.capture_tab_state();
+        let content = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .vexpand(true)
+            .hexpand(true)
+            .build();
+        let page = self.imp().tab_view.append(&content);
+        self.imp()
+            .tab_states
+            .borrow_mut()
+            .insert(Self::tab_key(&page), state);
+        self.update_tab_title(&page);
+        self.imp().tab_view.set_selected_page(&page);
+    }
+
+    fn close_current_tab(&self) {
+        let imp = self.imp();
+        let Some(page) = imp.tab_view.selected_page() else {
+            return;
+        };
+        if imp.tab_view.n_pages() <= 1 {
+            self.close();
+        } else {
+            imp.tab_view.close_page(&page);
+        }
+    }
+
+    fn active_tab_content(&self) -> Option<gtk::Box> {
+        self.imp()
+            .tab_view
+            .selected_page()
+            .and_then(|page| page.child().downcast::<gtk::Box>().ok())
+    }
+
     // ── Callback wiring ────────────────────────────────────────────────────────
 
     fn setup_callbacks(&self) {
         let imp = self.imp();
+
+        self.setup_tabs();
 
         let win = self.clone();
         imp.toolbar.open_repo_button().connect_clicked(move |_| {
@@ -1073,6 +1408,12 @@ impl TemporalExplorerWindow {
             ("filter-file-type", Self::show_filter_types_dialog),
             ("show-column-chooser", Self::show_column_chooser),
             ("new-branch", Self::show_new_branch_dialog),
+            ("new-tab", Self::new_tab),
+            ("close-tab", Self::close_current_tab),
+            (
+                "restore-project-snapshot",
+                Self::confirm_restore_project_snapshot,
+            ),
             ("toggle-sidebar", Self::toggle_sidebar),
             ("search-commits", Self::focus_commit_search),
             ("toggle-filter-popover", Self::toggle_filter_popover),
@@ -1135,6 +1476,8 @@ impl TemporalExplorerWindow {
                 .insert_action_group("app", Some(&app));
 
             app.set_accels_for_action("win.reload-repository", &["F5"]);
+            app.set_accels_for_action("win.new-tab", &["<Control>t"]);
+            app.set_accels_for_action("win.close-tab", &["<Control>w"]);
             app.set_accels_for_action("win.edit-location", &["<Control>l"]);
             app.set_accels_for_action("win.prompt-root-location", &["slash", "KP_Divide"]);
             app.set_accels_for_action("win.select-all-files", &["<Control>a"]);
@@ -1199,6 +1542,48 @@ impl TemporalExplorerWindow {
         };
 
         self.load_repository(repo_path);
+    }
+
+    fn confirm_restore_project_snapshot(&self) {
+        let Some(repo_path) = self.imp().repo_path.borrow().clone() else {
+            self.show_toast(&gettext("No repository loaded"));
+            return;
+        };
+        let Some(hash) = self.imp().current_hash.borrow().clone() else {
+            self.show_toast(&gettext("No snapshot selected"));
+            return;
+        };
+
+        let body = format!(
+            "{}\n\n{}: {}",
+            gettext("The current branch and HEAD will not change. The restored files will appear as local, unstaged changes."),
+            gettext("Snapshot"),
+            display_hash(&hash)
+        );
+        let dialog = adw::AlertDialog::builder()
+            .heading(gettext("Restore Project Files?"))
+            .body(body)
+            .build();
+        dialog.add_response("cancel", &gettext("Cancel"));
+        dialog.add_response("restore", &gettext("Restore Files"));
+        dialog.set_response_appearance("restore", adw::ResponseAppearance::Suggested);
+        dialog.set_default_response(Some("restore"));
+        dialog.set_close_response("cancel");
+
+        let win = self.clone();
+        dialog.connect_response(Some("restore"), move |_, _| {
+            match restore_project_files(&repo_path, &hash) {
+                Ok(()) => {
+                    win.show_toast(&gettext("Project files restored as local changes"));
+                    win.reload_current_dir_if_possible();
+                }
+                Err(error) => win.show_error(&format!(
+                    "{}: {error}",
+                    gettext("Could not restore project files")
+                )),
+            }
+        });
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
     fn open_repository_in_system(&self) {
@@ -1313,7 +1698,9 @@ impl TemporalExplorerWindow {
     }
 
     fn set_file_selection(&self, command: FileSelectionCommand) -> Option<usize> {
-        let root = self.imp().right_panel_content.get();
+        let Some(root) = self.active_tab_content() else {
+            return None;
+        };
 
         if let Some(list) = Self::find_list_box(root.upcast_ref()) {
             return Some(Self::set_list_box_selection(&list, command));
@@ -2634,8 +3021,7 @@ impl TemporalExplorerWindow {
 
     fn setup_styles(&self) {
         let provider = gtk::CssProvider::new();
-        provider
-            .load_from_resource("/io/github/johnpetersa19/TemporalExplorer/temporal-explorer.css");
+        provider.load_from_resource("/io/github/TemporalExplorer/temporal-explorer.css");
         if let Some(display) = gtk::gdk::Display::default() {
             gtk::style_context_add_provider_for_display(
                 &display,
@@ -2883,8 +3269,14 @@ impl TemporalExplorerWindow {
                 imp.commit_nav_back.borrow_mut().clear();
                 imp.commit_nav_forward.borrow_mut().clear();
                 imp.toolbar.history_controls().reset();
-                imp.window_title.set_title(&repo_name);
-                imp.window_title.set_subtitle(path.to_str().unwrap_or(""));
+                if let Some(page) = imp.tab_view.selected_page() {
+                    imp.tab_view.close_other_pages(&page);
+                    imp.tab_states.borrow_mut().clear();
+                    imp.tab_states
+                        .borrow_mut()
+                        .insert(Self::tab_key(&page), TabState::default());
+                    self.update_tab_title(&page);
+                }
                 imp.toolbar.new_branch_button().set_sensitive(true);
 
                 // Populate branch chips and build a branch -> commit-hash index.
@@ -3722,6 +4114,7 @@ impl TemporalExplorerWindow {
             adjustment.set_value(max);
         });
         self.update_dir_nav_buttons();
+        self.save_active_tab_state();
 
         // Cancellation token for directory loads.
         //
@@ -3924,6 +4317,7 @@ impl TemporalExplorerWindow {
             }
         };
         self.replace_right_panel(widget);
+        self.save_active_tab_state();
     }
 
     fn visible_nodes_for_current_settings(&self, nodes: Vec<TreeNode>) -> Vec<TreeNode> {
@@ -3948,7 +4342,7 @@ impl TemporalExplorerWindow {
     }
 
     fn selected_file_view_node_and_anchor(&self) -> Option<(TreeNode, gtk::Widget)> {
-        let root = self.imp().right_panel_content.get();
+        let root = self.active_tab_content()?;
 
         if let Some(list) = Self::find_list_box(root.upcast_ref()) {
             if let Some(row) = list.selected_rows().first() {
@@ -4272,6 +4666,10 @@ impl TemporalExplorerWindow {
         open_section.append(Some(&gettext("Open")), Some("ctx.context-open"));
         if !is_file {
             open_section.append(
+                Some(&gettext("Open in New Tab")),
+                Some("ctx.context-open-new-tab"),
+            );
+            open_section.append(
                 Some(&gettext("Open in New Window")),
                 Some("ctx.context-open-new-window"),
             );
@@ -4508,10 +4906,13 @@ impl TemporalExplorerWindow {
     }
 
     fn open_snapshot_node_in_new_tab(&self, node: &TreeNode) {
-        // GIO delegates tab placement to the user's file manager.  This is the
-        // portable native API; file managers that reuse an existing window open
-        // the location as a tab according to their own preference.
-        self.open_snapshot_node_with_default_app(node);
+        if node.is_dir() || node.is_submodule() {
+            let path = node.path().to_path_buf();
+            self.new_tab();
+            self.push_dir(path);
+        } else {
+            self.open_snapshot_node_with_default_app(node);
+        }
     }
 
     fn open_snapshot_node_in_new_window(&self, node: &TreeNode) {
@@ -5355,18 +5756,29 @@ impl TemporalExplorerWindow {
     // ── Right-panel management ────────────────────────────────────────────────
 
     pub fn replace_right_panel(&self, widget: gtk::Widget) {
-        let imp = self.imp();
         self.close_active_context_popover();
-        clear_box(&imp.right_panel_content);
-        imp.right_panel_content.append(&widget);
-        imp.right_panel_stack.set_visible_child_name("content");
+        if let Some(content) = self.active_tab_content() {
+            clear_box(&content);
+            content.append(&widget);
+        }
     }
 
     pub fn show_empty_state(&self) {
-        let imp = self.imp();
         self.close_active_context_popover();
-        clear_box(&imp.right_panel_content);
-        imp.right_panel_stack.set_visible_child_name("empty");
+        if let Some(content) = self.active_tab_content() {
+            clear_box(&content);
+            let empty = adw::StatusPage::builder()
+                .icon_name("folder-symbolic")
+                .title(gettext("Temporal-Explorer"))
+                .description(gettext(
+                    "Open a Git repository and select a commit from the timeline to browse its file tree.",
+                ))
+                .vexpand(true)
+                .hexpand(true)
+                .build();
+            content.append(&empty);
+        }
+        self.save_active_tab_state();
     }
 
     // ── File preview ──────────────────────────────────────────────────────────

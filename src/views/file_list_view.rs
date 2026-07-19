@@ -36,7 +36,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/file-list-view.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/file-list-view.ui")]
     pub struct FileListView {
         #[template_child]
         pub view_stack: TemplateChild<gtk::Stack>,

@@ -22,7 +22,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/branch-sidebar-row.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/branch-sidebar-row.ui")]
     pub struct BranchSidebarRow {
         #[template_child]
         pub branch_icon: TemplateChild<gtk::Image>,

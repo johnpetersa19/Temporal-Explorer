@@ -12,7 +12,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/file-grid-cell.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/file-grid-cell.ui")]
     pub struct FileGridCell {
         #[template_child]
         pub grid_cell_icon: TemplateChild<gtk::Image>,

@@ -27,7 +27,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/new-branch-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/new-branch-dialog.ui")]
     pub struct NewBranchDialog {
         #[template_child]
         pub branch_name_entry: TemplateChild<adw::EntryRow>,

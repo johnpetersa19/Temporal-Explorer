@@ -42,7 +42,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/column-chooser.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/column-chooser.ui")]
     pub struct ColumnChooser {
         #[template_child]
         pub col_name_row: gtk::TemplateChild<adw::SwitchRow>,

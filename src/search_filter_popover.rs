@@ -394,7 +394,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/search-filter-popover.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/search-filter-popover.ui")]
     pub struct SearchFilterPopover {
         // ── Date section ──
         #[template_child]

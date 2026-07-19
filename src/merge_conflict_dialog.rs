@@ -66,7 +66,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/merge-conflict-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/merge-conflict-dialog.ui")]
     pub struct MergeConflictDialog {
         // Header
         #[template_child]

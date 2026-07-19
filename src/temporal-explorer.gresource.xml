@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/io/github/johnpetersa19/TemporalExplorer">
+  <gresource prefix="/io/github/TemporalExplorer">
     <file compressed="true">batch-operations-dialog.ui</file>
     <file compressed="true">branch-sidebar-row.ui</file>
     <file compressed="true">clone-repository-dialog.ui</file>

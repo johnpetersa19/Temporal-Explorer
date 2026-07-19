@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: temporal-explorer 0.1.0\n"
-"POT-Creation-Date: 2026-07-14 20:20-0300\n"
+"Project-Id-Version: temporal-explorer 0.2.0\n"
+"POT-Creation-Date: 2026-07-18 23:55-0300\n"
 "PO-Revision-Date: 2026-06-28 00:06-0300\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -17,15 +17,15 @@ msgid "Open Snapshot Location"
 msgstr "Open Location"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/address_bar.rs:201
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4288
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4642
 #, fuzzy
 msgid "Copy Snapshot Path"
 msgstr "Snapshot Date"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/address_bar.rs:214
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4226
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4305
-#: src/node-properties-dialog.blp:5 src/toolbar.blp:249
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4576
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4659
+#: src/node-properties-dialog.blp:5 src/toolbar.blp:261
 msgid "Properties"
 msgstr "Properties"
 
@@ -227,7 +227,7 @@ msgstr "Size"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:242
 #: src/clone-repository-dialog.blp:56 src/node-properties-dialog.blp:150
-#: src/preferences-dialog.blp:17 src/toolbar.blp:178
+#: src/preferences-dialog.blp:17 src/toolbar.blp:190
 msgid "Repository"
 msgstr "Repository"
 
@@ -343,18 +343,18 @@ msgid "Empty directory"
 msgstr "Empty directory"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:469
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5187
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5544
 msgid "Folder"
 msgstr "Folder"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:470
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5191
-#: src/toolbar.blp:245
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5548
+#: src/toolbar.blp:257
 msgid "File"
 msgstr "File"
 
 #: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:471
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5189
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5546
 msgid "Submodule"
 msgstr "Submodule"
 
@@ -374,600 +374,653 @@ msgstr "Unknown size"
 msgid "Unknown date"
 msgstr "Unknown date"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:759
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:768
 #, fuzzy
 msgid "Clone operation cancelled"
 msgstr "Operation cancelled"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:761
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:770
 #, fuzzy
 msgid "Failed to clone repository"
 msgstr "Failed to open repository"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:770
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:779
 #, fuzzy
 msgid "Cannot cherry-pick in a bare repository"
 msgstr "Cannot open repository"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:773
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:782
 msgid "Cannot cherry-pick while HEAD is detached"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:777
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:786
 msgid "Commit or stash local changes before running cherry-pick"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:782
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:791
 msgid "Configure your Git user name and email before running cherry-pick"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:801
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:810
 msgid "Cherry-pick has conflicts at commit"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1187
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1429
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4532
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4618
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:860
+#, fuzzy
+msgid "Cannot restore files in a bare repository"
+msgstr "Cannot open repository"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:864
+msgid "Commit or stash local changes before restoring project files"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1115
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1137
+#: src/toolbar.blp:137
+#, fuzzy
+msgid "New Tab"
+msgstr "Open in Console"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1485
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1508
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1771
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4889
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4975
 msgid "No snapshot selected"
 msgstr "No snapshot selected"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1197
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1206
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1220
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1245
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1552
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2315
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4528
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4613
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5866
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1495
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1504
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1546
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1560
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1585
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1894
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2657
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4885
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4970
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6234
 msgid "No repository loaded"
 msgstr "No repository loaded"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1214
-msgid "Could not open repository in the system"
-msgstr "Could not open repository in the system"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1240
-msgid "Could not open a console for this repository"
-msgstr "Could not open a console for this repository"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1251
-msgid "Repository path copied"
-msgstr "Repository path copied"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1405
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1421
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1636
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1659
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2486
-msgid "Selected"
-msgstr "Selected"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1407
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1414
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1423
-msgid "No file view available"
-msgstr "No file view available"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1413
-msgid "Selection cleared"
-msgstr "Selection cleared"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1534
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1546
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1613
-msgid "No commit selected"
-msgstr "No commit selected"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1540
-msgid "Commit SHA copied"
-msgstr "Commit SHA copied"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1562
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1515
 #, fuzzy
-msgid "Could not load commit details"
-msgstr "Could not read file"
+msgid "Snapshot"
+msgstr "Git Snapshot"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1568
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1519
 #, fuzzy
-msgid "Root commit"
-msgstr "Copy commit SHA"
+msgid "Restore Project Files?"
+msgstr "Reset Filters"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1598
-msgid "Selected item is not a file"
-msgstr "Selected item is not a file"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1599
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1607
-msgid "No file selected"
-msgstr "No file selected"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1618
-#, fuzzy
-msgid "Selected commit is not a merge commit"
-msgstr "Selected item is not a file"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1673
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1688
-msgid "No commits loaded"
-msgstr "No commits loaded"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1737
-msgid "No repository loaded."
-msgstr "No repository loaded."
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1744
-msgid "Cannot read HEAD"
-msgstr "Cannot read HEAD"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1752
-msgid "Cannot peel HEAD to commit"
-msgstr "Cannot peel HEAD to commit"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1765
-msgid "No repository path stored."
-msgstr "No repository path stored."
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1781
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5409
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5859
-msgid "Cannot open repository"
-msgstr "Cannot open repository"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1785
-msgid "Cannot find HEAD commit"
-msgstr "Cannot find HEAD commit"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1791
-msgid "Failed to create branch"
-msgstr "Failed to create branch"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1802
-msgid "Created branch"
-msgstr "Created branch"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2304
-#, fuzzy
-msgid "Select at least one commit"
-msgstr "Selected commits"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2332
-#, fuzzy
-msgid "Cherry-picked"
-msgstr "Cherry-pick"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2340
-#, fuzzy
-msgid "Cherry-pick failed"
-msgstr "Cherry-pick"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2346
-msgid "Cherry-pick worker stopped unexpectedly"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2424
-msgid "Copied"
-msgstr "Copied"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2652
-#: src/toolbar.blp:114 src/toolbar.blp:132
-msgid "Open Repository"
-msgstr "Open Repository"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2679
-#, fuzzy
-msgid "Selected folder"
-msgstr "Selected"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2684
-#, fuzzy
-msgid "Repository Not Found"
-msgstr "Repository path copied"
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2687
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1522
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3029
 #: src/ssh-passphrase-dialog.blp:41 src/toolbar.blp:75
 msgid "Cancel"
 msgstr "Cancel"
 
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1523
+#, fuzzy
+msgid "Restore Files"
+msgstr "Reset Filters"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1532
+msgid "Project files restored as local changes"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1537
+#, fuzzy
+msgid "Could not restore project files"
+msgstr "Could not read file"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1554
+msgid "Could not open repository in the system"
+msgstr "Could not open repository in the system"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1580
+msgid "Could not open a console for this repository"
+msgstr "Could not open a console for this repository"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1591
+msgid "Repository path copied"
+msgstr "Repository path copied"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1747
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1763
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1978
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2001
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2828
+msgid "Selected"
+msgstr "Selected"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1749
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1756
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1765
+msgid "No file view available"
+msgstr "No file view available"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1755
+msgid "Selection cleared"
+msgstr "Selection cleared"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1876
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1888
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1955
+msgid "No commit selected"
+msgstr "No commit selected"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1882
+msgid "Commit SHA copied"
+msgstr "Commit SHA copied"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1904
+#, fuzzy
+msgid "Could not load commit details"
+msgstr "Could not read file"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1910
+#, fuzzy
+msgid "Root commit"
+msgstr "Copy commit SHA"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1940
+msgid "Selected item is not a file"
+msgstr "Selected item is not a file"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1941
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1949
+msgid "No file selected"
+msgstr "No file selected"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1960
+#, fuzzy
+msgid "Selected commit is not a merge commit"
+msgstr "Selected item is not a file"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2015
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2030
+msgid "No commits loaded"
+msgstr "No commits loaded"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2079
+msgid "No repository loaded."
+msgstr "No repository loaded."
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2086
+msgid "Cannot read HEAD"
+msgstr "Cannot read HEAD"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2094
+msgid "Cannot peel HEAD to commit"
+msgstr "Cannot peel HEAD to commit"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2107
+msgid "No repository path stored."
+msgstr "No repository path stored."
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2123
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5777
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6227
+msgid "Cannot open repository"
+msgstr "Cannot open repository"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2127
+msgid "Cannot find HEAD commit"
+msgstr "Cannot find HEAD commit"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2133
+msgid "Failed to create branch"
+msgstr "Failed to create branch"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2144
+msgid "Created branch"
+msgstr "Created branch"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2646
+#, fuzzy
+msgid "Select at least one commit"
+msgstr "Selected commits"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2674
+#, fuzzy
+msgid "Cherry-picked"
+msgstr "Cherry-pick"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2682
+#, fuzzy
+msgid "Cherry-pick failed"
+msgstr "Cherry-pick"
+
 #: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2688
+msgid "Cherry-pick worker stopped unexpectedly"
+msgstr ""
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2766
+msgid "Copied"
+msgstr "Copied"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2994
+#: src/toolbar.blp:114 src/toolbar.blp:132
+msgid "Open Repository"
+msgstr "Open Repository"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3021
+#, fuzzy
+msgid "Selected folder"
+msgstr "Selected"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3026
+#, fuzzy
+msgid "Repository Not Found"
+msgstr "Repository path copied"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3030
 msgid "Choose Another Folder"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2751
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3093
 #, fuzzy
 msgid "Repository URL is required"
 msgstr "Repository path copied"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2757
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3099
 msgid "Clone destination must be a folder"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2764
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3106
 msgid "Clone destination must be empty"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2771
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3113
 msgid "Cannot read clone destination"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2778
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3120
 msgid "Parent folder does not exist"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2785
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3127
 msgid "Cannot create temporary clone directory"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2796
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3138
 #, fuzzy
 msgid "Cloning Repository"
 msgstr "Open Repository"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2797
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3139
 #, fuzzy
 msgid "Connecting to remote repository…"
 msgstr "Cannot open repository"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2826
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3168
 #, fuzzy
 msgid "Repository saved and opened"
 msgstr "Repository path copied"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2828
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3170
 #, fuzzy
 msgid "Repository opened temporarily"
 msgstr "Repository path copied"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2841
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3183
 msgid "Cancelling clone…"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2843
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3185
 #, fuzzy
 msgid "Cloning repository…"
 msgstr "Cannot open repository"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2851
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3193
 msgid "Clone operation stopped unexpectedly"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2901
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3249
 msgid "Failed to open repository"
 msgstr "Failed to open repository"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2990
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3311
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3508
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3593
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3602
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3338
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3659
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3856
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3941
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3950
 #: src/window.blp:37
 msgid "Timeline"
 msgstr "Timeline"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2992
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3340
 msgid "No commits found"
 msgstr "No commits found"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3129
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3477
 msgid "Failed to read history"
 msgstr "Failed to read history"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3762
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4111
 msgid "Error reading tree"
 msgstr "Error reading tree"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4186
-#: src/toolbar.blp:147
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4536
+#: src/toolbar.blp:159
 msgid "Reload"
 msgstr "Reload"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4187
-#: src/toolbar.blp:205
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4537
+#: src/toolbar.blp:217
 msgid "Select All"
 msgstr "Select All"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4189
-#: src/toolbar.blp:211
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4539
+#: src/toolbar.blp:223
 msgid "Invert Selection"
 msgstr "Invert Selection"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4193
-#: src/toolbar.blp:217
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4543
+#: src/toolbar.blp:229
 msgid "Clear Selection"
 msgstr "Clear Selection"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4200
-#: src/toolbar.blp:233 src/view-controls.blp:71
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4550
+#: src/toolbar.blp:245 src/view-controls.blp:71
 #, fuzzy
 msgid "Visible Columns…"
 msgstr "Visible Columns"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4203
-#: src/toolbar.blp:228 src/view-controls.blp:79
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4553
+#: src/toolbar.blp:240 src/view-controls.blp:79
 msgid "Captions…"
 msgstr "Captions…"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4205
-#: src/toolbar.blp:238
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4555
+#: src/toolbar.blp:250
 #, fuzzy
 msgid "Select Commits by Pattern…"
 msgstr "Select Commits by Pattern"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4212
-#: src/toolbar.blp:182
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4562
+#: src/toolbar.blp:194
 msgid "Open Repository in System"
 msgstr "Open Repository in System"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4216
-#: src/toolbar.blp:187
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4566
+#: src/toolbar.blp:199
 msgid "Open in Console"
 msgstr "Open in Console"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4220
-#: src/toolbar.blp:171
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4570
+#: src/toolbar.blp:183
 #, fuzzy
 msgid "Copy Snapshot Location"
 msgstr "Snapshot Date"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4272
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4622
 msgid "Open"
 msgstr "Open"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4275
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4625
+#, fuzzy
+msgid "Open in New Tab"
+msgstr "Open in Console"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4629
 #, fuzzy
 msgid "Open in New Window"
 msgstr "Open in Console"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4280
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4634
 #: src/batch-operations-dialog.blp:168
 msgid "Preview"
 msgstr "Preview"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4282
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4636
 msgid "Open With…"
 msgstr "Open With…"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4286
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4640
 msgid "Export File…"
 msgstr "Export File…"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4292
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4646
 msgid "Copy Content"
 msgstr "Copy Content"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4299
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4653
 msgid "Show in System"
 msgstr "Show in System"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4524
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4881
 #, fuzzy
 msgid "Could not open a new window"
 msgstr "Could not open repository in the system"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4558
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4915
 #, fuzzy
 msgid "Could not open the snapshot in a new window"
 msgstr "Could not open repository in the system"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4742
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5099
 msgid "Unsupported snapshot item type"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4773
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5130
 msgid "Operation cancelled"
 msgstr "Operation cancelled"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4805
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5162
 msgid "Only files can be opened or exported from a snapshot"
 msgstr "Only files can be opened or exported from a snapshot"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4848
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5205
 msgid "Opening File"
 msgstr "Opening File"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4849
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4954
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5206
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5311
 msgid "Materializing snapshot file…"
 msgstr "Materializing snapshot file…"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4855
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4883
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5212
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5240
 #, fuzzy
 msgid "Could not open the item with the default application"
 msgstr "Could not open file with the default application"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4861
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5218
 #, fuzzy
 msgid "Could not open the item with the default application."
 msgstr "Could not open file with the default application"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4862
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5219
 msgid "Temporary item"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4864
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5021
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5221
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5378
 msgid "System error"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4881
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4982
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5238
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5339
 #, fuzzy
 msgid "Could not open the item with the selected application"
 msgstr "Could not open file with the selected application"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4913
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5270
 msgid "The system could not determine the item type"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4938
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5295
 msgid "No application is available for this item type"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4953
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5310
 msgid "Preparing File"
 msgstr "Preparing File"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4972
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5329
 #, fuzzy
 msgid "Open With"
 msgstr "Open With…"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5000
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5357
 #, fuzzy
 msgid "Preparing Item"
 msgstr "Preparing File"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5001
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5358
 #, fuzzy
 msgid "Materializing snapshot item…"
 msgstr "Materializing snapshot file…"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5012
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5369
 #, fuzzy
 msgid "Could not open the item location"
 msgstr "Could not open a console for this repository"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5018
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5375
 #, fuzzy
 msgid "Could not open the item location."
 msgstr "Could not open a console for this repository"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5019
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5376
 #, fuzzy
 msgid "Temporary location"
 msgstr "Clear Selection"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5030
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5387
 msgid "Only files can be exported from a snapshot"
 msgstr "Only files can be exported from a snapshot"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5042
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5399
 msgid "Export File"
 msgstr "Export File"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5044
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5401
 msgid "Export"
 msgstr "Export"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5062
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5419
 msgid "Exporting File"
 msgstr "Exporting File"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5063
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5420
 msgid "Exporting snapshot file…"
 msgstr "Exporting snapshot file…"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5065
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5422
 msgid "Exported"
 msgstr "Exported"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5076
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5433
 #, fuzzy
 msgid "Snapshot path copied"
 msgstr "Snapshot Date"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5082
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5439
 msgid "Only file content can be copied"
 msgstr "Only file content can be copied"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5116
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5473
 msgid "File content copied"
 msgstr "File content copied"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5120
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5477
 msgid "This file is binary or could not be copied as text"
 msgstr "This file is binary or could not be copied as text"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5134
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5491
 msgid "This file does not exist in the current working tree"
 msgstr "This file does not exist in the current working tree"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5143
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5500
 msgid "Could not show file in the system"
 msgstr "Could not show file in the system"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5160
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5517
 msgid "Unknown snapshot date"
 msgstr "Unknown snapshot date"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5183
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5540
 msgid "Repository root"
 msgstr "Repository root"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5202
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5203
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5204
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5559
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5560
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5561
 msgid "Not available"
 msgstr "Not available"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5256
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5613
 msgid "Exists in working tree"
 msgstr "Exists in working tree"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5258
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5615
 msgid "Only available in selected snapshot"
 msgstr "Only available in selected snapshot"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5318
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5675
 msgid "Marked as favorite"
 msgstr "Marked as favorite"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5320
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5677
 msgid "Removed from favorites"
 msgstr "Removed from favorites"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5333
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5690
 #: src/node-properties-dialog.blp:64
 msgid "Snapshot item icons cannot be edited"
 msgstr "Snapshot item icons cannot be edited"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5527
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5728
+#, fuzzy
+msgid "Temporal-Explorer"
+msgstr "Temporal Explorer"
+
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5895
 #, fuzzy
 msgid "Parent paths are not available in snapshots"
 msgstr "Not available in Git snapshot"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5550
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5918
 #, fuzzy
 msgid "Path copied"
 msgstr "Repository path copied"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5575
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5943
 msgid "Error"
 msgstr "Error"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5578
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5946
 msgid "OK"
 msgstr "OK"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5714
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6082
 msgid "Search Results"
 msgstr "Search Results"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5825
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6193
 msgid "Indexing Changed Files"
 msgstr "Indexing Changed Files"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5826
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6194
 msgid "Reading changed-file metadata…"
 msgstr "Reading changed-file metadata…"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5959
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5984
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6327
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6352
 msgid "Indexed"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5963
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5987
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6331
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6355
 msgid "cached"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5965
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6333
 msgid "matches"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6041
+#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6409
 #, fuzzy
 msgid "Could not read changed files for"
 msgstr "Could not read file"
@@ -1044,7 +1097,7 @@ msgid "Delete branch"
 msgstr "Delete branch"
 
 #: src/clone-repository-dialog.blp:5 src/clone-repository-dialog.blp:40
-#: src/toolbar.blp:137
+#: src/toolbar.blp:149
 #, fuzzy
 msgid "Clone Repository"
 msgstr "Open Repository"
@@ -1335,7 +1388,7 @@ msgstr ""
 msgid "Show conflict diff"
 msgstr "Show conflict diff"
 
-#: src/new-branch-dialog.blp:5 src/toolbar.blp:122 src/toolbar.blp:142
+#: src/new-branch-dialog.blp:5 src/toolbar.blp:122 src/toolbar.blp:154
 msgid "New Branch"
 msgstr "New Branch"
 
@@ -1793,71 +1846,80 @@ msgstr "Select Commits"
 msgid "Main Menu"
 msgstr "Main Menu"
 
-#: src/toolbar.blp:155
+#: src/toolbar.blp:143
+#, fuzzy
+msgid "Close Tab"
+msgstr "Close Search"
+
+#: src/toolbar.blp:167
 #, fuzzy
 msgid "Location"
 msgstr "Open Location"
 
-#: src/toolbar.blp:159
+#: src/toolbar.blp:171
 #, fuzzy
 msgid "Edit Snapshot Location"
 msgstr "Git Snapshot"
 
-#: src/toolbar.blp:165
+#: src/toolbar.blp:177
 #, fuzzy
 msgid "Go to Snapshot Root"
 msgstr "Git Snapshot"
 
-#: src/toolbar.blp:192
+#: src/toolbar.blp:204
 msgid "Copy Repository Path"
 msgstr "Copy Repository Path"
 
-#: src/toolbar.blp:201
+#: src/toolbar.blp:213
 #, fuzzy
 msgid "Selection"
 msgstr "Select"
 
-#: src/toolbar.blp:224
+#: src/toolbar.blp:236
 #, fuzzy
 msgid "View"
 msgstr "Diff View"
 
-#: src/toolbar.blp:254
+#: src/toolbar.blp:266
 #, fuzzy
 msgid "Preview Selected File"
 msgstr "Preview truncated at"
 
-#: src/toolbar.blp:259
+#: src/toolbar.blp:271
 msgid "Show Context Menu"
 msgstr ""
 
-#: src/toolbar.blp:266
+#: src/toolbar.blp:278
 #, fuzzy
 msgid "Operations"
 msgstr "Operation"
 
-#: src/toolbar.blp:270
+#: src/toolbar.blp:282
+msgid "Restore Project Files from Snapshot…"
+msgstr ""
+
+#: src/toolbar.blp:287
 #, fuzzy
 msgid "Batch Operations…"
 msgstr "Batch Operations"
 
-#: src/toolbar.blp:275
+#: src/toolbar.blp:292
 msgid "Compare Merge Parents…"
 msgstr ""
 
-#: src/toolbar.blp:284
+#: src/toolbar.blp:301
 msgid "Help"
 msgstr ""
 
-#: src/toolbar.blp:288
+#: src/toolbar.blp:305
 msgid "Preferences"
 msgstr "Preferences"
 
-#: src/toolbar.blp:293
+#: src/toolbar.blp:310
 msgid "Keyboard Shortcuts"
 msgstr "Keyboard Shortcuts"
 
-#: src/toolbar.blp:298
+#: src/toolbar.blp:315
 msgid "About Temporal Explorer"
 msgstr "About Temporal Explorer"
 
@@ -1885,7 +1947,7 @@ msgstr "Zoom Out"
 msgid "Zoom In"
 msgstr "Zoom In"
 
-#: src/window.blp:5 src/window.blp:132
+#: src/window.blp:5
 msgid "Temporal Explorer"
 msgstr "Temporal Explorer"
 
@@ -1898,38 +1960,37 @@ msgstr "Search commits, hash, dateâ¦"
 msgid "Filters"
 msgstr "Filters"
 
-#: src/window.blp:133
-msgid "No repository selected"
-msgstr "No repository selected"
-
-#: src/window.blp:139
-#, fuzzy
-msgid "Temporal-Explorer"
-msgstr "Temporal Explorer"
-
-#: src/window.blp:140
-msgid ""
-"Open a Git repository and select a commit from the timeline to browse its "
-"file tree."
+#: src/window.blp:149
+msgid "Restore Project Files…"
 msgstr ""
-"Open a Git repository and select a commit from the timeline to browse its "
-"file tree."
 
-#: src/window.blp:195
+#: src/window.blp:150
+msgid ""
+"Restore the project files from this snapshot without changing the current "
+"branch"
+msgstr ""
+
+#: src/window.blp:178
 msgid "_Preferences"
 msgstr "_Preferences"
 
-#: src/window.blp:199
+#: src/window.blp:182
 msgid "_Keyboard Shortcuts"
 msgstr "_Keyboard Shortcuts"
 
-#: src/window.blp:203
+#: src/window.blp:186
 msgid "_About Temporal Explorer"
 msgstr "_About Temporal Explorer"
 
-#, fuzzy
-#~ msgid "Open in New Tab"
-#~ msgstr "Open in Console"
+#~ msgid "No repository selected"
+#~ msgstr "No repository selected"
+
+#~ msgid ""
+#~ "Open a Git repository and select a commit from the timeline to browse its "
+#~ "file tree."
+#~ msgstr ""
+#~ "Open a Git repository and select a commit from the timeline to browse its "
+#~ "file tree."
 
 #, fuzzy
 #~ msgid "Open Item Location"
@@ -2052,9 +2113,6 @@ msgstr "_About Temporal Explorer"
 
 #~ msgid "No Snapshot Selected"
 #~ msgstr "No Snapshot Selected"
-
-#~ msgid "Close Search"
-#~ msgstr "Close Search"
 
 #~ msgid "Search Current Folder"
 #~ msgstr "Search Current Folder"

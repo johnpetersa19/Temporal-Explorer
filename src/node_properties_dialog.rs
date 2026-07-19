@@ -34,7 +34,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/node-properties-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/node-properties-dialog.ui")]
     pub struct NodePropertiesDialog {
         #[template_child]
         pub dialog_title: TemplateChild<adw::WindowTitle>,

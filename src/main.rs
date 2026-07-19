@@ -101,7 +101,7 @@ fn main() -> glib::ExitCode {
     load_app_resources();
 
     let app = Application::new(
-        "io.github.johnpetersa19.TemporalExplorer",
+        "io.github.TemporalExplorer",
         &gio::ApplicationFlags::default(),
     );
     app.run()

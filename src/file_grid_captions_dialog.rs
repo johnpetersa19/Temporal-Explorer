@@ -28,7 +28,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/file-grid-captions-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/file-grid-captions-dialog.ui")]
     pub struct FileGridCaptionsDialog {
         #[template_child]
         pub caption_status_row: TemplateChild<adw::SwitchRow>,

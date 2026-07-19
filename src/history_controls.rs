@@ -22,7 +22,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/history-controls.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/history-controls.ui")]
     pub struct HistoryControls {
         #[template_child]
         pub back_button: gtk::TemplateChild<gtk::Button>,

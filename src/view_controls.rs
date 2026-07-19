@@ -32,7 +32,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/view-controls.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/view-controls.ui")]
     pub struct ViewControls {
         #[template_child]
         pub view_split_button: TemplateChild<adw::SplitButton>,

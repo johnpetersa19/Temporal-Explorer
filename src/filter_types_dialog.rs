@@ -85,7 +85,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/filter-types-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/filter-types-dialog.ui")]
     pub struct FilterTypesDialog {
         #[template_child]
         pub search_entry: TemplateChild<gtk::SearchEntry>,

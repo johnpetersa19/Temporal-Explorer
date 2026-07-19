@@ -38,7 +38,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/toolbar.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/toolbar.ui")]
     pub struct TemporalToolbar {
         // Header bar itself (needed to call set_show_title_buttons, etc.)
         #[template_child]

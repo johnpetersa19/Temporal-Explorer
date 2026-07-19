@@ -134,6 +134,18 @@ menu primary_menu {
     }
 
     item {
+      label: _("New Tab");
+      action: "win.new-tab";
+      accel: "<control>t";
+    }
+
+    item {
+      label: _("Close Tab");
+      action: "win.close-tab";
+      accel: "<control>w";
+    }
+
+    item {
       label: _("Clone Repository");
       action: "win.clone-repository";
     }
@@ -266,6 +278,11 @@ menu primary_menu {
       label: _("Operations");
 
       section {
+        item {
+          label: _("Restore Project Files from Snapshot…");
+          action: "win.restore-project-snapshot";
+        }
+
         item {
           label: _("Batch Operations…");
           action: "win.batch-operations";

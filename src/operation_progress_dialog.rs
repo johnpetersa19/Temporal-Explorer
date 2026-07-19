@@ -12,7 +12,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/operation-progress-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/operation-progress-dialog.ui")]
     pub struct OperationProgressDialog {
         #[template_child]
         pub title_widget: TemplateChild<adw::WindowTitle>,

@@ -1,6 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="temporal-explorer">
-  <schema id="io.github.johnpetersa19.TemporalExplorer" path="/io/github/johnpetersa19/TemporalExplorer/">
+  <schema id="io.github.TemporalExplorer" path="/io/github/TemporalExplorer/">
+
+    <key name="window-width" type="i">
+      <default>1100</default>
+      <summary>Window width</summary>
+      <description>Last non-maximized width of the main window.</description>
+    </key>
+
+    <key name="window-height" type="i">
+      <default>700</default>
+      <summary>Window height</summary>
+      <description>Last non-maximized height of the main window.</description>
+    </key>
+
+    <key name="window-maximized" type="b">
+      <default>false</default>
+      <summary>Window maximized</summary>
+      <description>Whether the main window was maximized when it was closed.</description>
+    </key>
 
     <key name="fetch-on-open" type="b">
       <default>false</default>

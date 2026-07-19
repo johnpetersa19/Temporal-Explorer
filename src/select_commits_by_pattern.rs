@@ -128,7 +128,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/select-commits-by-pattern.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/select-commits-by-pattern.ui")]
     pub struct SelectCommitsByPattern {
         #[template_child]
         pub pattern_entry: TemplateChild<adw::EntryRow>,

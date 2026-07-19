@@ -48,7 +48,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/commit-name-cell.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/commit-name-cell.ui")]
     pub struct CommitNameCell {
         #[template_child]
         pub summary_label: TemplateChild<gtk::Label>,

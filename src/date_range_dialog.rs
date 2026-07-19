@@ -89,7 +89,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/date-range-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/date-range-dialog.ui")]
     pub struct DateRangeDialog {
         #[template_child]
         pub from_entry: TemplateChild<adw::EntryRow>,

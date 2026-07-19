@@ -76,10 +76,7 @@ impl TemporalExplorerApplication {
         glib::Object::builder()
             .property("application-id", application_id)
             .property("flags", flags)
-            .property(
-                "resource-base-path",
-                "/io/github/johnpetersa19/TemporalExplorer",
-            )
+            .property("resource-base-path", "/io/github/TemporalExplorer")
             .build()
     }
 
@@ -89,7 +86,7 @@ impl TemporalExplorerApplication {
         };
 
         let icon_theme = gtk::IconTheme::for_display(&display);
-        icon_theme.add_resource_path("/io/github/johnpetersa19/TemporalExplorer/icons");
+        icon_theme.add_resource_path("/io/github/TemporalExplorer/icons");
 
         // Flatpak's GTK icon theme only searches the runtime by default.  The
         // repository browser should render the same MIME icons as the host file
@@ -133,7 +130,7 @@ impl TemporalExplorerApplication {
 
     fn show_preferences(&self) {
         let window = self.active_window().unwrap();
-        let settings = gio::Settings::new("io.github.johnpetersa19.TemporalExplorer");
+        let settings = gio::Settings::new("io.github.TemporalExplorer");
         let dialog = PreferencesDialog::new(&settings);
         dialog.present(Some(&window));
     }
@@ -143,9 +140,8 @@ impl TemporalExplorerApplication {
             return;
         };
 
-        let builder = gtk::Builder::from_resource(
-            "/io/github/johnpetersa19/TemporalExplorer/shortcuts-dialog.ui",
-        );
+        let builder =
+            gtk::Builder::from_resource("/io/github/TemporalExplorer/shortcuts-dialog.ui");
 
         let Some(dialog) = builder.object::<adw::Dialog>("shortcuts_dialog") else {
             return;
@@ -158,7 +154,7 @@ impl TemporalExplorerApplication {
         let window = self.active_window().unwrap();
         let about = adw::AboutDialog::builder()
             .application_name("Temporal Explorer")
-            .application_icon("io.github.johnpetersa19.TemporalExplorer")
+            .application_icon("io.github.TemporalExplorer")
             .developer_name("John Peter Sá")
             .version(VERSION)
             .developers(vec!["John Peter Sá"])

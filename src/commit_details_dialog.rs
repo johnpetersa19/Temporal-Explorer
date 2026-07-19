@@ -19,7 +19,7 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/commit-details-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/commit-details-dialog.ui")]
     pub struct CommitDetailsDialog {
         #[template_child]
         pub summary_row: TemplateChild<adw::ActionRow>,

@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-pub static VERSION: &str = "0.1.0";
+pub static VERSION: &str = "0.2.0";
 pub static GETTEXT_PACKAGE: &str = "temporal-explorer";
 pub static LOCALEDIR: &str = "/app/share/locale";
 #[allow(dead_code)]

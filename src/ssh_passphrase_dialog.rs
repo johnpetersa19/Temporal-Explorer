@@ -8,7 +8,7 @@ mod imp {
     use gtk::CompositeTemplate;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/io/github/johnpetersa19/TemporalExplorer/ssh-passphrase-dialog.ui")]
+    #[template(resource = "/io/github/TemporalExplorer/ssh-passphrase-dialog.ui")]
     pub struct SshPassphraseDialog {
         #[template_child]
         pub passphrase_entry: TemplateChild<adw::PasswordEntryRow>,
