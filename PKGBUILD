@@ -1,12 +1,13 @@
-# Maintainer: Temporal Explorer contributors
+# Maintainer: johnpetersa19 <johnppetersa at gmail dot com>
 
-pkgname=temporal-explorer-git
-pkgver=0.2.0.r0.g0000000
+pkgname=temporal-explorer
+pkgver=0.2.0
 pkgrel=1
 pkgdesc='Browse Git repository history as a time-navigable file tree'
 arch=('x86_64' 'aarch64')
 url='https://github.com/johnpetersa19/Temporal-Explorer'
 license=('GPL-3.0-or-later')
+options=('!debug' '!lto')
 depends=(
   'glib2'
   'gtk4'
@@ -17,7 +18,6 @@ depends=(
 makedepends=(
   'blueprint-compiler'
   'gettext'
-  'git'
   'meson'
   'rust'
 )
@@ -25,23 +25,12 @@ checkdepends=(
   'appstream'
   'desktop-file-utils'
 )
-provides=('temporal-explorer')
-conflicts=('temporal-explorer')
-source=("$pkgname::git+$url.git")
-sha256sums=('SKIP')
-
-pkgver() {
-  cd "$pkgname" || return 1
-
-  local project_version commit_count commit_hash
-  project_version=$(sed -n "s/^[[:space:]]*version:[[:space:]]*'\([^']*\)'.*/\1/p" meson.build)
-  commit_count=$(git rev-list --count HEAD)
-  commit_hash=$(git rev-parse --short=7 HEAD)
-  printf '%s.r%s.g%s' "$project_version" "$commit_count" "$commit_hash"
-}
+conflicts=('temporal-explorer-git')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('f5e73d40fc2975b03ab6226e225c218a370e7683f129cd5d6dfb5e699c62a13d')
 
 build() {
-  arch-meson "$pkgname" build --buildtype=release
+  arch-meson "Temporal-Explorer-$pkgver" build --buildtype=release
   meson compile -C build
 }
 
@@ -51,6 +40,6 @@ check() {
 
 package() {
   DESTDIR="$pkgdir" meson install -C build
-  install -Dm644 "$pkgname/COPYING" \
+  install -Dm644 "Temporal-Explorer-$pkgver/COPYING" \
     "$pkgdir/usr/share/licenses/$pkgname/COPYING"
 }
