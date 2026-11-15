@@ -224,6 +224,11 @@ impl NodePropertiesDialog {
         } else {
             "non-starred-symbolic"
         });
+        if props.favorite {
+            imp.favorite_button.add_css_class("starred");
+        } else {
+            imp.favorite_button.remove_css_class("starred");
+        }
         imp.favorite_button
             .set_tooltip_text(Some(&if props.favorite {
                 gettext("Unstar")
@@ -285,6 +290,12 @@ impl NodePropertiesDialog {
             "non-starred-symbolic"
         };
         imp.favorite_button.set_icon_name(icon);
+        if active {
+            imp.favorite_button.add_css_class("starred");
+        } else {
+            imp.favorite_button.remove_css_class("starred");
+        }
+        imp.favorite_button.add_css_class("interacted");
         let tooltip = if active {
             gettext("Unstar")
         } else {

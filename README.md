@@ -23,6 +23,7 @@ The application ID is `io.github.TemporalExplorer`.
 ### Search and filtering
 
 - Search commit messages, hashes, authors, dates and changed file names.
+- Search file names and text in the selected snapshot.
 - Filter commits by branch, author, date range and file type.
 - Select commits using text, glob or regular-expression patterns.
 - Process large histories incrementally with paginated loading and cached indexes.
@@ -36,14 +37,19 @@ The application ID is `io.github.TemporalExplorer`.
 - Open snapshot files with installed applications.
 - Export historical files and directories without changing the repository.
 - Copy snapshot paths, file contents and repository paths.
-- View item properties and mark snapshot items as favorites.
+- View item properties, mark snapshot items as favorites and revisit favorites
+  from the main menu.
 
 ### Tabs
 
 - Open multiple snapshot locations in tabs using the native Libadwaita tab bar.
 - Preserve the commit, directory and navigation history independently in each tab.
 - Open snapshot directories in a new tab from the context menu.
+- Review tabs in the tab overview, restore recently closed tabs, close other tabs
+  or move a tab to a new window.
 - Create and close tabs with `Ctrl+T` and `Ctrl+W`.
+- On narrow windows, the tab bar and upper navigation/view controls move out of
+  the way in favor of compact bottom controls.
 
 ### Repository operations
 
@@ -52,6 +58,8 @@ The application ID is `io.github.TemporalExplorer`.
 - Cherry-pick selected commits onto the current branch.
 - Export selected commits as patch files or copy their SHAs.
 - Open the repository in the system file manager or a terminal.
+- Track cloning and snapshot exports in the operations bar, cancel active work
+  and review recent operations.
 - Restore all tracked project files from a selected snapshot while keeping `HEAD`
   and the current branch unchanged. Restoration is blocked when local changes are
   present and the result is left as unstaged working-tree changes.

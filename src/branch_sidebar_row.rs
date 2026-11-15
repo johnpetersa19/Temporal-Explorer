@@ -148,7 +148,7 @@ impl BranchSidebarRow {
 
         imp.branch_name_label.set_label(name);
         imp.branch_icon.set_icon_name(Some(if is_remote {
-            "folder-remote-symbolic"
+            "network-computer-symbolic"
         } else {
             "folder-symbolic"
         }));

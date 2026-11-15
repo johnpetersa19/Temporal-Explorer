@@ -29,6 +29,8 @@
 use adw::subclass::prelude::*;
 use gtk::prelude::*;
 use gtk::{glib, CompositeTemplate};
+use std::cell::Cell;
+use std::sync::OnceLock;
 
 use crate::history_controls::HistoryControls;
 use crate::view_controls::ViewControls;
@@ -37,7 +39,7 @@ use crate::view_controls::ViewControls;
 mod imp {
     use super::*;
 
-    #[derive(Debug, Default, CompositeTemplate)]
+    #[derive(Debug, CompositeTemplate)]
     #[template(resource = "/io/github/TemporalExplorer/toolbar.ui")]
     pub struct TemporalToolbar {
         // Header bar itself (needed to call set_show_title_buttons, etc.)
@@ -80,8 +82,41 @@ mod imp {
         pub search_button: TemplateChild<gtk::ToggleButton>,
         #[template_child]
         pub view_controls: TemplateChild<ViewControls>,
-        #[template_child]
-        pub main_menu_button: TemplateChild<gtk::MenuButton>,
+
+        /// Visibility flags controlled by the `show-view-controls` and
+        /// `show-history-controls` properties (driven by the window's
+        /// `Adw.Breakpoint`, exactly like the Nautilus toolbar).
+        pub show_view_controls: Cell<bool>,
+        pub show_history_controls: Cell<bool>,
+        /// Visibility state of the sidebar toggle button (distinct from the
+        /// `TemplateChild` named `show_sidebar_button`).
+        pub sidebar_button_shown: Cell<bool>,
+    }
+
+    impl Default for TemporalToolbar {
+        fn default() -> Self {
+            Self {
+                header_bar: TemplateChild::default(),
+                history_controls: TemplateChild::default(),
+                open_repo_button: TemplateChild::default(),
+                new_branch_button: TemplateChild::default(),
+                show_sidebar_button: TemplateChild::default(),
+                toolbar_switcher: TemplateChild::default(),
+                address_bar_scrolled: TemplateChild::default(),
+                address_bar: TemplateChild::default(),
+                location_entry: TemplateChild::default(),
+                location_cancel_btn: TemplateChild::default(),
+                search_button: TemplateChild::default(),
+                view_controls: TemplateChild::default(),
+                // Same defaults as the GObject properties: the history and
+                // view controls start visible and the sidebar toggle starts
+                // hidden (the sidebar is always visible on wide windows, as
+                // in the Nautilus).
+                show_view_controls: Cell::new(true),
+                show_history_controls: Cell::new(true),
+                sidebar_button_shown: Cell::new(false),
+            }
+        }
     }
 
     #[glib::object_subclass]
@@ -101,7 +136,59 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for TemporalToolbar {}
+    impl ObjectImpl for TemporalToolbar {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            // Applies the visibility flags that were set before the template
+            // was inflated (the properties may be set from the BLP).
+            let obj = self.obj();
+            obj.set_view_controls_visible(obj.view_controls_visible());
+            obj.set_history_controls_visible(obj.history_controls_visible());
+            obj.set_sidebar_button_visible(obj.sidebar_button_visible());
+        }
+
+        fn properties() -> &'static [glib::ParamSpec] {
+            static PROPERTIES: OnceLock<Vec<glib::ParamSpec>> = OnceLock::new();
+            PROPERTIES.get_or_init(|| {
+                vec![
+                    glib::ParamSpecBoolean::builder("show-view-controls")
+                        .default_value(true)
+                        .build(),
+                    glib::ParamSpecBoolean::builder("show-history-controls")
+                        .default_value(true)
+                        .build(),
+                    glib::ParamSpecBoolean::builder("show-sidebar-button")
+                        .default_value(false)
+                        .build(),
+                ]
+            })
+        }
+
+        fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
+            match pspec.name() {
+                "show-view-controls" => {
+                    self.obj().set_view_controls_visible(value.get().unwrap());
+                }
+                "show-history-controls" => {
+                    self.obj().set_history_controls_visible(value.get().unwrap());
+                }
+                "show-sidebar-button" => {
+                    self.obj().set_sidebar_button_visible(value.get().unwrap());
+                }
+                _ => unimplemented!("unknown property: {}", pspec.name()),
+            }
+        }
+
+        fn property(&self, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
+            match pspec.name() {
+                "show-view-controls" => self.obj().view_controls_visible().to_value(),
+                "show-history-controls" => self.obj().history_controls_visible().to_value(),
+                "show-sidebar-button" => self.obj().sidebar_button_visible().to_value(),
+                _ => unimplemented!("unknown property: {}", pspec.name()),
+            }
+        }
+    }
     impl WidgetImpl for TemporalToolbar {}
     impl BinImpl for TemporalToolbar {}
 }
@@ -169,8 +256,46 @@ impl TemporalToolbar {
         &self.imp().view_controls
     }
 
-    pub fn main_menu_button(&self) -> &gtk::MenuButton {
-        &self.imp().main_menu_button
+    /// Show or hide the view controls (list/grid switcher).
+    pub fn set_view_controls_visible(&self, visible: bool) {
+        let imp = self.imp();
+        imp.show_view_controls.set(visible);
+        if imp.view_controls.is_bound() {
+            imp.view_controls.set_visible(visible);
+        }
+    }
+
+    pub fn view_controls_visible(&self) -> bool {
+        self.imp().show_view_controls.get()
+    }
+
+    /// Show or hide the back/forward navigation controls.
+    pub fn set_history_controls_visible(&self, visible: bool) {
+        let imp = self.imp();
+        imp.show_history_controls.set(visible);
+        if imp.history_controls.is_bound() {
+            imp.history_controls.set_visible(visible);
+        }
+    }
+
+    pub fn history_controls_visible(&self) -> bool {
+        self.imp().show_history_controls.get()
+    }
+
+    /// Show or hide the sidebar toggle button.
+    ///
+    /// The Nautilus hides this button on wide windows (the sidebar is
+    /// always visible there) and reveals it only at the 682sp breakpoint.
+    pub fn set_sidebar_button_visible(&self, visible: bool) {
+        let imp = self.imp();
+        imp.sidebar_button_shown.set(visible);
+        if imp.show_sidebar_button.is_bound() {
+            imp.show_sidebar_button.set_visible(visible);
+        }
+    }
+
+    pub fn sidebar_button_visible(&self) -> bool {
+        self.imp().sidebar_button_shown.get()
     }
 
     /// Switch from pathbar to the inline location-entry, or back.
@@ -180,7 +305,13 @@ impl TemporalToolbar {
 
         if location_mode {
             self.imp().search_button.set_active(false);
+            // Caps the location entry at 88 characters, as the Nautilus
+            // does.  Applied only in location mode so that the path bar is
+            // not widened while it is the visible page.
+            self.imp().location_entry.set_max_width_chars(88);
             self.imp().location_entry.grab_focus();
+        } else {
+            self.imp().location_entry.set_max_width_chars(-1);
         }
     }
 

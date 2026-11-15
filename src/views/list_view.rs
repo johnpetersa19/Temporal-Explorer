@@ -196,7 +196,7 @@ pub fn build_list_view(
 /// | Variant | Icon | Right badge |
 /// |---|---|---|
 /// | `Dir` | `folder-*-symbolic` | `go-next-symbolic` chevron |
-/// | `Submodule` | `folder-remote-symbolic` | `emblem-symbolic-link-symbolic` link badge |
+/// | `Submodule` | `network-computer-symbolic` | `emblem-symbolic-link-symbolic` link badge |
 /// | `File` | mime icon | extension label |
 pub fn build_file_row(node: &TreeNode) -> gtk::ListBoxRow {
     let row = FileListRow::new();

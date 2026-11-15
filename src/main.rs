@@ -102,7 +102,7 @@ fn main() -> glib::ExitCode {
 
     let app = Application::new(
         "io.github.TemporalExplorer",
-        &gio::ApplicationFlags::default(),
+        &gio::ApplicationFlags::HANDLES_COMMAND_LINE,
     );
     app.run()
 }

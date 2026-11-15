@@ -76,7 +76,7 @@ impl FileListRow {
         match node {
             TreeNode::Dir(_) => self.set_gicon(&folder_icon_symbolic()),
             TreeNode::File(path) => self.set_gicon(&file_icon_symbolic(path)),
-            TreeNode::Submodule(_) => self.set_icon_name("folder-remote-symbolic"),
+            TreeNode::Submodule(_) => self.set_icon_name("network-computer-symbolic"),
         }
         self.set_name(name);
         self.set_tooltip_text(Some(&repo_path));

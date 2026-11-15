@@ -59,6 +59,32 @@ mod imp {
             });
             window.present();
         }
+
+        /// Opens the repositories passed on the command line.
+        ///
+        /// Mirrors the Nautilus, which opens the locations given as
+        /// arguments: `temporal-explorer ~/projects/my-repo` opens the
+        /// repository in the current window.
+        ///
+        /// Handling the command line replaces the default activation, so
+        /// the window is created explicitly here.
+        fn command_line(
+            &self,
+            command_line: &gio::ApplicationCommandLine,
+        ) -> glib::ExitCode {
+            self.obj().activate();
+
+            let arguments = command_line.arguments();
+            for argument in arguments.iter().skip(1) {
+                let path = std::path::PathBuf::from(argument);
+                if path.is_dir() {
+                    self.obj().open_repository(path);
+                    break;
+                }
+            }
+
+            glib::ExitCode::SUCCESS
+        }
     }
 
     impl GtkApplicationImpl for TemporalExplorerApplication {}
@@ -78,6 +104,18 @@ impl TemporalExplorerApplication {
             .property("flags", flags)
             .property("resource-base-path", "/io/github/TemporalExplorer")
             .build()
+    }
+
+    /// Opens a repository in the current window.
+    fn open_repository(&self, path: std::path::PathBuf) {
+        let Some(window) = self
+            .active_window()
+            .and_downcast::<TemporalExplorerWindow>()
+        else {
+            return;
+        };
+
+        window.load_repository(path);
     }
 
     fn ensure_icon_resource_path(&self) {

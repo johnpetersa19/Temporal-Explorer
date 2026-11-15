@@ -16,13 +16,21 @@ template $NodePropertiesDialog : Adw.Dialog {
       Button favorite_button {
         icon-name: "non-starred-symbolic";
         tooltip-text: _("Star");
-        styles ["flat"]
+        styles ["flat", "star"]
       }
 
       [end]
       Button open_location_button {
         icon-name: "external-link-symbolic";
         tooltip-text: _("Open Location");
+        styles ["flat"]
+      }
+
+      [end]
+      Button {
+        icon-name: "window-close-symbolic";
+        tooltip-text: _("Close");
+        clicked => $adw_dialog_close() swapped;
         styles ["flat"]
       }
 

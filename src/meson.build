@@ -1,41 +1,56 @@
 pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
 gnome = import('gnome')
 
-# ── 1. Compile Blueprint files ─────────────────────────────────────────────
+# ── 1. Compile Blueprint files (src/ui/*.blp → <build>/src/*.ui) ──────────
+blueprint_names = [
+  'batch-operations-dialog',
+  'branch-sidebar-row',
+  'clone-repository-dialog',
+  'column-chooser',
+  'commit-details-dialog',
+  'commit-name-cell',
+  'commit-row',
+  'date-range-dialog',
+  'file-grid-captions-dialog',
+  'file-grid-cell',
+  'file-list-row',
+  'file-list-view',
+  'file-preview-dialog',
+  'filter-types-dialog',
+  'history-controls',
+  'merge-conflict-dialog',
+  'month-row',
+  'new-branch-dialog',
+  'node-properties-dialog',
+  'operation-progress-dialog',
+  'preferences-dialog',
+  'search-filter-popover',
+  'select-commits-by-pattern',
+  'shortcuts-dialog',
+  'ssh-passphrase-dialog',
+  'toolbar',
+  'view-controls',
+  'window',
+  'year-row',
+]
+
+blueprint_sources = []
+blueprint_outputs = []
+foreach name : blueprint_names
+  blueprint_sources += 'ui/' + name + '.blp'
+  blueprint_outputs += name + '.ui'
+endforeach
+
 blueprints = custom_target('blueprints',
-  input: files(
-    'batch-operations-dialog.blp',
-    'branch-sidebar-row.blp',
-    'clone-repository-dialog.blp',
-    'column-chooser.blp',
-    'commit-details-dialog.blp',
-    'commit-name-cell.blp',
-    'commit-row.blp',
-    'date-range-dialog.blp',
-    'file-grid-captions-dialog.blp',
-    'file-grid-cell.blp',
-    'file-list-row.blp',
-    'file-list-view.blp',
-    'file-preview-dialog.blp',
-    'filter-types-dialog.blp',
-    'history-controls.blp',
-    'merge-conflict-dialog.blp',
-    'month-row.blp',
-    'new-branch-dialog.blp',
-    'node-properties-dialog.blp',
-    'operation-progress-dialog.blp',
-    'preferences-dialog.blp',
-    'search-filter-popover.blp',
-    'select-commits-by-pattern.blp',
-    'shortcuts-dialog.blp',
-    'ssh-passphrase-dialog.blp',
-    'toolbar.blp',
-    'view-controls.blp',
-    'window.blp',
-    'year-row.blp',
-  ),
-  output: '.',
-  command: [find_program('blueprint-compiler'), 'batch-compile', '@OUTPUT@', '@CURRENT_SOURCE_DIR@', '@INPUT@'],
+  input: files(blueprint_sources),
+  output: blueprint_outputs,
+  command: [
+    find_program('blueprint-compiler'),
+    'batch-compile',
+    meson.current_build_dir(),
+    meson.current_source_dir() / 'ui',
+    '@INPUT@',
+  ],
 )
 
 # ── 2. Compile GResources (depends on blueprints) ─────────────────────────
@@ -79,6 +94,20 @@ cargo_target_dir = meson.project_build_root() / 'target'
 # know when invoking Cargo is necessary.  Keeping these inputs explicit avoids
 # running `cargo build` on every `meson compile` while still rebuilding after a
 # manifest, lockfile, or application source change.
+window_modules = [
+  'window/mod.rs',
+  'window/tabs.rs',
+  'window/timeline.rs',
+  'window/navigation.rs',
+  'window/operations.rs',
+  'window/views.rs',
+  'window/context_menu.rs',
+  'window/files.rs',
+  'window/favorites.rs',
+  'window/util.rs',
+  'window/git_ops.rs',
+]
+
 cargo_inputs = files(
   '../Cargo.toml',
   '../Cargo.lock',
@@ -117,8 +146,7 @@ cargo_inputs = files(
   'views/grid_view.rs',
   'views/list_view.rs',
   'views/mod.rs',
-  'window.rs',
-)
+) + files(window_modules)
 
 if get_option('buildtype') == 'release'
   cargo_shell_command = 'CARGO_HOME="$1" "$2" build --release --manifest-path "$3" --target-dir "$4" && cp "$4/$5/temporal-explorer" "$6"'

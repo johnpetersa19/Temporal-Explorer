@@ -39,6 +39,24 @@
     <file preprocess="xml-stripblanks">icons/scalable/actions/paper-symbolic.svg</file>
     <file preprocess="xml-stripblanks">icons/scalable/actions/quotation-symbolic.svg</file>
     <file preprocess="xml-stripblanks">icons/scalable/actions/rich-text-symbolic.svg</file>
+    <!-- Operation state icons, identical to the Nautilus ones (GPL-3.0-or-later). -->
+    <file preprocess="xml-stripblanks">icons/scalable/actions/file-operation-finished-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/file-operation-cancelled-symbolic.svg</file>
+    <!-- Nautilus search icon (edit-find.svg), used in the sidebar header. -->
+    <file preprocess="xml-stripblanks">icons/scalable/actions/nautilus-edit-find.svg</file>
+    <!-- Icons copied from the Nautilus resources (GPL-3.0-or-later). -->
+    <file preprocess="xml-stripblanks">icons/scalable/actions/nautilus-folder-search.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/folder.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/document-open-recent.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/cancel-operation-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/info-outline-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/emblem-readonly-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/emblem-not-accessible-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/network-computer.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/network-computer-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/arrow-next-symbolic.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/arrow-next-symbolic-rtl.svg</file>
+    <file preprocess="xml-stripblanks">icons/scalable/actions/starred.svg</file>
     <!-- style.css: alias usado pelo GTK para carregamento automático via resource-base-path -->
     <file compressed="true" alias="style.css">temporal-explorer.css</file>
     <!-- temporal-explorer.css: caminho explícito para evitar o warning do tema GTK,

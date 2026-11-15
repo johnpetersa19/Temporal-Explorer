@@ -33,11 +33,42 @@
  */
 
 /* ── Address / path bar ─────────────────────────────────────────────── */
+/* Rules ported from the Nautilus stylesheet (src/resources/style.css). */
 
 .nautilus-pathbar {
     background-color: color-mix(in srgb, currentColor 10%, transparent);
     border-radius: 9px;
     min-height: 32px;
+}
+
+@media (prefers-contrast: more) {
+    .nautilus-pathbar {
+        box-shadow: inset 0 0 0 1px var(--border-color);
+    }
+}
+
+.nautilus-pathbar > menubutton {
+    margin: 0px;
+}
+
+/* Sombreamento nas bordas do pathbar quando o conteúdo transborda. */
+.nautilus-pathbar > scrolledwindow undershoot.left {
+    background: linear-gradient(to right, var(--headerbar-shade-color) 6px, transparent 24px);
+    border-left: solid 1px var(--border-color);
+}
+
+.nautilus-pathbar > scrolledwindow undershoot.right {
+    background: linear-gradient(to left, var(--headerbar-shade-color) 6px, transparent 24px);
+    border-right: solid 1px var(--border-color);
+}
+
+/* Round the leading corners, as the Nautilus does. */
+.nautilus-pathbar > scrolledwindow:dir(ltr) undershoot.left {
+    border-radius: 9px 0px 0px 9px;
+}
+
+.nautilus-pathbar > scrolledwindow:dir(rtl) undershoot.right {
+    border-radius: 0px 9px 9px 0px;
 }
 
 .nautilus-pathbar-segments {
@@ -66,7 +97,21 @@
     border-radius: 7px;
     margin: 3px;
     padding: 0 8px;
+    padding-top: 0px;
+    padding-bottom: 0px;
     min-height: 28px;
+}
+
+.nautilus-path-button:not(:hover),
+.nautilus-path-button.current-dir {
+    background: none;
+}
+
+@media (prefers-contrast: more) {
+    .nautilus-path-button:not(:hover):not(:drop(active)),
+    .nautilus-path-button.current-dir:not(:drop(active)) {
+        box-shadow: none;
+    }
 }
 
 .nautilus-path-button label {
@@ -199,6 +244,25 @@ flowboxchild:selected flowboxchild:selected:focus .nautilus-emblems-box {
     padding: 1px;
 }
 
+/* Star interaction feedback, adapted from Nautilus. */
+@keyframes rotate_star {
+    from { -gtk-icon-transform: rotate(-72deg); }
+    to {}
+}
+
+@keyframes rotate_unstar {
+    from { -gtk-icon-transform: rotate(72deg); }
+    to {}
+}
+
+button.star.interacted.starred image {
+    animation: rotate_star 0.4s ease;
+}
+
+button.star.interacted:not(.starred) image {
+    animation: rotate_unstar 0.4s ease;
+}
+
 .nautilus-emblem {
     -gtk-icon-size: 10px;
 }
@@ -288,6 +352,52 @@ flowboxchild:selected flowboxchild:selected:focus .nautilus-emblems-box {
     padding: 6px;
 }
 
+/* ── Operations indicator in the sidebar footer ────────────────────── */
+/* Based on the Nautilus operations indicator. */
+
+@keyframes needs_attention_keyframes {
+    0% { }
+    10% { background-color: var(--accent-bg-color); }
+    100% { }
+}
+
+.temporal-progress-indicator.needs-attention > button {
+    animation: needs_attention_keyframes 2s ease-in-out;
+}
+
+.temporal-progress-indicator > button {
+    padding: 0 6px;
+    border-radius: 9px;
+}
+
+/* Give the button the same colors as the sidebar rows. */
+.temporal-progress-indicator > button:hover {
+    background-color: color-mix(in srgb, var(--sidebar-fg-color) 7%, transparent);
+}
+
+.temporal-progress-indicator > button:checked {
+    background-color: color-mix(in srgb, var(--sidebar-fg-color) 10%, transparent);
+}
+
+.temporal-progress-indicator > button:checked:hover {
+    background-color: color-mix(in srgb, var(--sidebar-fg-color) 13%, transparent);
+}
+
+.temporal-progress-indicator progressbar {
+    min-width: 72px;
+}
+
+/* Remove the white background and the highlight that GTK adds by default
+ * to the GtkListBox inside the operations popover. */
+.operations-list,
+.operations-list > :hover {
+    background: none;
+}
+
+.operations-list > row {
+    padding: 0;
+}
+
 /* ── Temporal Explorer refinements over Nautilus references ─────────── */
 
 .nautilus-pathbar {
@@ -333,6 +443,11 @@ button.accent image {
     color: @accent_bg_color;
 }
 
+/* Grid rules ported from the Nautilus.  There, the "nautilus-grid-view"
+ * class sits on the widget wrapping the GtkGridView; here the GtkGridView
+ * is the container itself, hence the "gridview.nautilus-grid-view"
+ * selectors. */
+
 .nautilus-grid-view gridview,
 gridview.nautilus-grid-view {
     padding: 18px;
@@ -341,6 +456,7 @@ gridview.nautilus-grid-view {
 }
 
 gridview.nautilus-grid-view > child {
+    padding: 0px;
     border-radius: 12px;
 }
 
@@ -356,6 +472,29 @@ gridview.nautilus-grid-view > child:selected {
 gridview.nautilus-grid-view > child:selected .icon-ui-labels-box label {
     background-color: @accent_bg_color;
     color: @accent_fg_color;
+}
+
+/* Grid cell: same padding and corner radius as the Nautilus. */
+gridview.nautilus-grid-view .nautilus-grid-cell {
+    padding: 6px;
+    border-radius: 12px;
+}
+
+/* High contrast: outline matching the Nautilus. */
+@media (prefers-contrast: more) {
+    gridview.nautilus-grid-view > child:selected {
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, @accent_color 60%, transparent);
+    }
+}
+
+/* Rubberband selection area, as in the Nautilus. */
+rubberband {
+    border-radius: 6px;
+}
+
+/* Hidden files are shown dimmed, as in the Nautilus. */
+.view .hidden-file {
+    opacity: 0.55;
 }
 
 .nautilus-context-menu modelbutton,

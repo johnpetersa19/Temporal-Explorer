@@ -126,8 +126,6 @@ pub fn build_grid_view(
     let scrolled = gtk::ScrolledWindow::builder()
         .vexpand(true)
         .hexpand(true)
-        .hadjustment(&gtk::Adjustment::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
-        .vadjustment(&gtk::Adjustment::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
         .hscrollbar_policy(gtk::PolicyType::Never)
         .build();
 
@@ -222,7 +220,8 @@ pub fn build_grid_view(
     let grid = gtk::GridView::new(Some(selection.clone()), Some(factory.clone()));
     grid.set_enable_rubberband(true);
     grid.set_single_click_activate(false);
-    grid.set_max_columns(64);
+    // Same column limit as the Nautilus.
+    grid.set_max_columns(20);
     grid.set_min_columns(1);
     grid.set_tab_behavior(gtk::ListTabBehavior::Item);
     grid.set_halign(gtk::Align::Fill);
@@ -417,7 +416,7 @@ fn configure_grid_cell(
         match node {
             TreeNode::Dir(_) => cell.set_gicon(&folder_icon()),
             TreeNode::File(path) => cell.set_gicon(&file_icon(path)),
-            TreeNode::Submodule(_) => cell.set_icon_name("folder-remote"),
+            TreeNode::Submodule(_) => cell.set_icon_name("network-computer"),
         }
     }
 

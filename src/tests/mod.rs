@@ -7,6 +7,10 @@
 #[cfg(test)]
 mod git_engine_tests;
 
+// Grid cell measurement tests (Nautilus parity for the grid layout).
+#[cfg(test)]
+mod grid_cell_tests;
+
 // Gap 2 — timeline_filter and FilterState unit tests.
 #[cfg(test)]
 mod timeline_filter_tests;
