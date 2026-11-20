@@ -35,7 +35,7 @@ mod imp {
     impl ObjectSubclass for FileGridCell {
         const NAME: &'static str = "FileGridCell";
         type Type = super::FileGridCell;
-        type ParentType = gtk::Box;
+        type ParentType = gtk::Widget;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -46,7 +46,14 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for FileGridCell {}
+    impl ObjectImpl for FileGridCell {
+        fn dispose(&self) {
+            while let Some(child) = self.obj().first_child() {
+                child.unparent();
+            }
+            self.dispose_template();
+        }
+    }
     impl WidgetImpl for FileGridCell {
         /// Reports a fixed width for the cell, as the Nautilus does.
         ///
@@ -72,16 +79,25 @@ mod imp {
             // that the label is measured with the space it will actually
             // get and the cell reserves the right amount of height.
             let for_size = if width > 0 { width } else { for_size };
-            self.parent_measure(orientation, for_size)
+            if let Some(child) = self.obj().first_child() {
+                child.measure(orientation, for_size)
+            } else {
+                (0, 0, -1, -1)
+            }
+        }
+
+        fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
+            if let Some(child) = self.obj().first_child() {
+                child.allocate(width, height, baseline, None);
+            }
         }
     }
-    impl BoxImpl for FileGridCell {}
 }
 
 glib::wrapper! {
     pub struct FileGridCell(ObjectSubclass<imp::FileGridCell>)
-        @extends gtk::Box, gtk::Widget,
-        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Orientable;
+        @extends gtk::Widget,
+        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
 }
 
 impl Default for FileGridCell {
@@ -128,11 +144,7 @@ impl FileGridCell {
     /// column more than it can show - the last column is never clipped.
     pub fn set_cell_width(&self, width: i32) {
         self.imp().cell_width.set(width);
-        self.set_width_request(width);
-
-        // Discounts the cell side margins (6 + 6) from the label width.
-        let label_width = (width - 12).max(40);
-        self.imp().grid_cell_name_label.set_width_request(label_width);
+        self.queue_resize();
     }
 
     pub fn clear_captions(&self) {

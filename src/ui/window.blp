@@ -19,10 +19,11 @@ menu primary_menu {
       label: _("Show All Ta_bs");
       action: "win.open-tab-overview";
     }
+  }
+
   section undo_redo_section {
     item { label: _("_Undo"); action: "win.undo"; }
     item { label: _("_Redo"); action: "win.redo"; }
-  }
   }
 
   section {
@@ -201,8 +202,22 @@ menu primary_menu {
   }
 
   section {
-    submenu { label: _("_Help"); menu-model: "app_menu"; }
+    item {
+      label: _("_Preferences");
+      action: "app.preferences";
+    }
+
+    item {
+      label: _("_Keyboard Shortcuts");
+      action: "app.shortcuts";
+    }
+
+    item {
+      label: _("_About Temporal Explorer");
+      action: "app.about";
+    }
   }
+}
 
 
 menu tab_menu_model {
@@ -265,7 +280,7 @@ menu tab_overview_menu_model {
 }
 
 template $TemporalExplorerWindow : Adw.ApplicationWindow {
-  title: bind template.active-slot as <$TemporalExplorerWindowSlot>.title;
+  title: _("Temporal Explorer");
   default-width: 890;
   default-height: 550;
   width-request: 360;
@@ -296,13 +311,15 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
               icon-name: "go-previous-symbolic";
               tooltip-text: _("Back");
               visible: false;
+            }
 
+            [start]
             Button forward_button {
               icon-name: "go-forward-symbolic";
               tooltip-text: _("Next commit");
               action-name: "win.next-commit";
               visible: false;
-            }            }
+            }
 
             [start]
             ToggleButton sidebar_search_button {
@@ -320,6 +337,8 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
               tooltip-text: _("Add to Favorites");
               action-name: "win.star-snapshot";
             }
+
+            [end]
             MenuButton sidebar_menu_button {
               icon-name: "open-menu-symbolic";
               tooltip-text: _("Main Menu");
@@ -412,19 +431,17 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
               icon-name: "view-list-symbolic";
               tooltip-text: _("List View");
               active: true;
-              action-name: "win.set-view-mode";
-              target: "list";
+              action-name: "win.list-view";
             }
 
+            [start]
             ToggleButton view_grid_button {
               icon-name: "view-grid-symbolic";
               tooltip-text: _("Grid View");
               active: false;
-              action-name: "win.set-view-mode";
-              target: "grid";
+              group: view_list_button;
+              action-name: "win.grid-view";
             }
-
-            [end]
           }
 
           content: Box {
