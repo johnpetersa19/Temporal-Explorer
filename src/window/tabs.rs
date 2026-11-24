@@ -184,6 +184,39 @@ impl TemporalExplorerWindow {
                 .remove(&Self::tab_key(page));
         });
 
+        let win = self.clone();
+        imp.tab_view.connect_setup_menu(move |view, page| {
+            let n_pages = view.n_pages();
+            let pos = page.map(|p| view.page_position(p)).unwrap_or(-1);
+            let set_enabled = |name: &str, enabled: bool| {
+                if let Some(action) = win
+                    .lookup_action(name)
+                    .and_downcast::<gio::SimpleAction>()
+                {
+                    action.set_enabled(enabled);
+                }
+            };
+            set_enabled("move-tab-left", pos > 0);
+            set_enabled("move-tab-right", pos >= 0 && pos + 1 < n_pages);
+            set_enabled("close-other-tabs", n_pages > 1);
+            set_enabled("move-tab-to-new-window", n_pages > 1);
+            set_enabled(
+                "restore-closed-tab",
+                !win.imp().closed_tabs.borrow().is_empty(),
+            );
+        });
+
+        let win = self.clone();
+        imp.tab_view.connect_create_window(move |_| {
+            let application = win.application()?;
+            let new_window = TemporalExplorerWindow::new(&application);
+            if let Some(repo_path) = win.imp().repo_path.borrow().clone() {
+                new_window.load_repository(repo_path);
+            }
+            new_window.present();
+            Some(new_window.imp().tab_view.get())
+        });
+
         self.show_empty_state();
     }
 

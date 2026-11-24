@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
   <gresource prefix="/io/github/TemporalExplorer">
+    <file compressed="true">app-chooser-dialog.ui</file>
     <file compressed="true">batch-operations-dialog.ui</file>
     <file compressed="true">branch-sidebar-row.ui</file>
     <file compressed="true">clone-repository-dialog.ui</file>
@@ -8,7 +9,9 @@
     <file compressed="true">commit-details-dialog.ui</file>
     <file compressed="true">commit-name-cell.ui</file>
     <file compressed="true">commit-row.ui</file>
+    <file compressed="true">compress-dialog.ui</file>
     <file compressed="true">date-range-dialog.ui</file>
+    <file compressed="true">favorites-dialog.ui</file>
     <file compressed="true">file-grid-captions-dialog.ui</file>
     <file compressed="true">file-grid-cell.ui</file>
     <file compressed="true">file-list-row.ui</file>

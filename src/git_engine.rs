@@ -113,7 +113,7 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc};
 
 // ── Limits ───────────────────────────────────────────────────────────────────
@@ -159,6 +159,7 @@ const DIR_CACHE_MAX_ENTRIES: usize = 64;
 const MAX_WORKER_THREADS: usize = 8;
 
 /// Maximum number of parallel threads for I/O-bound git object-DB access.
+#[allow(dead_code)]
 const MAX_IO_THREADS: usize = 4;
 
 /// Maximum results returned by [`HistoryReader::search_commits`].
@@ -324,7 +325,9 @@ impl FileIndexStore {
         if let Some(parent) = self.cache_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let temp_path = self.cache_path.with_extension("tmp");
+        let temp_path = self
+            .cache_path
+            .with_extension(format!("tmp.{}", std::process::id()));
         let mut file = fs::File::create(&temp_path)?;
         writeln!(
             file,
@@ -608,6 +611,7 @@ impl CpuPool {
         self.logical_cores.min(MAX_WORKER_THREADS)
     }
 
+    #[allow(dead_code)]
     #[inline]
     pub fn io_threads(self) -> usize {
         self.logical_cores.min(MAX_IO_THREADS)
@@ -718,12 +722,12 @@ impl CommitInfo {
     #[inline]
     fn from_commit_fast(commit: &git2::Commit<'_>) -> Self {
         let summary = commit.summary().unwrap_or("").to_owned();
-        let author = commit
-            .author()
+        let author_sig = commit.author();
+        let author = author_sig
             .name()
-            .unwrap_or(&gettext("Unknown"))
-            .to_owned();
-        let author_email = commit.author().email().unwrap_or("").to_owned();
+            .map(str::to_owned)
+            .unwrap_or_else(|| gettext("Unknown"));
+        let author_email = author_sig.email().unwrap_or("").to_owned();
         Self {
             oid: commit.id(),
             hash: commit.id().to_string(),
@@ -822,8 +826,6 @@ impl CommitInfo {
             )?;
         }
 
-        files.sort();
-        files.dedup();
         self.set_changed_files_loaded(files);
         Ok(())
     }
@@ -875,7 +877,7 @@ impl CommitInfo {
     /// This deliberately sets the same loaded flag as `load_changed_files()` so
     /// commits with zero changed files are not diffed repeatedly.
     pub fn set_changed_files_loaded(&mut self, mut files: Vec<String>) {
-        files.sort();
+        files.sort_unstable();
         files.dedup();
         self.changed_files = files;
         self.files_loaded = true;
@@ -1093,23 +1095,36 @@ impl HistoryReader {
     /// `changed_files` is **not** populated — call
     /// [`CommitInfo::load_changed_files`] on individual commits when the diff
     /// is actually needed.
+    #[allow(dead_code)]
     pub fn list_commits_paginated(
         &self,
         page_size: usize,
         on_page: impl FnMut(Vec<CommitInfo>),
     ) -> Result<(), git2::Error> {
+        let never_cancel = AtomicBool::new(false);
+        self.list_commits_paginated_cancelable(page_size, &never_cancel, on_page)
+    }
+
+    /// Streams commits in pages of `page_size` with cooperative cancellation
+    /// and bounded backpressure so multi-million-commit repositories (e.g.
+    /// Linux kernel) stay responsive and memory-bounded.
+    pub fn list_commits_paginated_cancelable(
+        &self,
+        page_size: usize,
+        cancel: &AtomicBool,
+        on_page: impl FnMut(Vec<CommitInfo>),
+    ) -> Result<(), git2::Error> {
         if self.cpu_pool.is_parallel() {
-            // Single revwalk pass: collect all OIDs, then decide in memory.
-            // This replaces the old probe_oid_count(2001) + collect_all_oids(N)
-            // pattern, saving one revwalk setup and up to 2 001 redundant OID
-            // reads on every large-repository load.
-            let oids = self.collect_all_oids()?;
-            if oids.len() > MIN_COMMITS_FOR_PARALLEL {
-                return self.list_commits_paginated_parallel(page_size, oids, on_page);
+            let oids = self.collect_all_oids_cancelable(cancel)?;
+            if cancel.load(Ordering::Relaxed) {
+                return Ok(());
             }
-            return self.list_commits_from_oids(page_size, oids, on_page);
+            if oids.len() > MIN_COMMITS_FOR_PARALLEL {
+                return self.list_commits_paginated_parallel(page_size, oids, cancel, on_page);
+            }
+            return self.list_commits_from_oids(page_size, oids, cancel, on_page);
         }
-        self.list_commits_paginated_serial(page_size, on_page)
+        self.list_commits_paginated_serial(page_size, cancel, on_page)
     }
 
     /// Materializes already-collected OIDs without opening a second revwalk.
@@ -1117,18 +1132,22 @@ impl HistoryReader {
         &self,
         page_size: usize,
         oids: Vec<git2::Oid>,
+        cancel: &AtomicBool,
         mut on_page: impl FnMut(Vec<CommitInfo>),
     ) -> Result<(), git2::Error> {
         let page_size = page_size.max(1);
         let mut page = Vec::with_capacity(page_size);
         for oid in oids {
+            if cancel.load(Ordering::Relaxed) {
+                return Ok(());
+            }
             let commit = self.repo.find_commit(oid)?;
             page.push(CommitInfo::from_commit_fast(&commit));
             if page.len() == page_size {
                 on_page(std::mem::replace(&mut page, Vec::with_capacity(page_size)));
             }
         }
-        if !page.is_empty() {
+        if !page.is_empty() && !cancel.load(Ordering::Relaxed) {
             on_page(page);
         }
         Ok(())
@@ -1138,6 +1157,7 @@ impl HistoryReader {
     fn list_commits_paginated_serial(
         &self,
         page_size: usize,
+        cancel: &AtomicBool,
         mut on_page: impl FnMut(Vec<CommitInfo>),
     ) -> Result<(), git2::Error> {
         let page_size = page_size.max(1);
@@ -1147,6 +1167,9 @@ impl HistoryReader {
 
         let mut page: Vec<CommitInfo> = Vec::with_capacity(page_size);
         for oid in walk {
+            if cancel.load(Ordering::Relaxed) {
+                return Ok(());
+            }
             let oid = oid?;
             let commit = self.repo.find_commit(oid)?;
             page.push(CommitInfo::from_commit_fast(&commit));
@@ -1154,23 +1177,26 @@ impl HistoryReader {
                 on_page(std::mem::replace(&mut page, Vec::with_capacity(page_size)));
             }
         }
-        if !page.is_empty() {
+        if !page.is_empty() && !cancel.load(Ordering::Relaxed) {
             on_page(page);
         }
         Ok(())
     }
 
-    /// Collects all reachable OIDs from HEAD, newest-first.
-    ///
-    /// A conservative `with_capacity(4_096)` hint reduces reallocations on
-    /// repos with thousands of commits without over-allocating on small ones
-    /// (the Vec grows geometrically beyond 4 096 if needed).
-    fn collect_all_oids(&self) -> Result<Vec<git2::Oid>, git2::Error> {
+    /// Collects all reachable OIDs from HEAD, newest-first, checking `cancel`
+    /// every 4,096 commits so aborting a giant revwalk is instantaneous.
+    fn collect_all_oids_cancelable(
+        &self,
+        cancel: &AtomicBool,
+    ) -> Result<Vec<git2::Oid>, git2::Error> {
         let mut walk = self.repo.revwalk()?;
         push_head_safe(&mut walk, &self.repo)?;
         walk.set_sorting(git2::Sort::TIME)?;
         let mut oids = Vec::with_capacity(4_096);
-        for oid in walk {
+        for (idx, oid) in walk.enumerate() {
+            if idx & 0xfff == 0 && cancel.load(Ordering::Relaxed) {
+                break;
+            }
             oids.push(oid?);
         }
         Ok(oids)
@@ -1203,6 +1229,7 @@ impl HistoryReader {
         &self,
         page_size: usize,
         oids: Vec<git2::Oid>,
+        cancel: &AtomicBool,
         mut on_page: impl FnMut(Vec<CommitInfo>),
     ) -> Result<(), git2::Error> {
         enum WorkerMessage {
@@ -1211,7 +1238,7 @@ impl HistoryReader {
         }
 
         let page_size = page_size.max(1);
-        let n_threads = self.cpu_pool.io_threads().max(2);
+        let n_threads = self.cpu_pool.worker_threads().max(2);
         let repo_path = self.repo.path().to_path_buf();
         let oid_count = oids.len();
         let page_count = oid_count.div_ceil(page_size);
@@ -1220,12 +1247,16 @@ impl HistoryReader {
         // (Copy + Send + Sync), so Arc<Vec<Oid>> is sound without unsafe.
         let oids = Arc::new(oids);
         let next_page = Arc::new(AtomicUsize::new(0));
-        let (tx, rx) = mpsc::channel::<WorkerMessage>();
+        let worker_cancel = Arc::new(AtomicBool::new(cancel.load(Ordering::Relaxed)));
+        // Bounded channel provides real backpressure so workers never buffer
+        // hundreds of megabytes of CommitInfo ahead of the UI consumer.
+        let (tx, rx) = mpsc::sync_channel::<WorkerMessage>(n_threads * 2);
 
         let handles: Vec<std::thread::JoinHandle<()>> = (0..n_threads)
             .map(|_| {
                 let oids = Arc::clone(&oids);
                 let next_page = Arc::clone(&next_page);
+                let worker_cancel = Arc::clone(&worker_cancel);
                 let path = repo_path.clone();
                 let tx = tx.clone();
                 std::thread::spawn(move || {
@@ -1238,6 +1269,9 @@ impl HistoryReader {
                     };
 
                     loop {
+                        if worker_cancel.load(Ordering::Relaxed) {
+                            break;
+                        }
                         let page_index = next_page.fetch_add(1, Ordering::Relaxed);
                         if page_index >= page_count {
                             break;
@@ -1246,6 +1280,9 @@ impl HistoryReader {
                         let end = (start + page_size).min(oid_count);
                         let mut results = Vec::with_capacity(end - start);
                         for &oid in &oids[start..end] {
+                            if worker_cancel.load(Ordering::Relaxed) {
+                                return;
+                            }
                             match repo.find_commit(oid) {
                                 Ok(commit) => results.push(CommitInfo::from_commit_fast(&commit)),
                                 Err(error) => {
@@ -1266,15 +1303,34 @@ impl HistoryReader {
         let mut pending = BTreeMap::new();
         let mut next_to_emit = 0usize;
         while next_to_emit < page_count {
+            if cancel.load(Ordering::Relaxed) {
+                worker_cancel.store(true, Ordering::Relaxed);
+                drop(rx);
+                for handle in handles {
+                    let _ = handle.join();
+                }
+                return Ok(());
+            }
             match rx.recv() {
                 Ok(WorkerMessage::Page(index, page)) => {
                     pending.insert(index, page);
                     while let Some(page) = pending.remove(&next_to_emit) {
+                        if cancel.load(Ordering::Relaxed) {
+                            worker_cancel.store(true, Ordering::Relaxed);
+                            break;
+                        }
                         on_page(page);
                         next_to_emit += 1;
                     }
                 }
-                Ok(WorkerMessage::Error(error)) => return Err(git2::Error::from_str(&error)),
+                Ok(WorkerMessage::Error(error)) => {
+                    worker_cancel.store(true, Ordering::Relaxed);
+                    drop(rx);
+                    for handle in handles {
+                        let _ = handle.join();
+                    }
+                    return Err(git2::Error::from_str(&error));
+                }
                 Err(_) => return Err(git2::Error::from_str("commit worker stopped unexpectedly")),
             }
         }
@@ -1328,13 +1384,10 @@ impl HistoryReader {
 
         for oid in walk {
             let oid = oid?;
-            let oid_str = oid.to_string();
-            let hash_match = oid_str.starts_with(&q);
-
             let commit = self.repo.find_commit(oid)?;
             let info = CommitInfo::from_commit_fast(&commit);
 
-            if hash_match || info.matches_text_query(&q) {
+            if info.matches_text_query(&q) {
                 results.push(info);
                 if results.len() >= SEARCH_COMMITS_MAX {
                     break;
@@ -1482,7 +1535,7 @@ impl<'repo> SnapshotResolver<'repo> {
             self.repo.find_tree(entry.id())?
         };
 
-        let mut nodes = Vec::new();
+        let mut nodes = Vec::with_capacity(subtree.len());
         for entry in subtree.iter() {
             let name = match entry.name() {
                 Some(n) if !n.is_empty() => n,
@@ -1636,13 +1689,39 @@ impl<'repo> SnapshotMaterializer<'repo> {
     }
 
     /// Reads the raw byte content of a file at `path` in the given `revision`.
+    #[allow(dead_code)]
     pub fn read_file(&self, revision: &str, path: &Path) -> Result<Vec<u8>, git2::Error> {
         let commit = self.repo.revparse_single(revision)?.peel_to_commit()?;
         self.read_file_oid(commit.id(), path)
     }
 
     /// Reads the raw byte content of a file at `path` in the given commit `oid`.
+    #[allow(dead_code)]
     pub fn read_file_oid(&self, oid: git2::Oid, path: &Path) -> Result<Vec<u8>, git2::Error> {
+        self.read_file_oid_bounded(oid, path, usize::MAX)
+    }
+
+    /// Reads at most `max_bytes` from the start of a file at `path` in `revision`,
+    /// returning `(prefix_bytes, total_blob_size)`. Avoids allocating the full
+    /// blob in RAM for large file previews.
+    pub fn read_file_prefix(
+        &self,
+        revision: &str,
+        path: &Path,
+        max_bytes: usize,
+    ) -> Result<(Vec<u8>, usize), git2::Error> {
+        let commit = self.repo.revparse_single(revision)?.peel_to_commit()?;
+        self.read_file_oid_prefix(commit.id(), path, max_bytes)
+    }
+
+    /// Reads at most `max_bytes` from the start of a file at `path` in commit `oid`,
+    /// returning `(prefix_bytes, total_blob_size)`.
+    pub fn read_file_oid_prefix(
+        &self,
+        oid: git2::Oid,
+        path: &Path,
+        max_bytes: usize,
+    ) -> Result<(Vec<u8>, usize), git2::Error> {
         let commit = self.repo.find_commit(oid)?;
         let tree = commit.tree()?;
         let entry = tree.get_path(path)?;
@@ -1656,6 +1735,42 @@ impl<'repo> SnapshotMaterializer<'repo> {
         }
 
         let blob = self.repo.find_blob(entry.id())?;
+        let content = blob.content();
+        let total_size = content.len();
+        let slice_len = total_size.min(max_bytes);
+        Ok((content[..slice_len].to_vec(), total_size))
+    }
+
+    /// Reads up to `max_bytes` of a file at `path` in the given commit `oid`,
+    /// failing early without allocating if the Git blob exceeds `max_bytes`.
+    #[allow(dead_code)]
+    pub fn read_file_oid_bounded(
+        &self,
+        oid: git2::Oid,
+        path: &Path,
+        max_bytes: usize,
+    ) -> Result<Vec<u8>, git2::Error> {
+        let commit = self.repo.find_commit(oid)?;
+        let tree = commit.tree()?;
+        let entry = tree.get_path(path)?;
+
+        if entry.kind() != Some(ObjectType::Blob) {
+            return Err(git2::Error::from_str(&format!(
+                "path '{}' is not a file (kind: {:?})",
+                path.display(),
+                entry.kind(),
+            )));
+        }
+
+        let blob = self.repo.find_blob(entry.id())?;
+        if blob.size() > max_bytes {
+            return Err(git2::Error::from_str(&format!(
+                "file '{}' ({} bytes) exceeds maximum allowed size ({} bytes)",
+                path.display(),
+                blob.size(),
+                max_bytes,
+            )));
+        }
         Ok(blob.content().to_vec())
     }
 }

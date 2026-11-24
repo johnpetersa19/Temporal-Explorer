@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: temporal-explorer 0.2.0\n"
-"POT-Creation-Date: 2026-07-18 23:55-0300\n"
+"POT-Creation-Date: 2026-11-24 20:40-0300\n"
 "PO-Revision-Date: 2026-06-28 00:06-0300\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -12,1861 +12,2190 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < "
 "20)) ? 1 : 2;\n"
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/address_bar.rs:183
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/address_bar.rs:183
 msgid "Open Snapshot Location"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/address_bar.rs:201
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4642
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/address_bar.rs:201
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:146
 msgid "Copy Snapshot Path"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/address_bar.rs:214
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4576
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4659
-#: src/node-properties-dialog.blp:5 src/toolbar.blp:261
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/address_bar.rs:214
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:65
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:160
+#: src/ui/node-properties-dialog.blp:5 src/ui/node-properties-dialog.blp:16
+#: src/ui/window.blp:149
 msgid "Properties"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/application.rs:165
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/app_chooser_dialog.rs:108
+msgid "Choose an app to open"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/application.rs:262
 msgid "translator-credits"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/batch_operations_dialog.rs:315
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/batch_operations_dialog.rs:315
 msgid "Choose a directory"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/batch_operations_dialog.rs:357
-#: src/batch-operations-dialog.blp:137
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/batch_operations_dialog.rs:357
+#: src/ui/batch-operations-dialog.blp:137
 msgid "Choose export directory"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/batch_operations_dialog.rs:358
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/batch_operations_dialog.rs:358
 msgid "Select"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/clone_repository_dialog.rs:164
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/clone_repository_dialog.rs:164
 msgid "Choose Clone Destination"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/commit_controller.rs:262
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/commit_controller.rs:262
 msgid "commits not shown"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/commit_controller.rs:263
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/commit_controller.rs:263
 msgid "use the search box to filter"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/commit_controller.rs:465
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/commit_controller.rs:465
 msgid "1 item"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/commit_controller.rs:467
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/commit_controller.rs:467
 msgid "items"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:54
-#: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:97
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/favorites_dialog.rs:130
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/favorites.rs:48
+msgid "Remove from Favorites"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/file_preview.rs:50
 msgid "Could not read file"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:66
-#: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:109
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/file_preview.rs:53
 msgid "Binary file -- preview not available."
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:72
-#: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:115
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/file_preview.rs:59
 msgid "Preview truncated at"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/file_preview.rs:178
-#: src/file-preview-dialog.blp:20
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/file_preview.rs:148
+#: src/ui/file-preview-dialog.blp:20
 msgid "Copy content"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:53
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:53
 msgid "Rust source"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:54
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:54
 msgid "TOML config"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:55
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:55
 msgid "Blueprint UI"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:56
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:56
 msgid "Python script"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:57
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:57
 msgid "JavaScript"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:58
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:58
 msgid "TypeScript"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:59
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:59
 msgid "C source"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:60
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:60
 msgid "C++ source"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:61
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:61
 msgid "C/C++ header"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:62
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:62
 msgid "Go source"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:63
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:63
 msgid "Java source"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:64
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:64
 msgid "Kotlin source"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:65
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:65
 msgid "Swift source"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:66
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:66
 msgid "Shell script"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:67
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:67
 msgid "Markdown"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:68
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:68
 msgid "JSON data"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:69
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:69
 msgid "YAML config"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:70
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:70
 msgid "XML document"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:71
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:71
 msgid "SQL query"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:72
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:72
 msgid "HTML document"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:73
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:73
 msgid "CSS stylesheet"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:74
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:74
 msgid "Plain text"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:75
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:75
 msgid "Lock file (Cargo/npm)"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:76
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:76
 msgid "PNG image"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/filter_types_dialog.rs:77
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/filter_types_dialog.rs:77
 msgid "SVG vector image"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/git_engine.rs:724
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/git_engine.rs:729
 msgid "Unknown"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:204
-msgid "Not available in Git snapshot"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:206
-msgid "Git stores content snapshots, not filesystem creation time"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:229
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:289
-msgid "Unstar"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:231
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:291
-#: src/node-properties-dialog.blp:18
-msgid "Star"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:236
-#: src/column-chooser.blp:30 src/commit-details-dialog.blp:63
-msgid "Name"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:238
-#: src/preferences-dialog.blp:141 src/view-controls.blp:55
-msgid "Type"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:240
-#: src/column-chooser.blp:41 src/preferences-dialog.blp:140
-#: src/preferences-dialog.blp:163 src/view-controls.blp:49
-msgid "Size"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:242
-#: src/clone-repository-dialog.blp:56 src/node-properties-dialog.blp:150
-#: src/preferences-dialog.blp:17 src/toolbar.blp:190
-msgid "Repository"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:244
-msgid "Repository Path"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:246
-#: src/node-properties-dialog.blp:115
-msgid "Parent Folder"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:248
-msgid "Snapshot Commit"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:250
-msgid "Snapshot Date"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:252
-msgid "Full Commit"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:254
-#: src/node-properties-dialog.blp:281
-msgid "Git Object"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/node_properties_dialog.rs:256
-msgid "Git Mode"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:283
-#: src/select-commits-by-pattern.blp:102
-msgid "Enter a pattern to preview matches"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:299
-msgid "No commits match"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:301
-msgid "All {count} commits match"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:303
-msgid "{count} of {total} commits match"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:139
-msgid "January"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:140
-msgid "February"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:141
-msgid "March"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:142
-msgid "April"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:143
-msgid "May"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:144
-msgid "June"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:145
-msgid "July"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:146
-msgid "August"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:147
-msgid "September"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:148
-msgid "October"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:149
-msgid "November"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/timeline_filter.rs:150
-msgid "December"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:164
-#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:298
-msgid "List view"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:168
-#: /home/john/Projects/Temporal-Explorer/po/../src/view_controls.rs:302
-#: src/view-controls.blp:118
-msgid "Grid view"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:277
-#: /home/john/Projects/Temporal-Explorer/po/../src/views/list_view.rs:119
-msgid "Empty directory"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:469
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5544
-msgid "Folder"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:470
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5548
-#: src/toolbar.blp:257
-msgid "File"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:471
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5546
-msgid "Submodule"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:484
-msgid "Directory"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:486
-msgid "No extension"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:496
-msgid "Unknown size"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/views/grid_view.rs:504
-msgid "Unknown date"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:768
-msgid "Clone operation cancelled"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:770
-msgid "Failed to clone repository"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:779
-msgid "Cannot cherry-pick in a bare repository"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:782
-msgid "Cannot cherry-pick while HEAD is detached"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:786
-msgid "Commit or stash local changes before running cherry-pick"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:791
-msgid "Configure your Git user name and email before running cherry-pick"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:810
-msgid "Cherry-pick has conflicts at commit"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:860
-msgid "Cannot restore files in a bare repository"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:864
-msgid "Commit or stash local changes before restoring project files"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1115
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1137
-#: src/toolbar.blp:137
-msgid "New Tab"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1485
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1508
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1771
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4889
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4975
-msgid "No snapshot selected"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1495
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1504
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1546
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1560
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1585
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1894
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2657
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4885
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4970
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6234
-msgid "No repository loaded"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1515
-msgid "Snapshot"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1519
-msgid "Restore Project Files?"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1522
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3029
-#: src/ssh-passphrase-dialog.blp:41 src/toolbar.blp:75
-msgid "Cancel"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1523
-msgid "Restore Files"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1532
-msgid "Project files restored as local changes"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1537
-msgid "Could not restore project files"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1554
-msgid "Could not open repository in the system"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1580
-msgid "Could not open a console for this repository"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1591
-msgid "Repository path copied"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1747
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1763
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1978
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2001
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2828
-msgid "Selected"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1749
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1756
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1765
-msgid "No file view available"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1755
-msgid "Selection cleared"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1876
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1888
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1955
-msgid "No commit selected"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1882
-msgid "Commit SHA copied"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1904
-msgid "Could not load commit details"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1910
-msgid "Root commit"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1940
-msgid "Selected item is not a file"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1941
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1949
-msgid "No file selected"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:1960
-msgid "Selected commit is not a merge commit"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2015
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2030
-msgid "No commits loaded"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2079
-msgid "No repository loaded."
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2086
-msgid "Cannot read HEAD"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2094
-msgid "Cannot peel HEAD to commit"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2107
-msgid "No repository path stored."
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2123
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5777
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6227
-msgid "Cannot open repository"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2127
-msgid "Cannot find HEAD commit"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2133
-msgid "Failed to create branch"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2144
-msgid "Created branch"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2646
-msgid "Select at least one commit"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2674
-msgid "Cherry-picked"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2682
-msgid "Cherry-pick failed"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2688
-msgid "Cherry-pick worker stopped unexpectedly"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2766
-msgid "Copied"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:2994
-#: src/toolbar.blp:114 src/toolbar.blp:132
-msgid "Open Repository"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3021
-msgid "Selected folder"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3026
-msgid "Repository Not Found"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3030
-msgid "Choose Another Folder"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3093
-msgid "Repository URL is required"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3099
-msgid "Clone destination must be a folder"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3106
-msgid "Clone destination must be empty"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3113
-msgid "Cannot read clone destination"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3120
-msgid "Parent folder does not exist"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3127
-msgid "Cannot create temporary clone directory"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3138
-msgid "Cloning Repository"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3139
-msgid "Connecting to remote repository…"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3168
-msgid "Repository saved and opened"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3170
-msgid "Repository opened temporarily"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3183
-msgid "Cancelling clone…"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3185
-msgid "Cloning repository…"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3193
-msgid "Clone operation stopped unexpectedly"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3249
-msgid "Failed to open repository"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3338
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3659
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3856
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3941
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3950
-#: src/window.blp:37
-msgid "Timeline"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3340
-msgid "No commits found"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:3477
-msgid "Failed to read history"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4111
-msgid "Error reading tree"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4536
-#: src/toolbar.blp:159
-msgid "Reload"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4537
-#: src/toolbar.blp:217
-msgid "Select All"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4539
-#: src/toolbar.blp:223
-msgid "Invert Selection"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4543
-#: src/toolbar.blp:229
-msgid "Clear Selection"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4550
-#: src/toolbar.blp:245 src/view-controls.blp:71
-msgid "Visible Columns…"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4553
-#: src/toolbar.blp:240 src/view-controls.blp:79
-msgid "Captions…"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4555
-#: src/toolbar.blp:250
-msgid "Select Commits by Pattern…"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4562
-#: src/toolbar.blp:194
-msgid "Open Repository in System"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4566
-#: src/toolbar.blp:199
-msgid "Open in Console"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4570
-#: src/toolbar.blp:183
-msgid "Copy Snapshot Location"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4622
-msgid "Open"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4625
-msgid "Open in New Tab"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4629
-msgid "Open in New Window"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4634
-#: src/batch-operations-dialog.blp:168
-msgid "Preview"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4636
-msgid "Open With…"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4640
-msgid "Export File…"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4646
-msgid "Copy Content"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4653
-msgid "Show in System"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4881
-msgid "Could not open a new window"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:4915
-msgid "Could not open the snapshot in a new window"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5099
-msgid "Unsupported snapshot item type"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5130
-msgid "Operation cancelled"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5162
-msgid "Only files can be opened or exported from a snapshot"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5205
-msgid "Opening File"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5206
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5311
-msgid "Materializing snapshot file…"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5212
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5240
-msgid "Could not open the item with the default application"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5218
-msgid "Could not open the item with the default application."
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5219
-msgid "Temporary item"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5221
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5378
-msgid "System error"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5238
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5339
-msgid "Could not open the item with the selected application"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5270
-msgid "The system could not determine the item type"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5295
-msgid "No application is available for this item type"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5310
-msgid "Preparing File"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5329
-msgid "Open With"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5357
-msgid "Preparing Item"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5358
-msgid "Materializing snapshot item…"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5369
-msgid "Could not open the item location"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5375
-msgid "Could not open the item location."
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5376
-msgid "Temporary location"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5387
-msgid "Only files can be exported from a snapshot"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5399
-msgid "Export File"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5401
-msgid "Export"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5419
-msgid "Exporting File"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5420
-msgid "Exporting snapshot file…"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5422
-msgid "Exported"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5433
-msgid "Snapshot path copied"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5439
-msgid "Only file content can be copied"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5473
-msgid "File content copied"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5477
-msgid "This file is binary or could not be copied as text"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5491
-msgid "This file does not exist in the current working tree"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5500
-msgid "Could not show file in the system"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5517
-msgid "Unknown snapshot date"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5540
-msgid "Repository root"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5559
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5560
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5561
-msgid "Not available"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5613
-msgid "Exists in working tree"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5615
-msgid "Only available in selected snapshot"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5675
-msgid "Marked as favorite"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5677
-msgid "Removed from favorites"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5690
-#: src/node-properties-dialog.blp:64
-msgid "Snapshot item icons cannot be edited"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5728
-msgid "Temporal-Explorer"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5895
-msgid "Parent paths are not available in snapshots"
-msgstr ""
-
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5918
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:139
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:562
 msgid "Path copied"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5943
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:146
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:46
+msgid "Commit SHA copied"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:154
+msgid "Object hash copied"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:162
+msgid "Details copied"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:233
+msgid "Not available in Git snapshot"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:253
+msgid "Yes (executable bit set)"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:255
+msgid "No"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:277
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:336
+msgid "Unstar"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:279
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:338
+#: src/ui/node-properties-dialog.blp:27
+msgid "Star"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:284
+#: src/ui/column-chooser.blp:30 src/ui/commit-details-dialog.blp:63
+msgid "Name"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:286
+#: src/ui/preferences-dialog.blp:141 src/ui/view-controls.blp:55
+msgid "Type"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:288
+#: src/ui/column-chooser.blp:41 src/ui/preferences-dialog.blp:140
+#: src/ui/preferences-dialog.blp:163 src/ui/view-controls.blp:49
+msgid "Size"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:290
+#: src/ui/clone-repository-dialog.blp:61 src/ui/node-properties-dialog.blp:144
+#: src/ui/preferences-dialog.blp:17 src/ui/window.blp:78
+msgid "Repository"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:292
+msgid "Repository Path"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:294
+msgid "Parent Folder"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:296
+msgid "Snapshot Commit"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:298
+msgid "Snapshot Date"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:300
+msgid "Full Commit"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:302
+#: src/ui/node-properties-dialog.blp:246
+msgid "Git Object"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/node_properties_dialog.rs:304
+msgid "Git Mode"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:283
+#: src/ui/select-commits-by-pattern.blp:102
+msgid "Enter a pattern to preview matches"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:299
+msgid "No commits match"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:301
+msgid "All {count} commits match"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/select_commits_by_pattern.rs:303
+msgid "{count} of {total} commits match"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:139
+msgid "January"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:140
+msgid "February"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:141
+msgid "March"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:142
+msgid "April"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:143
+msgid "May"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:144
+msgid "June"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:145
+msgid "July"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:146
+msgid "August"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:147
+msgid "September"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:148
+msgid "October"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:149
+msgid "November"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/timeline_filter.rs:150
+msgid "December"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/view_controls.rs:164
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/view_controls.rs:298
+msgid "List view"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/view_controls.rs:168
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/view_controls.rs:302
+#: src/ui/view-controls.blp:118
+msgid "Grid view"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/views/grid_view.rs:276
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/views/list_view.rs:119
+msgid "Empty directory"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/views/grid_view.rs:468
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:850
+msgid "Folder"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/views/grid_view.rs:469
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:854
+#: src/ui/window.blp:145
+msgid "File"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/views/grid_view.rs:470
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:852
+msgid "Submodule"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/views/grid_view.rs:483
+msgid "Directory"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/views/grid_view.rs:485
+msgid "No extension"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/views/grid_view.rs:495
+msgid "Unknown size"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/views/grid_view.rs:503
+msgid "Unknown date"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:17
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:105
+msgid "No file selected"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:25
+#: src/ui/window.blp:47
+msgid "Reload"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:26
+#: src/ui/window.blp:105
+msgid "Select All"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:28
+#: src/ui/window.blp:111
+msgid "Invert Selection"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:32
+#: src/ui/window.blp:117
+msgid "Clear Selection"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:39
+#: src/ui/view-controls.blp:71 src/ui/window.blp:133
+msgid "Visible Columns…"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:42
+#: src/ui/view-controls.blp:79 src/ui/window.blp:128
+msgid "Captions…"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:44
+#: src/ui/window.blp:138
+msgid "Select Commits by Pattern…"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:51
+#: src/ui/window.blp:82
+msgid "Open Repository in System"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:55
+#: src/ui/window.blp:87
+msgid "Open in Console"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:59
+#: src/ui/window.blp:71
+msgid "Copy Snapshot Location"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:126
+msgid "Open"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:129
+msgid "Open in New Tab"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:133
+msgid "Open in New Window"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:138
+#: src/ui/batch-operations-dialog.blp:168
+msgid "Preview"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:140
+msgid "Open With…"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:144
+msgid "Export File…"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:150
+msgid "Copy Content"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/context_menu.rs:154
+msgid "Show in System"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/favorites.rs:50
+#: src/ui/window.blp:349
+msgid "Add to Favorites"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/favorites.rs:56
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:21
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:54
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:104
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:540
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:30
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:213
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:273
+msgid "No snapshot selected"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/favorites.rs:80
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/favorites.rs:130
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:983
+msgid "Removed from favorites"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/favorites.rs:82
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:981
+msgid "Marked as favorite"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/favorites.rs:153
+msgid "The favorite snapshot is no longer available"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/favorites.rs:176
+msgid "Opened favorite snapshot item"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:46
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/tabs.rs:271
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/tabs.rs:369
+msgid "Could not open a new window"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:50
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:99
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:544
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:58
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:200
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:209
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:251
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:265
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:290
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:467
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:269
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1501
+msgid "No repository loaded"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:80
+msgid "Could not open the snapshot in a new window"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:265
+msgid "Unsupported snapshot item type"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:287
+msgid "Completed"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:299
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:300
+msgid "Operation cancelled"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:312
+msgid "Snapshot operation stopped unexpectedly"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:339
+msgid "Only files can be opened or exported from a snapshot"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:382
+msgid "Opening File"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:383
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:490
+msgid "Materializing snapshot file…"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:389
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:417
+msgid "Could not open the item with the default application"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:395
+msgid "Could not open the item with the default application."
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:396
+msgid "Temporary item"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:398
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:684
+msgid "System error"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:415
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:530
+msgid "Could not open the item with the selected application"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:448
+msgid "The system could not determine the item type"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:474
+msgid "No application is available for this item type"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:489
+msgid "Preparing File"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:572
+msgid "Save Snapshot Archive"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:588
+msgid "Exporting Archive"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:629
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:728
+msgid "Exported"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:634
+msgid "Archive exported"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:663
+msgid "Preparing Item"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:664
+msgid "Materializing snapshot item…"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:675
+msgid "Could not open the item location"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:681
+msgid "Could not open the item location."
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:682
+msgid "Temporary location"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:693
+msgid "Only files can be exported from a snapshot"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:705
+msgid "Export File"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:707
+msgid "Export"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:725
+msgid "Exporting File"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:726
+msgid "Exporting snapshot file…"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:739
+msgid "Snapshot path copied"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:745
+msgid "Only file content can be copied"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:779
+msgid "File content copied"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:783
+msgid "This file is binary or could not be copied as text"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:797
+msgid "This file does not exist in the current working tree"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:806
+msgid "Could not show file in the system"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:823
+msgid "Unknown snapshot date"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:846
+msgid "Repository root"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:865
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:866
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:867
+msgid "Not available"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:919
+msgid "Exists in working tree"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:921
+msgid "Only available in selected snapshot"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/files.rs:996
+msgid "Snapshot item icons cannot be edited"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/git_ops.rs:138
+msgid "Clone operation cancelled"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/git_ops.rs:140
+msgid "Failed to clone repository"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/git_ops.rs:149
+msgid "Cannot cherry-pick in a bare repository"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/git_ops.rs:152
+msgid "Cannot cherry-pick while HEAD is detached"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/git_ops.rs:156
+msgid "Commit or stash local changes before running cherry-pick"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/git_ops.rs:161
+msgid "Configure your Git user name and email before running cherry-pick"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/git_ops.rs:180
+msgid "Cherry-pick has conflicts at commit"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/git_ops.rs:230
+msgid "Cannot restore files in a bare repository"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/git_ops.rs:234
+msgid "Commit or stash local changes before restoring project files"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/mod.rs:779
 msgid "Error"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:5946
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/mod.rs:782
 msgid "OK"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6082
-msgid "Search Results"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:40
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:52
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:302
+msgid "No commit selected"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6193
-msgid "Indexing Changed Files"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:68
+msgid "Could not load commit details"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6194
-msgid "Reading changed-file metadata…"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:74
+msgid "Root commit"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6327
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6352
-msgid "Indexed"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:104
+msgid "Selected item is not a file"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6331
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6355
-msgid "cached"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:368
+msgid "Error reading tree"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6333
-msgid "matches"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:414
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:391
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1494
+msgid "Cannot open repository"
 msgstr ""
 
-#: /home/john/Projects/Temporal-Explorer/po/../src/window.rs:6409
-msgid "Could not read changed files for"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/navigation.rs:539
+msgid "Parent paths are not available in snapshots"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:19
-msgid "Batch Operations"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:18
+msgid "An operation is already in progress"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:31 src/clone-repository-dialog.blp:16
-#: src/date-range-dialog.blp:45 src/filter-types-dialog.blp:28
-#: src/new-branch-dialog.blp:16 src/operation-progress-dialog.blp:40
-#: src/select-commits-by-pattern.blp:30
-msgid "_Cancel"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:138
+msgid "Cancelling operation…"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:39
-msgid "_Run"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:156
+#: src/ui/window.blp:204
+msgid "Recent Operations"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:68
-msgid "Selected commits"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:167
+msgid "No operations have completed yet."
 msgstr ""
 
-#: src/batch-operations-dialog.blp:114
-msgid "Operation"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:220
+msgid "Snapshot"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:117
-msgid "Action"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:224
+msgid "Restore Project Files?"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:120
-msgid "Cherry-pick onto current branch"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:227
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:792
+#: src/ui/ssh-passphrase-dialog.blp:46 src/ui/toolbar.blp:77
+#: src/ui/toolbar.blp:97
+msgid "Cancel"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:121
-msgid "Export as .patch files"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:228
+msgid "Restore Files"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:122
-msgid "Copy SHAs to clipboard"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:237
+msgid "Project files restored as local changes"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:129
-msgid "Export directory"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:242
+msgid "Could not restore project files"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:154
-msgid "Add Signed-off-by line"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:259
+msgid "Could not open repository in the system"
 msgstr ""
 
-#: src/batch-operations-dialog.blp:160
-msgid "Use short SHAs (7 chars)"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:285
+msgid "Could not open a console for this repository"
 msgstr ""
 
-#: src/branch-sidebar-row.blp:41
-msgid "HEAD"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:296
+msgid "Repository path copied"
 msgstr ""
 
-#: src/branch-sidebar-row.blp:67
-msgid "Checkout branch"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:307
+msgid "Selected commit is not a merge commit"
 msgstr ""
 
-#: src/branch-sidebar-row.blp:77
-msgid "Push branch"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:347
+msgid "No repository loaded."
 msgstr ""
 
-#: src/branch-sidebar-row.blp:87
-msgid "Rename branch"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:354
+msgid "Cannot read HEAD"
 msgstr ""
 
-#: src/branch-sidebar-row.blp:97
-msgid "Delete branch"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:362
+msgid "Cannot peel HEAD to commit"
 msgstr ""
 
-#: src/clone-repository-dialog.blp:5 src/clone-repository-dialog.blp:40
-#: src/toolbar.blp:149
-msgid "Clone Repository"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:375
+msgid "No repository path stored."
 msgstr ""
 
-#: src/clone-repository-dialog.blp:23
-msgid "_Open"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:395
+msgid "Cannot find HEAD commit"
 msgstr ""
 
-#: src/clone-repository-dialog.blp:31
-msgid "_Save and Open"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:401
+msgid "Failed to create branch"
 msgstr ""
 
-#: src/clone-repository-dialog.blp:57
-msgid "Open temporarily, or save a local clone and open its history."
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:412
+msgid "Created branch"
 msgstr ""
 
-#: src/clone-repository-dialog.blp:60
-msgid "Repository _URL"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:456
+msgid "Select at least one commit"
 msgstr ""
 
-#: src/clone-repository-dialog.blp:67
-msgid "Destination"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:484
+msgid "Cherry-picked"
 msgstr ""
 
-#: src/clone-repository-dialog.blp:70
-msgid "_Local Folder"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:492
+msgid "Cherry-pick failed"
 msgstr ""
 
-#: src/clone-repository-dialog.blp:75
-msgid "Choose where the repository will be cloned."
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:498
+msgid "Cherry-pick worker stopped unexpectedly"
 msgstr ""
 
-#: src/clone-repository-dialog.blp:79
-msgid "Choose…"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:576
+msgid "Copied"
 msgstr ""
 
-#: src/clone-repository-dialog.blp:85
-msgid "Include Files"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:636
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/views.rs:173
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/views.rs:189
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/views.rs:292
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/views.rs:315
+msgid "Selected"
 msgstr ""
 
-#: src/clone-repository-dialog.blp:86
-msgid "Save the checked-out files in addition to the commit history."
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:757
+#: src/ui/toolbar.blp:127
+msgid "Open Repository"
 msgstr ""
 
-#: src/column-chooser.blp:5
-msgid "Choose Columns"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:784
+msgid "Selected folder"
 msgstr ""
 
-#: src/column-chooser.blp:13 src/column-chooser.blp:26
-msgid "Visible Columns"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:789
+msgid "Repository Not Found"
 msgstr ""
 
-#: src/column-chooser.blp:27
-msgid "Choose which columns to show in list view."
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:793
+msgid "Choose Another Folder"
 msgstr ""
 
-#: src/column-chooser.blp:35 src/file-grid-captions-dialog.blp:41
-#: src/preferences-dialog.blp:155
-msgid "Status"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:856
+msgid "Repository URL is required"
 msgstr ""
 
-#: src/column-chooser.blp:36
-msgid "Added / Modified / Deleted"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:862
+msgid "Clone destination must be a folder"
 msgstr ""
 
-#: src/column-chooser.blp:46 src/file-grid-captions-dialog.blp:46
-msgid "Extension"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:869
+msgid "Clone destination must be empty"
 msgstr ""
 
-#: src/column-chooser.blp:59
-msgid "Apply"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:876
+msgid "Cannot read clone destination"
 msgstr ""
 
-#: src/commit-details-dialog.blp:5
-msgid "Commit Details"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:883
+msgid "Parent folder does not exist"
 msgstr ""
 
-#: src/commit-details-dialog.blp:18
-msgid "Copy Commit SHA"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:890
+msgid "Cannot create temporary clone directory"
 msgstr ""
 
-#: src/commit-details-dialog.blp:41 src/merge-conflict-dialog.blp:92
-#: src/merge-conflict-dialog.blp:123
-msgid "Commit"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:899
+msgid "Connecting to remote repository…"
 msgstr ""
 
-#: src/commit-details-dialog.blp:44
-msgid "Summary"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:926
+msgid "Repository saved and opened"
 msgstr ""
 
-#: src/commit-details-dialog.blp:49
-msgid "SHA"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:928
+msgid "Repository opened temporarily"
 msgstr ""
 
-#: src/commit-details-dialog.blp:54
-msgid "Parents"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:942
+msgid "Cancelling clone…"
 msgstr ""
 
-#: src/commit-details-dialog.blp:60 src/merge-conflict-dialog.blp:97
-#: src/merge-conflict-dialog.blp:128 src/search-filter-popover.blp:233
-msgid "Author"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:944
+msgid "Cloning repository…"
 msgstr ""
 
-#: src/commit-details-dialog.blp:68
-msgid "Email"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:951
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:952
+msgid "Clone operation stopped unexpectedly"
 msgstr ""
 
-#: src/commit-details-dialog.blp:73 src/merge-conflict-dialog.blp:101
-#: src/merge-conflict-dialog.blp:132 src/preferences-dialog.blp:167
-msgid "Date"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:1058
+msgid "Failed to open repository"
 msgstr ""
 
-#: src/commit-details-dialog.blp:79
-msgid "Full Message"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:1078
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:858
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1055
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1134
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1143
+#: src/ui/window.blp:343
+msgid "Timeline"
 msgstr ""
 
-#: src/commit-name-cell.blp:64
-msgid "Copy commit SHA"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/operations.rs:1080
+msgid "No commits found"
 msgstr ""
 
-#: src/date-range-dialog.blp:28 src/search-filter-popover.blp:183
-msgid "Custom Date Range"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/tabs.rs:112
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/tabs.rs:137
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/tabs.rs:230
+msgid "New Tab"
 msgstr ""
 
-#: src/date-range-dialog.blp:40
-msgid "Filter by Date Range"
-msgstr ""
-
-#: src/date-range-dialog.blp:53
-msgid "Date Range"
-msgstr ""
-
-#: src/date-range-dialog.blp:54
-msgid "Show only commits authored within this period (YYYY-MM-DD)"
-msgstr ""
-
-#: src/date-range-dialog.blp:57
-msgid "From"
-msgstr ""
-
-#: src/date-range-dialog.blp:63
-msgid "To"
-msgstr ""
-
-#: src/date-range-dialog.blp:73
-msgid "Invalid date"
-msgstr ""
-
-#: src/date-range-dialog.blp:74
-msgid "Use the format YYYY-MM-DD, e.g. 2026-01-15"
-msgstr ""
-
-#: src/date-range-dialog.blp:83
-msgid "_Apply Filter"
-msgstr ""
-
-#: src/file-grid-captions-dialog.blp:13 src/preferences-dialog.blp:152
-msgid "Grid Captions"
-msgstr ""
-
-#: src/file-grid-captions-dialog.blp:21
-msgid "Grid View Captions"
-msgstr ""
-
-#: src/file-grid-captions-dialog.blp:26
-msgid "_Apply"
-msgstr ""
-
-#: src/file-grid-captions-dialog.blp:37
-msgid "Visible Captions"
-msgstr ""
-
-#: src/file-grid-captions-dialog.blp:38
-msgid "Choose which information appears below each file in grid view."
-msgstr ""
-
-#: src/file-grid-captions-dialog.blp:42
-msgid "Added, Modified or Deleted"
-msgstr ""
-
-#: src/file-grid-captions-dialog.blp:50
-msgid "File Size"
-msgstr ""
-
-#: src/file-grid-captions-dialog.blp:54
-msgid "Date Modified"
-msgstr ""
-
-#: src/file-list-view.blp:38 src/views/file-list-view.blp:38
-msgid "No Files"
-msgstr ""
-
-#: src/file-list-view.blp:39 src/views/file-list-view.blp:39
-msgid "Select a commit to see its files."
-msgstr ""
-
-#: src/filter-types-dialog.blp:14
-msgid "Add File Type Filter"
-msgstr ""
-
-#: src/filter-types-dialog.blp:36
-msgid "_Add"
-msgstr ""
-
-#: src/filter-types-dialog.blp:51
-msgid "Search extensions, e.g. rs, py, ts…"
-msgstr ""
-
-#: src/filter-types-dialog.blp:64
-msgid "Filter by File Type"
-msgstr ""
-
-#: src/filter-types-dialog.blp:65
-msgid "Type an extension to add a filter, or choose from common types below."
-msgstr ""
-
-#: src/filter-types-dialog.blp:73
-msgid "Common types"
-msgstr ""
-
-#: src/filter-types-dialog.blp:99
-msgid "No Types Found"
-msgstr ""
-
-#: src/filter-types-dialog.blp:100
-msgid "Try a different search, or press Enter to add a custom extension."
-msgstr ""
-
-#: src/history-controls.blp:12 src/window.blp:31
-msgid "Back"
-msgstr ""
-
-#: src/history-controls.blp:20
-msgid "Forward"
-msgstr ""
-
-#: src/merge-conflict-dialog.blp:11 src/merge-conflict-dialog.blp:29
-msgid "Compare Merge Parents"
-msgstr ""
-
-#: src/merge-conflict-dialog.blp:23
-msgid "_Close"
-msgstr ""
-
-#: src/merge-conflict-dialog.blp:30
-msgid "Inspect changes combined by this merge commit"
-msgstr ""
-
-#: src/merge-conflict-dialog.blp:40
-msgid "This file differs between the two merge parents."
-msgstr ""
-
-#: src/merge-conflict-dialog.blp:41
-msgid "Show Diff"
-msgstr ""
-
-#: src/merge-conflict-dialog.blp:55
-msgid "Changed File"
-msgstr ""
-
-#: src/merge-conflict-dialog.blp:58
-msgid "Path"
-msgstr ""
-
-#: src/merge-conflict-dialog.blp:83
-msgid "First Parent"
-msgstr ""
-
-#: src/merge-conflict-dialog.blp:114
-msgid "Second Parent"
-msgstr ""
-
-#: src/merge-conflict-dialog.blp:141
-msgid "Show conflict diff"
-msgstr ""
-
-#: src/new-branch-dialog.blp:5 src/toolbar.blp:122 src/toolbar.blp:154
-msgid "New Branch"
-msgstr ""
-
-#: src/new-branch-dialog.blp:23
-msgid "_Create"
-msgstr ""
-
-#: src/new-branch-dialog.blp:44
-msgid "Branch Details"
-msgstr ""
-
-#: src/new-branch-dialog.blp:47
-msgid "Branch Name"
-msgstr ""
-
-#: src/node-properties-dialog.blp:25
-msgid "Open Location"
-msgstr ""
-
-#: src/node-properties-dialog.blp:129
-msgid "Copy Path"
-msgstr ""
-
-#: src/node-properties-dialog.blp:177
-msgid "Modified"
-msgstr ""
-
-#: src/node-properties-dialog.blp:200
-msgid "Created"
-msgstr ""
-
-#: src/node-properties-dialog.blp:228
-msgid "Permissions"
-msgstr ""
-
-#: src/node-properties-dialog.blp:257
-msgid "Git Snapshot"
-msgstr ""
-
-#: src/node-properties-dialog.blp:296
-msgid "Copy Details"
-msgstr ""
-
-#: src/operation-progress-dialog.blp:5 src/operation-progress-dialog.blp:16
-msgid "Working"
-msgstr ""
-
-#: src/operation-progress-dialog.blp:29
-msgid "Preparing…"
-msgstr ""
-
-#: src/preferences-dialog.blp:14
-msgid "General"
-msgstr ""
-
-#: src/preferences-dialog.blp:20
-msgid "Fetch on Open"
-msgstr ""
-
-#: src/preferences-dialog.blp:21
-msgid "Refresh remote tracking branches when a repository is opened."
-msgstr ""
-
-#: src/preferences-dialog.blp:25
-msgid "Commits per Page"
-msgstr ""
-
-#: src/preferences-dialog.blp:26
-msgid "How many commits to load in each batch."
-msgstr ""
-
-#: src/preferences-dialog.blp:37
-msgid "Default Branch"
-msgstr ""
-
-#: src/preferences-dialog.blp:41
-msgid "Shallow Clone Depth"
-msgstr ""
-
-#: src/preferences-dialog.blp:42
-msgid "Set to 0 to clone the full history."
-msgstr ""
-
-#: src/preferences-dialog.blp:54
-msgid "Date and Time"
-msgstr ""
-
-#: src/preferences-dialog.blp:57
-msgid "Relative"
-msgstr ""
-
-#: src/preferences-dialog.blp:58
-msgid "Example: 3 days ago"
-msgstr ""
-
-#: src/preferences-dialog.blp:71
-msgid "Short"
-msgstr ""
-
-#: src/preferences-dialog.blp:72
-msgid "Example: 13 Jun 2026"
-msgstr ""
-
-#: src/preferences-dialog.blp:86
-msgid "ISO 8601"
-msgstr ""
-
-#: src/preferences-dialog.blp:87
-msgid "Example: 2026-06-13 14:30:00"
-msgstr ""
-
-#: src/preferences-dialog.blp:103
-msgid "Appearance"
-msgstr ""
-
-#: src/preferences-dialog.blp:106
-msgid "File Browser"
-msgstr ""
-
-#: src/preferences-dialog.blp:109
-msgid "Default View"
-msgstr ""
-
-#: src/preferences-dialog.blp:113
-msgid "List"
-msgstr ""
-
-#: src/preferences-dialog.blp:114
-msgid "Grid"
-msgstr ""
-
-#: src/preferences-dialog.blp:120
-msgid "Default Grid Zoom"
-msgstr ""
-
-#: src/preferences-dialog.blp:124
-msgid "Small"
-msgstr ""
-
-#: src/preferences-dialog.blp:125
-msgid "Normal"
-msgstr ""
-
-#: src/preferences-dialog.blp:126
-msgid "Large"
-msgstr ""
-
-#: src/preferences-dialog.blp:132
-msgid "Default Sort Order"
-msgstr ""
-
-#: src/preferences-dialog.blp:136 src/view-controls.blp:25
-msgid "A-Z"
-msgstr ""
-
-#: src/preferences-dialog.blp:137 src/view-controls.blp:31
-msgid "Z-A"
-msgstr ""
-
-#: src/preferences-dialog.blp:138 src/search-filter-popover.blp:125
-#: src/view-controls.blp:37
-msgid "Last Modified"
-msgstr ""
-
-#: src/preferences-dialog.blp:139 src/view-controls.blp:43
-msgid "First Modified"
-msgstr ""
-
-#: src/preferences-dialog.blp:147
-msgid "Show Hidden Files"
-msgstr ""
-
-#: src/preferences-dialog.blp:159
-msgid "File Extension"
-msgstr ""
-
-#: src/preferences-dialog.blp:172
-msgid "Commit List"
-msgstr ""
-
-#: src/preferences-dialog.blp:175
-msgid "Show Author Avatars"
-msgstr ""
-
-#: src/preferences-dialog.blp:179
-msgid "Dense Mode"
-msgstr ""
-
-#: src/preferences-dialog.blp:183
-msgid "Show Branch Graph"
-msgstr ""
-
-#: src/preferences-dialog.blp:188
-msgid "Diff View"
-msgstr ""
-
-#: src/preferences-dialog.blp:191
-msgid "Syntax Highlighting"
-msgstr ""
-
-#: src/preferences-dialog.blp:195
-msgid "Word-level Diff"
-msgstr ""
-
-#: src/preferences-dialog.blp:199
-msgid "Context Lines"
-msgstr ""
-
-#: src/preferences-dialog.blp:212
-msgid "Advanced"
-msgstr ""
-
-#: src/preferences-dialog.blp:215
-msgid "Git"
-msgstr ""
-
-#: src/preferences-dialog.blp:218
-msgid "Verify Commit Signatures"
-msgstr ""
-
-#: src/preferences-dialog.blp:222
-msgid "Follow Renames"
-msgstr ""
-
-#: src/preferences-dialog.blp:226
-msgid "Include Submodules"
-msgstr ""
-
-#: src/preferences-dialog.blp:231
-msgid "Performance"
-msgstr ""
-
-#: src/preferences-dialog.blp:234
-msgid "Background Fetch"
-msgstr ""
-
-#: src/preferences-dialog.blp:238
-msgid "Fetch Interval (minutes)"
-msgstr ""
-
-#: src/search-filter-popover.blp:33
-msgid "File Types"
-msgstr ""
-
-#: src/search-filter-popover.blp:49
-msgid "_Audio"
-msgstr ""
-
-#: src/search-filter-popover.blp:58
-msgid "_Documents"
-msgstr ""
-
-#: src/search-filter-popover.blp:67
-msgid "_Folders"
-msgstr ""
-
-#: src/search-filter-popover.blp:76
-msgid "_Images"
-msgstr ""
-
-#: src/search-filter-popover.blp:85
-msgid "_PDF"
-msgstr ""
-
-#: src/search-filter-popover.blp:94
-msgid "Te_xt"
-msgstr ""
-
-#: src/search-filter-popover.blp:103
-msgid "_Videos"
-msgstr ""
-
-#: src/search-filter-popover.blp:110
-msgid "Specific Type"
-msgstr ""
-
-#: src/search-filter-popover.blp:135
-msgid "Clear Date Filter"
-msgstr ""
-
-#: src/search-filter-popover.blp:147
-msgid "_Today"
-msgstr ""
-
-#: src/search-filter-popover.blp:153
-msgid "_Yesterday"
-msgstr ""
-
-#: src/search-filter-popover.blp:159
-msgid "Past _Week"
-msgstr ""
-
-#: src/search-filter-popover.blp:165
-msgid "Past _Month"
-msgstr ""
-
-#: src/search-filter-popover.blp:171
-msgid "Past Y_ear"
-msgstr ""
-
-#: src/search-filter-popover.blp:195
-msgid "Text Matching"
-msgstr ""
-
-#: src/search-filter-popover.blp:208
-msgid "Commits & Changed Files"
-msgstr ""
-
-#: src/search-filter-popover.blp:209
-msgid "The sidebar search matches commit metadata and changed file names"
-msgstr ""
-
-#: src/search-filter-popover.blp:215
-msgid "Filename Only"
-msgstr ""
-
-#: src/search-filter-popover.blp:216
-msgid "Use the file type controls above to narrow changed files"
-msgstr ""
-
-#: src/search-filter-popover.blp:243
-msgid "Clear Author Filter"
-msgstr ""
-
-#: src/search-filter-popover.blp:250
-msgid "Filter by author name or email…"
-msgstr ""
-
-#: src/search-filter-popover.blp:276
-msgid "Branch"
-msgstr ""
-
-#: src/search-filter-popover.blp:286
-msgid "Clear Branch Filter"
-msgstr ""
-
-#: src/search-filter-popover.blp:303
-msgid "Reset Filters"
-msgstr ""
-
-#: src/select-commits-by-pattern.blp:18
-msgid "Select Commits by Pattern"
-msgstr ""
-
-#: src/select-commits-by-pattern.blp:38
-msgid "_Select"
-msgstr ""
-
-#: src/select-commits-by-pattern.blp:58
-msgid "File Path Pattern"
-msgstr ""
-
-#: src/select-commits-by-pattern.blp:59
-msgid "Glob syntax: * matches any string, ** crosses directories."
-msgstr ""
-
-#: src/select-commits-by-pattern.blp:62
-msgid "Pattern"
-msgstr ""
-
-#: src/select-commits-by-pattern.blp:71
-msgid "Options"
-msgstr ""
-
-#: src/select-commits-by-pattern.blp:74
-msgid "Match mode"
-msgstr ""
-
-#: src/select-commits-by-pattern.blp:77
-msgid "Any changed file matches"
-msgstr ""
-
-#: src/select-commits-by-pattern.blp:78
-msgid "All changed files match"
-msgstr ""
-
-#: src/select-commits-by-pattern.blp:84
-msgid "Case insensitive"
-msgstr ""
-
-#: src/ssh-passphrase-dialog.blp:5
-msgid "Authentication Required"
-msgstr ""
-
-#: src/ssh-passphrase-dialog.blp:25
-msgid "Enter Passphrase"
-msgstr ""
-
-#: src/ssh-passphrase-dialog.blp:26
-msgid "This repository requires authentication."
-msgstr ""
-
-#: src/ssh-passphrase-dialog.blp:31
-msgid "Passphrase"
-msgstr ""
-
-#: src/ssh-passphrase-dialog.blp:46
-msgid "Confirm"
-msgstr ""
-
-#: src/toolbar.blp:12
-msgid "Show Sidebar"
-msgstr ""
-
-#: src/toolbar.blp:68
-msgid "Type a path and press Enter…"
-msgstr ""
-
-#: src/toolbar.blp:86
-msgid "Search Commits"
-msgstr ""
-
-#: src/toolbar.blp:104
-msgid "Main Menu"
-msgstr ""
-
-#: src/toolbar.blp:143
-msgid "Close Tab"
-msgstr ""
-
-#: src/toolbar.blp:167
-msgid "Location"
-msgstr ""
-
-#: src/toolbar.blp:171
-msgid "Edit Snapshot Location"
-msgstr ""
-
-#: src/toolbar.blp:177
-msgid "Go to Snapshot Root"
-msgstr ""
-
-#: src/toolbar.blp:204
-msgid "Copy Repository Path"
-msgstr ""
-
-#: src/toolbar.blp:213
-msgid "Selection"
-msgstr ""
-
-#: src/toolbar.blp:236
-msgid "View"
-msgstr ""
-
-#: src/toolbar.blp:266
-msgid "Preview Selected File"
-msgstr ""
-
-#: src/toolbar.blp:271
-msgid "Show Context Menu"
-msgstr ""
-
-#: src/toolbar.blp:278
-msgid "Operations"
-msgstr ""
-
-#: src/toolbar.blp:282
-msgid "Restore Project Files from Snapshot…"
-msgstr ""
-
-#: src/toolbar.blp:287
-msgid "Batch Operations…"
-msgstr ""
-
-#: src/toolbar.blp:292
-msgid "Compare Merge Parents…"
-msgstr ""
-
-#: src/toolbar.blp:301
-msgid "Help"
-msgstr ""
-
-#: src/toolbar.blp:305
-msgid "Preferences"
-msgstr ""
-
-#: src/toolbar.blp:310
-msgid "Keyboard Shortcuts"
-msgstr ""
-
-#: src/toolbar.blp:315
-msgid "About Temporal Explorer"
-msgstr ""
-
-#: src/view-controls.blp:9
-msgid "Icon Size"
-msgstr ""
-
-#: src/view-controls.blp:22
-msgid "Sort"
-msgstr ""
-
-#: src/view-controls.blp:63
-msgid "Show _Hidden Files"
-msgstr ""
-
-#: src/view-controls.blp:94
-msgid "View Options"
-msgstr ""
-
-#: src/view-controls.blp:103
-msgid "Zoom Out"
-msgstr ""
-
-#: src/view-controls.blp:111
-msgid "Zoom In"
-msgstr ""
-
-#: src/window.blp:5
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/tabs.rs:147
+#: src/ui/window.blp:293
 msgid "Temporal Explorer"
 msgstr ""
 
-#: src/window.blp:55
-msgid "Search commits, hash, date…"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/tabs.rs:311
+msgid "No closed tab to restore"
 msgstr ""
 
-#: src/window.blp:61
-msgid "Filters"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/tabs.rs:355
+msgid "Temporal-Explorer"
 msgstr ""
 
-#: src/window.blp:149
-msgid "Restore Project Files…"
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:203
+msgid "File name matches"
 msgstr ""
 
-#: src/window.blp:150
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:278
+msgid "Search Snapshot"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:291
+msgid "Search file names and contents"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:294
+msgid "Search"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:300
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:322
+msgid "Enter a search term."
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:327
+msgid "Searching snapshot…"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:347
+msgid "No matching files found."
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:352
+msgid "Search limited to the first"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:354
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1600
+msgid "matches"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:360
+msgid "matching file(s)"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:399
+msgid "Search failed"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:404
+msgid "Search stopped unexpectedly"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:625
+msgid "Failed to read history"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1349
+msgid "Search Results"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1460
+msgid "Indexing Changed Files"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1461
+msgid "Reading changed-file metadata…"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1594
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1619
+msgid "Indexed"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1598
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1622
+msgid "cached"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/timeline.rs:1676
+msgid "Could not read changed files for"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/util.rs:221
+msgid "Just now"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/util.rs:231
+msgid "Yesterday"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/views.rs:175
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/views.rs:182
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/views.rs:191
+msgid "No file view available"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/views.rs:181
+msgid "Selection cleared"
+msgstr ""
+
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/views.rs:329
+#: /home/john/analise-confirmacao/Temporal-Explorer/po/../src/window/views.rs:344
+msgid "No commits loaded"
+msgstr ""
+
+#: src/ui/app-chooser-dialog.blp:5
+msgid "Open File"
+msgstr ""
+
+#: src/ui/app-chooser-dialog.blp:19 src/ui/batch-operations-dialog.blp:31
+#: src/ui/clone-repository-dialog.blp:17 src/ui/compress-dialog.blp:19
+#: src/ui/date-range-dialog.blp:45 src/ui/filter-types-dialog.blp:28
+#: src/ui/new-branch-dialog.blp:17 src/ui/operation-progress-dialog.blp:40
+#: src/ui/select-commits-by-pattern.blp:30
+msgid "_Cancel"
+msgstr ""
+
+#: src/ui/app-chooser-dialog.blp:26 src/ui/clone-repository-dialog.blp:24
+msgid "_Open"
+msgstr ""
+
+#: src/ui/app-chooser-dialog.blp:44
+msgid "Search applications…"
+msgstr ""
+
+#: src/ui/app-chooser-dialog.blp:67
+msgid "Choose an app to open the selected file"
+msgstr ""
+
+#: src/ui/batch-operations-dialog.blp:19
+msgid "Batch Operations"
+msgstr ""
+
+#: src/ui/batch-operations-dialog.blp:39
+msgid "_Run"
+msgstr ""
+
+#: src/ui/batch-operations-dialog.blp:68
+msgid "Selected commits"
+msgstr ""
+
+#: src/ui/batch-operations-dialog.blp:114
+msgid "Operation"
+msgstr ""
+
+#: src/ui/batch-operations-dialog.blp:117
+msgid "Action"
+msgstr ""
+
+#: src/ui/batch-operations-dialog.blp:120
+msgid "Cherry-pick onto current branch"
+msgstr ""
+
+#: src/ui/batch-operations-dialog.blp:121
+msgid "Export as .patch files"
+msgstr ""
+
+#: src/ui/batch-operations-dialog.blp:122
+msgid "Copy SHAs to clipboard"
+msgstr ""
+
+#: src/ui/batch-operations-dialog.blp:129
+msgid "Export directory"
+msgstr ""
+
+#: src/ui/batch-operations-dialog.blp:154
+msgid "Add Signed-off-by line"
+msgstr ""
+
+#: src/ui/batch-operations-dialog.blp:160
+msgid "Use short SHAs (7 chars)"
+msgstr ""
+
+#: src/ui/branch-sidebar-row.blp:41
+msgid "HEAD"
+msgstr ""
+
+#: src/ui/branch-sidebar-row.blp:67
+msgid "Checkout branch"
+msgstr ""
+
+#: src/ui/branch-sidebar-row.blp:77
+msgid "Push branch"
+msgstr ""
+
+#: src/ui/branch-sidebar-row.blp:87
+msgid "Rename branch"
+msgstr ""
+
+#: src/ui/branch-sidebar-row.blp:97
+msgid "Delete branch"
+msgstr ""
+
+#: src/ui/clone-repository-dialog.blp:5 src/ui/clone-repository-dialog.blp:41
+msgid "Clone Repository"
+msgstr ""
+
+#: src/ui/clone-repository-dialog.blp:32
+msgid "_Save and Open"
+msgstr ""
+
+#: src/ui/clone-repository-dialog.blp:62
+msgid "Open temporarily, or save a local clone and open its history."
+msgstr ""
+
+#: src/ui/clone-repository-dialog.blp:65
+msgid "Repository _URL"
+msgstr ""
+
+#: src/ui/clone-repository-dialog.blp:72
+msgid "Destination"
+msgstr ""
+
+#: src/ui/clone-repository-dialog.blp:75
+msgid "_Local Folder"
+msgstr ""
+
+#: src/ui/clone-repository-dialog.blp:80
+msgid "Choose where the repository will be cloned."
+msgstr ""
+
+#: src/ui/clone-repository-dialog.blp:84
+msgid "Choose…"
+msgstr ""
+
+#: src/ui/clone-repository-dialog.blp:90
+msgid "Include Files"
+msgstr ""
+
+#: src/ui/clone-repository-dialog.blp:91
+msgid "Save the checked-out files in addition to the commit history."
+msgstr ""
+
+#: src/ui/column-chooser.blp:5
+msgid "Choose Columns"
+msgstr ""
+
+#: src/ui/column-chooser.blp:13 src/ui/column-chooser.blp:26
+msgid "Visible Columns"
+msgstr ""
+
+#: src/ui/column-chooser.blp:27
+msgid "Choose which columns to show in list view."
+msgstr ""
+
+#: src/ui/column-chooser.blp:35 src/ui/file-grid-captions-dialog.blp:41
+#: src/ui/preferences-dialog.blp:155
+msgid "Status"
+msgstr ""
+
+#: src/ui/column-chooser.blp:36
+msgid "Added / Modified / Deleted"
+msgstr ""
+
+#: src/ui/column-chooser.blp:46 src/ui/file-grid-captions-dialog.blp:46
+msgid "Extension"
+msgstr ""
+
+#: src/ui/column-chooser.blp:59
+msgid "Apply"
+msgstr ""
+
+#: src/ui/commit-details-dialog.blp:5
+msgid "Commit Details"
+msgstr ""
+
+#: src/ui/commit-details-dialog.blp:18 src/ui/node-properties-dialog.blp:236
+msgid "Copy Commit SHA"
+msgstr ""
+
+#: src/ui/commit-details-dialog.blp:41 src/ui/merge-conflict-dialog.blp:92
+#: src/ui/merge-conflict-dialog.blp:123
+msgid "Commit"
+msgstr ""
+
+#: src/ui/commit-details-dialog.blp:44
+msgid "Summary"
+msgstr ""
+
+#: src/ui/commit-details-dialog.blp:49
+msgid "SHA"
+msgstr ""
+
+#: src/ui/commit-details-dialog.blp:54
+msgid "Parents"
+msgstr ""
+
+#: src/ui/commit-details-dialog.blp:60 src/ui/merge-conflict-dialog.blp:97
+#: src/ui/merge-conflict-dialog.blp:128 src/ui/search-filter-popover.blp:233
+msgid "Author"
+msgstr ""
+
+#: src/ui/commit-details-dialog.blp:68
+msgid "Email"
+msgstr ""
+
+#: src/ui/commit-details-dialog.blp:73 src/ui/merge-conflict-dialog.blp:101
+#: src/ui/merge-conflict-dialog.blp:132 src/ui/preferences-dialog.blp:167
+msgid "Date"
+msgstr ""
+
+#: src/ui/commit-details-dialog.blp:79
+msgid "Full Message"
+msgstr ""
+
+#: src/ui/commit-name-cell.blp:64
+msgid "Copy commit SHA"
+msgstr ""
+
+#: src/ui/compress-dialog.blp:5
+msgid "Export Snapshot Archive"
+msgstr ""
+
+#: src/ui/compress-dialog.blp:25
+msgid "_Export"
+msgstr ""
+
+#: src/ui/compress-dialog.blp:36
+msgid "Archive"
+msgstr ""
+
+#: src/ui/compress-dialog.blp:39
+msgid "Archive _Name"
+msgstr ""
+
+#: src/ui/compress-dialog.blp:47
+msgid "Co_mpression Method"
+msgstr ""
+
+#: src/ui/compress-dialog.blp:52
+msgid ".zip (Compatible with all systems)"
+msgstr ""
+
+#: src/ui/compress-dialog.blp:53
+msgid ".tar.gz (Standard Linux archive)"
+msgstr ""
+
+#: src/ui/compress-dialog.blp:54
+msgid ".tar (Uncompressed tape archive)"
+msgstr ""
+
+#: src/ui/date-range-dialog.blp:28 src/ui/search-filter-popover.blp:183
+msgid "Custom Date Range"
+msgstr ""
+
+#: src/ui/date-range-dialog.blp:40
+msgid "Filter by Date Range"
+msgstr ""
+
+#: src/ui/date-range-dialog.blp:53
+msgid "Date Range"
+msgstr ""
+
+#: src/ui/date-range-dialog.blp:54
+msgid "Show only commits authored within this period (YYYY-MM-DD)"
+msgstr ""
+
+#: src/ui/date-range-dialog.blp:57
+msgid "From"
+msgstr ""
+
+#: src/ui/date-range-dialog.blp:63
+msgid "To"
+msgstr ""
+
+#: src/ui/date-range-dialog.blp:73
+msgid "Invalid date"
+msgstr ""
+
+#: src/ui/date-range-dialog.blp:74
+msgid "Use the format YYYY-MM-DD, e.g. 2026-01-15"
+msgstr ""
+
+#: src/ui/date-range-dialog.blp:83
+msgid "_Apply Filter"
+msgstr ""
+
+#: src/ui/favorites-dialog.blp:5 src/ui/window.blp:194
+msgid "Favorite Snapshots"
+msgstr ""
+
+#: src/ui/favorites-dialog.blp:19
+msgid "No Favorite Snapshots"
+msgstr ""
+
+#: src/ui/favorites-dialog.blp:20
 msgid ""
-"Restore the project files from this snapshot without changing the current "
-"branch"
+"Star a snapshot or file from the sidebar or Properties to revisit it here."
 msgstr ""
 
-#: src/window.blp:178
+#: src/ui/favorites-dialog.blp:29
+msgid "Starred Items"
+msgstr ""
+
+#: src/ui/file-grid-captions-dialog.blp:13 src/ui/preferences-dialog.blp:152
+msgid "Grid Captions"
+msgstr ""
+
+#: src/ui/file-grid-captions-dialog.blp:21
+msgid "Grid View Captions"
+msgstr ""
+
+#: src/ui/file-grid-captions-dialog.blp:26
+msgid "_Apply"
+msgstr ""
+
+#: src/ui/file-grid-captions-dialog.blp:37
+msgid "Visible Captions"
+msgstr ""
+
+#: src/ui/file-grid-captions-dialog.blp:38
+msgid "Choose which information appears below each file in grid view."
+msgstr ""
+
+#: src/ui/file-grid-captions-dialog.blp:42
+msgid "Added, Modified or Deleted"
+msgstr ""
+
+#: src/ui/file-grid-captions-dialog.blp:50
+msgid "File Size"
+msgstr ""
+
+#: src/ui/file-grid-captions-dialog.blp:54
+msgid "Date Modified"
+msgstr ""
+
+#: src/ui/file-list-view.blp:38
+msgid "No Files"
+msgstr ""
+
+#: src/ui/file-list-view.blp:39
+msgid "Select a commit to see its files."
+msgstr ""
+
+#: src/ui/filter-types-dialog.blp:14
+msgid "Add File Type Filter"
+msgstr ""
+
+#: src/ui/filter-types-dialog.blp:36
+msgid "_Add"
+msgstr ""
+
+#: src/ui/filter-types-dialog.blp:51
+msgid "Search extensions, e.g. rs, py, ts…"
+msgstr ""
+
+#: src/ui/filter-types-dialog.blp:64
+msgid "Filter by File Type"
+msgstr ""
+
+#: src/ui/filter-types-dialog.blp:65
+msgid "Type an extension to add a filter, or choose from common types below."
+msgstr ""
+
+#: src/ui/filter-types-dialog.blp:73
+msgid "Common types"
+msgstr ""
+
+#: src/ui/filter-types-dialog.blp:99
+msgid "No Types Found"
+msgstr ""
+
+#: src/ui/filter-types-dialog.blp:100
+msgid "Try a different search, or press Enter to add a custom extension."
+msgstr ""
+
+#: src/ui/history-controls.blp:12 src/ui/window.blp:324
+msgid "Back"
+msgstr ""
+
+#: src/ui/history-controls.blp:20
+msgid "Forward"
+msgstr ""
+
+#: src/ui/merge-conflict-dialog.blp:11 src/ui/merge-conflict-dialog.blp:29
+msgid "Compare Merge Parents"
+msgstr ""
+
+#: src/ui/merge-conflict-dialog.blp:23
+msgid "_Close"
+msgstr ""
+
+#: src/ui/merge-conflict-dialog.blp:30
+msgid "Inspect changes combined by this merge commit"
+msgstr ""
+
+#: src/ui/merge-conflict-dialog.blp:40
+msgid "This file differs between the two merge parents."
+msgstr ""
+
+#: src/ui/merge-conflict-dialog.blp:41
+msgid "Show Diff"
+msgstr ""
+
+#: src/ui/merge-conflict-dialog.blp:55
+msgid "Changed File"
+msgstr ""
+
+#: src/ui/merge-conflict-dialog.blp:58
+msgid "Path"
+msgstr ""
+
+#: src/ui/merge-conflict-dialog.blp:83
+msgid "First Parent"
+msgstr ""
+
+#: src/ui/merge-conflict-dialog.blp:114
+msgid "Second Parent"
+msgstr ""
+
+#: src/ui/merge-conflict-dialog.blp:141
+msgid "Show conflict diff"
+msgstr ""
+
+#: src/ui/new-branch-dialog.blp:5 src/ui/toolbar.blp:135
+msgid "New Branch"
+msgstr ""
+
+#: src/ui/new-branch-dialog.blp:24
+msgid "_Create"
+msgstr ""
+
+#: src/ui/new-branch-dialog.blp:45
+msgid "Branch Details"
+msgstr ""
+
+#: src/ui/new-branch-dialog.blp:48
+msgid "Branch Name"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:38
+msgid "Open Location"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:110
+msgid "Parent _Folder"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:123
+msgid "Copy Path"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:134
+msgid "Open Parent Folder"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:155
+msgid "Working Tree"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:168
+msgid "Modified"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:181
+msgid "Created"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:196
+msgid "_Permissions"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:222
+msgid "Git Snapshot"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:260
+msgid "Copy Object Hash"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:272
+msgid "_Copy Details"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:282
+msgid "Permissions"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:291
+msgid "Git Tree Mode"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:292
+msgid ""
+"Git snapshots record POSIX tree mode bits instead of full filesystem ACLs."
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:295
+msgid "Mode"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:307
+msgid "Object Kind"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:318
+msgid "Executable"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:330
+msgid "Snapshot Integrity"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:333
+msgid "Full Commit SHA"
+msgstr ""
+
+#: src/ui/node-properties-dialog.blp:345
+msgid "Git Object Hash"
+msgstr ""
+
+#: src/ui/operation-progress-dialog.blp:5
+#: src/ui/operation-progress-dialog.blp:16
+msgid "Working"
+msgstr ""
+
+#: src/ui/operation-progress-dialog.blp:29
+msgid "Preparing…"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:14
+msgid "General"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:20
+msgid "Fetch on Open"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:21
+msgid "Refresh remote tracking branches when a repository is opened."
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:25
+msgid "Commits per Page"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:26
+msgid "How many commits to load in each batch."
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:37
+msgid "Default Branch"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:41
+msgid "Shallow Clone Depth"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:42
+msgid "Set to 0 to clone the full history."
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:54
+msgid "Date and Time"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:57
+msgid "Relative"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:58
+msgid "Example: 3 days ago"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:71
+msgid "Short"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:72
+msgid "Example: 13 Jun 2026"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:86
+msgid "ISO 8601"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:87
+msgid "Example: 2026-06-13 14:30:00"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:103
+msgid "Appearance"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:106
+msgid "File Browser"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:109
+msgid "Default View"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:113
+msgid "List"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:114
+msgid "Grid"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:120
+msgid "Default Grid Zoom"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:124
+msgid "Small"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:125
+msgid "Normal"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:126
+msgid "Large"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:132
+msgid "Default Sort Order"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:136 src/ui/view-controls.blp:25
+msgid "A-Z"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:137 src/ui/view-controls.blp:31
+msgid "Z-A"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:138 src/ui/search-filter-popover.blp:125
+#: src/ui/view-controls.blp:37
+msgid "Last Modified"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:139 src/ui/view-controls.blp:43
+msgid "First Modified"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:147
+msgid "Show Hidden Files"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:159
+msgid "File Extension"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:172
+msgid "Commit List"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:175
+msgid "Show Author Avatars"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:179
+msgid "Dense Mode"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:183
+msgid "Show Branch Graph"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:188
+msgid "Diff View"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:191
+msgid "Syntax Highlighting"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:195
+msgid "Word-level Diff"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:199
+msgid "Context Lines"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:212
+msgid "Advanced"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:215
+msgid "Git"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:218
+msgid "Verify Commit Signatures"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:222
+msgid "Follow Renames"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:226
+msgid "Include Submodules"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:231
+msgid "Performance"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:234
+msgid "Background Fetch"
+msgstr ""
+
+#: src/ui/preferences-dialog.blp:238
+msgid "Fetch Interval (minutes)"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:33
+msgid "File Types"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:49
+msgid "_Audio"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:58
+msgid "_Documents"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:67
+msgid "_Folders"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:76
+msgid "_Images"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:85
+msgid "_PDF"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:94
+msgid "Te_xt"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:103
+msgid "_Videos"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:110
+msgid "Specific Type"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:135
+msgid "Clear Date Filter"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:147
+msgid "_Today"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:153
+msgid "_Yesterday"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:159
+msgid "Past _Week"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:165
+msgid "Past _Month"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:171
+msgid "Past Y_ear"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:195
+msgid "Text Matching"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:208
+msgid "Commits & Changed Files"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:209
+msgid "The sidebar search matches commit metadata and changed file names"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:215
+msgid "Filename Only"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:216
+msgid "Use the file type controls above to narrow changed files"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:243
+msgid "Clear Author Filter"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:250
+msgid "Filter by author name or email…"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:276
+msgid "Branch"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:286
+msgid "Clear Branch Filter"
+msgstr ""
+
+#: src/ui/search-filter-popover.blp:303
+msgid "Reset Filters"
+msgstr ""
+
+#: src/ui/select-commits-by-pattern.blp:18
+msgid "Select Commits by Pattern"
+msgstr ""
+
+#: src/ui/select-commits-by-pattern.blp:38
+msgid "_Select"
+msgstr ""
+
+#: src/ui/select-commits-by-pattern.blp:58
+msgid "File Path Pattern"
+msgstr ""
+
+#: src/ui/select-commits-by-pattern.blp:59
+msgid "Glob syntax: * matches any string, ** crosses directories."
+msgstr ""
+
+#: src/ui/select-commits-by-pattern.blp:62
+msgid "Pattern"
+msgstr ""
+
+#: src/ui/select-commits-by-pattern.blp:71
+msgid "Options"
+msgstr ""
+
+#: src/ui/select-commits-by-pattern.blp:74
+msgid "Match mode"
+msgstr ""
+
+#: src/ui/select-commits-by-pattern.blp:77
+msgid "Any changed file matches"
+msgstr ""
+
+#: src/ui/select-commits-by-pattern.blp:78
+msgid "All changed files match"
+msgstr ""
+
+#: src/ui/select-commits-by-pattern.blp:84
+msgid "Case insensitive"
+msgstr ""
+
+#: src/ui/ssh-passphrase-dialog.blp:5
+msgid "Authentication Required"
+msgstr ""
+
+#: src/ui/ssh-passphrase-dialog.blp:30
+msgid "Enter Passphrase"
+msgstr ""
+
+#: src/ui/ssh-passphrase-dialog.blp:31
+msgid "This repository requires authentication."
+msgstr ""
+
+#: src/ui/ssh-passphrase-dialog.blp:36
+msgid "Passphrase"
+msgstr ""
+
+#: src/ui/ssh-passphrase-dialog.blp:51
+msgid "Confirm"
+msgstr ""
+
+#: src/ui/toolbar.blp:13
+msgid "Show Sidebar"
+msgstr ""
+
+#: src/ui/toolbar.blp:70
+msgid "Type a path and press Enter…"
+msgstr ""
+
+#: src/ui/toolbar.blp:92
+msgid "Search current folder…"
+msgstr ""
+
+#: src/ui/toolbar.blp:108
+msgid "Search Current Folder"
+msgstr ""
+
+#: src/ui/view-controls.blp:9
+msgid "Icon Size"
+msgstr ""
+
+#: src/ui/view-controls.blp:22
+msgid "Sort"
+msgstr ""
+
+#: src/ui/view-controls.blp:63
+msgid "Show _Hidden Files"
+msgstr ""
+
+#: src/ui/view-controls.blp:94
+msgid "View Options"
+msgstr ""
+
+#: src/ui/view-controls.blp:103
+msgid "Zoom Out"
+msgstr ""
+
+#: src/ui/view-controls.blp:111
+msgid "Zoom In"
+msgstr ""
+
+#: src/ui/window.blp:7 src/ui/window.blp:281
+msgid "New _Window"
+msgstr ""
+
+#: src/ui/window.blp:13
+msgid "New _Tab"
+msgstr ""
+
+#: src/ui/window.blp:19
+msgid "Show All Ta_bs"
+msgstr ""
+
+#: src/ui/window.blp:25
+msgid "_Undo"
+msgstr ""
+
+#: src/ui/window.blp:26
+msgid "_Redo"
+msgstr ""
+
+#: src/ui/window.blp:31
+msgid "Open Repository…"
+msgstr ""
+
+#: src/ui/window.blp:37
+msgid "Clone Repository…"
+msgstr ""
+
+#: src/ui/window.blp:42
+msgid "New Branch…"
+msgstr ""
+
+#: src/ui/window.blp:55
+msgid "Location"
+msgstr ""
+
+#: src/ui/window.blp:59
+msgid "Edit Snapshot Location"
+msgstr ""
+
+#: src/ui/window.blp:65
+msgid "Go to Snapshot Root"
+msgstr ""
+
+#: src/ui/window.blp:92
+msgid "Copy Repository Path"
+msgstr ""
+
+#: src/ui/window.blp:101
+msgid "Selection"
+msgstr ""
+
+#: src/ui/window.blp:124
+msgid "View"
+msgstr ""
+
+#: src/ui/window.blp:154
+msgid "Preview Selected File"
+msgstr ""
+
+#: src/ui/window.blp:159
+msgid "Show Context Menu"
+msgstr ""
+
+#: src/ui/window.blp:166
+msgid "Operations"
+msgstr ""
+
+#: src/ui/window.blp:170
+msgid "Restore Project Files from Snapshot…"
+msgstr ""
+
+#: src/ui/window.blp:175
+msgid "Export Snapshot Archive…"
+msgstr ""
+
+#: src/ui/window.blp:180
+msgid "Batch Operations…"
+msgstr ""
+
+#: src/ui/window.blp:185
+msgid "Compare Merge Parents…"
+msgstr ""
+
+#: src/ui/window.blp:199
+msgid "Search Snapshot Contents"
+msgstr ""
+
+#: src/ui/window.blp:211
 msgid "_Preferences"
 msgstr ""
 
-#: src/window.blp:182
+#: src/ui/window.blp:216
 msgid "_Keyboard Shortcuts"
 msgstr ""
 
-#: src/window.blp:186
+#: src/ui/window.blp:221
+msgid "_Help"
+msgstr ""
+
+#: src/ui/window.blp:226
 msgid "_About Temporal Explorer"
+msgstr ""
+
+#: src/ui/window.blp:236
+msgid "_New Tab"
+msgstr ""
+
+#: src/ui/window.blp:241 src/ui/window.blp:286
+msgid "Re_store Closed Tab"
+msgstr ""
+
+#: src/ui/window.blp:248
+msgid "Move Tab to New _Window"
+msgstr ""
+
+#: src/ui/window.blp:254
+msgid "Move Tab _Left"
+msgstr ""
+
+#: src/ui/window.blp:260
+msgid "Move Tab _Right"
+msgstr ""
+
+#: src/ui/window.blp:267
+msgid "_Close Tab"
+msgstr ""
+
+#: src/ui/window.blp:272
+msgid "Close _Other Tabs"
+msgstr ""
+
+#: src/ui/window.blp:331
+msgid "Next commit"
+msgstr ""
+
+#: src/ui/window.blp:339
+msgid "Search Commits"
+msgstr ""
+
+#: src/ui/window.blp:356
+msgid "Main Menu"
+msgstr ""
+
+#: src/ui/window.blp:367
+msgid "Show Operations"
+msgstr ""
+
+#: src/ui/window.blp:385
+msgid "No operations"
+msgstr ""
+
+#: src/ui/window.blp:424
+msgid "Cancel Operation"
+msgstr ""
+
+#: src/ui/window.blp:434
+msgid "Hide Operations"
+msgstr ""
+
+#: src/ui/window.blp:459
+msgid "Search commits, hash, date…"
+msgstr ""
+
+#: src/ui/window.blp:465
+msgid "Filters"
+msgstr ""
+
+#: src/ui/window.blp:566
+msgid "Restore Project Files…"
+msgstr ""
+
+#: src/ui/window.blp:567
+msgid ""
+"Restore the project files from this snapshot without changing the current "
+"branch"
 msgstr ""

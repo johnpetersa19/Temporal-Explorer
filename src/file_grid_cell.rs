@@ -48,10 +48,10 @@ mod imp {
 
     impl ObjectImpl for FileGridCell {
         fn dispose(&self) {
+            self.dispose_template();
             while let Some(child) = self.obj().first_child() {
                 child.unparent();
             }
-            self.dispose_template();
         }
     }
     impl WidgetImpl for FileGridCell {

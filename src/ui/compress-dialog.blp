@@ -1,0 +1,61 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $CompressDialog : Adw.Dialog {
+  title: _("Export Snapshot Archive");
+  content-width: 480;
+  content-height: 360;
+  default-widget: export_button;
+  focus-widget: name_entry;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      [start]
+      Button cancel_button {
+        label: _("_Cancel");
+        use-underline: true;
+      }
+
+      [end]
+      Button export_button {
+        label: _("_Export");
+        use-underline: true;
+
+        styles [
+          "suggested-action",
+        ]
+      }
+    }
+
+    content: Adw.PreferencesPage {
+      Adw.PreferencesGroup {
+        title: _("Archive");
+
+        Adw.EntryRow name_entry {
+          title: _("Archive _Name");
+          use-underline: true;
+          activates-default: true;
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Adw.ComboRow format_combo_row {
+          title: _("Co_mpression Method");
+          use-underline: true;
+
+          model: StringList {
+            strings [
+              _(".zip (Compatible with all systems)"),
+              _(".tar.gz (Standard Linux archive)"),
+              _(".tar (Uncompressed tape archive)"),
+            ]
+          };
+        }
+      }
+    };
+  };
+}

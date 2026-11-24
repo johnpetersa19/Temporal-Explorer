@@ -45,7 +45,7 @@ mod imp {
             self.parent_constructed();
             let obj = self.obj();
             obj.setup_gactions();
-            obj.set_accels_for_action("app.quit", &["<control>q"]);
+            obj.setup_accels();
         }
     }
 
@@ -157,17 +157,71 @@ impl TemporalExplorerApplication {
         let shortcuts_action = gio::ActionEntry::builder("shortcuts")
             .activate(move |app: &Self, _, _| app.show_shortcuts())
             .build();
+        let help_action = gio::ActionEntry::builder("help")
+            .activate(move |app: &Self, _, _| app.show_help())
+            .build();
 
         self.add_action_entries([
             quit_action,
             about_action,
             preferences_action,
             shortcuts_action,
+            help_action,
         ]);
     }
 
+    fn setup_accels(&self) {
+        self.set_accels_for_action("app.quit", &["<Control>q"]);
+        self.set_accels_for_action("app.preferences", &["<Control>comma"]);
+        self.set_accels_for_action("app.shortcuts", &["<Control>question"]);
+        self.set_accels_for_action("app.help", &["F1"]);
+
+        self.set_accels_for_action("win.reload-repository", &["F5"]);
+        self.set_accels_for_action("win.new-window", &["<Control>n"]);
+        self.set_accels_for_action("win.new-tab", &["<Control>t"]);
+        self.set_accels_for_action("win.close-tab", &["<Control>w"]);
+        self.set_accels_for_action("win.restore-closed-tab", &["<Control><Shift>t"]);
+        self.set_accels_for_action("win.open-tab-overview", &["<Control><Shift>o"]);
+        self.set_accels_for_action("win.edit-location", &["<Control>l"]);
+        self.set_accels_for_action("win.prompt-root-location", &["slash", "KP_Divide"]);
+        self.set_accels_for_action("win.select-all-files", &["<Control>a"]);
+        self.set_accels_for_action("win.invert-file-selection", &["<Control><Shift>a"]);
+        self.set_accels_for_action("win.unselect-all-files", &["<Control><Shift>l"]);
+        self.set_accels_for_action("win.open-repository", &["<Control>o"]);
+        self.set_accels_for_action("win.first-commit", &["<Control>Home"]);
+        self.set_accels_for_action("win.latest-commit", &["<Control>End"]);
+        self.set_accels_for_action("win.navigate-back", &["<Alt>Left"]);
+        self.set_accels_for_action("win.navigate-forward", &["<Alt>Right"]);
+        self.set_accels_for_action("win.navigate-up", &["<Alt>Up"]);
+        self.set_accels_for_action("win.toggle-sidebar", &["F9"]);
+        self.set_accels_for_action("win.toggle-hidden-files", &["<Control>h"]);
+        self.set_accels_for_action("win.search-commits", &["<Control>f"]);
+        self.set_accels_for_action("win.toggle-filter-popover", &["<Control><Shift>f"]);
+        self.set_accels_for_action("win.open-date-range-dialog", &["<Control><Shift>d"]);
+        self.set_accels_for_action("win.filter-file-type", &["<Control><Alt>t"]);
+        self.set_accels_for_action("win.clear-all-filters", &["<Control>Escape"]);
+        self.set_accels_for_action("win.list-view", &["<Control>1"]);
+        self.set_accels_for_action("win.grid-view", &["<Control>2"]);
+        self.set_accels_for_action("win.zoom-in", &["<Control>plus", "<Control>KP_Add"]);
+        self.set_accels_for_action("win.zoom-out", &["<Control>minus", "<Control>KP_Subtract"]);
+        self.set_accels_for_action("win.reset-zoom", &["<Control>0"]);
+        self.set_accels_for_action("win.show-column-chooser", &["<Control><Shift>c"]);
+        self.set_accels_for_action("win.show-captions", &["<Control><Shift>g"]);
+        self.set_accels_for_action("win.copy-current-commit-sha", &["<Control>c"]);
+        self.set_accels_for_action("win.show-current-commit-details", &["<Control>i"]);
+        self.set_accels_for_action("win.preview-selected-file", &["space"]);
+        self.set_accels_for_action("win.open-context-menu", &["<Shift>F10"]);
+        self.set_accels_for_action("win.batch-operations", &["<Control><Shift>b"]);
+        self.set_accels_for_action("win.show-merge-conflicts", &["<Control><Shift>m"]);
+        self.set_accels_for_action("win.select-by-pattern", &["<Control>s"]);
+        self.set_accels_for_action("win.invert-commit-selection", &["<Control><Shift>i"]);
+        self.set_accels_for_action("win.star-snapshot", &["<Control>d"]);
+    }
+
     fn show_preferences(&self) {
-        let window = self.active_window().unwrap();
+        let Some(window) = self.active_window() else {
+            return;
+        };
         let settings = gio::Settings::new("io.github.TemporalExplorer");
         let dialog = PreferencesDialog::new(&settings);
         dialog.present(Some(&window));
@@ -188,8 +242,17 @@ impl TemporalExplorerApplication {
         dialog.present(Some(&window));
     }
 
+    fn show_help(&self) {
+        let launcher =
+            gtk::UriLauncher::new("https://github.com/johnpetersa19/Temporal-Explorer#readme");
+        let window = self.active_window();
+        launcher.launch(window.as_ref(), gio::Cancellable::NONE, |_| {});
+    }
+
     fn show_about(&self) {
-        let window = self.active_window().unwrap();
+        let Some(window) = self.active_window() else {
+            return;
+        };
         let about = adw::AboutDialog::builder()
             .application_name("Temporal Explorer")
             .application_icon("io.github.TemporalExplorer")

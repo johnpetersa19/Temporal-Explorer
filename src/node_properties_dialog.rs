@@ -4,12 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gettextrs::gettext;
 use gtk::glib;
-use gtk::prelude::*;
-use std::cell::Cell;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Default)]
@@ -37,7 +36,9 @@ mod imp {
     #[template(resource = "/io/github/TemporalExplorer/node-properties-dialog.ui")]
     pub struct NodePropertiesDialog {
         #[template_child]
-        pub dialog_title: TemplateChild<adw::WindowTitle>,
+        pub toast_overlay: TemplateChild<adw::ToastOverlay>,
+        #[template_child]
+        pub nav_view: TemplateChild<adw::NavigationView>,
         #[template_child]
         pub icon_image: TemplateChild<gtk::Image>,
         #[template_child]
@@ -48,33 +49,54 @@ mod imp {
         pub summary_label: TemplateChild<gtk::Label>,
 
         #[template_child]
-        pub parent_folder_label: TemplateChild<gtk::Label>,
+        pub parent_folder_row: TemplateChild<adw::ActionRow>,
         #[template_child]
-        pub repository_label: TemplateChild<gtk::Label>,
+        pub repository_row: TemplateChild<adw::ActionRow>,
         #[template_child]
-        pub modified_label: TemplateChild<gtk::Label>,
+        pub system_status_row: TemplateChild<adw::ActionRow>,
         #[template_child]
-        pub created_label: TemplateChild<gtk::Label>,
+        pub modified_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub created_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub permissions_row: TemplateChild<adw::ActionRow>,
         #[template_child]
         pub permissions_label: TemplateChild<gtk::Label>,
         #[template_child]
-        pub snapshot_label: TemplateChild<gtk::Label>,
+        pub snapshot_row: TemplateChild<adw::ActionRow>,
         #[template_child]
-        pub object_label: TemplateChild<gtk::Label>,
+        pub object_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub copy_details_row: TemplateChild<adw::ButtonRow>,
+
+        #[template_child]
+        pub mode_octal_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub mode_type_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub mode_exec_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub perm_commit_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub perm_object_row: TemplateChild<adw::ActionRow>,
 
         #[template_child]
         pub favorite_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub open_location_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub edit_icon_button: TemplateChild<gtk::Button>,
+        pub open_parent_folder_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub copy_path_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub copy_details_button: TemplateChild<gtk::Button>,
+        pub copy_sha_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub copy_object_button: TemplateChild<gtk::Button>,
 
         pub details_text: RefCell<String>,
         pub path_text: RefCell<String>,
+        pub full_commit_text: RefCell<String>,
+        pub git_object_text: RefCell<String>,
         pub favorite_active: Cell<bool>,
     }
 
@@ -98,38 +120,52 @@ mod imp {
             self.parent_constructed();
 
             let obj = self.obj().clone();
-            let button = self.favorite_button.get();
-
-            button.connect_clicked(move |_| {
+            self.favorite_button.connect_clicked(move |_| {
                 obj.toggle_favorite();
             });
 
             let obj = self.obj().clone();
-            let button = self.open_location_button.get();
-
-            button.connect_clicked(move |_| {
+            self.open_location_button.connect_clicked(move |_| {
                 obj.emit_open_location_requested();
             });
 
             let obj = self.obj().clone();
-            let button = self.edit_icon_button.get();
-
-            button.connect_clicked(move |_| {
-                obj.emit_by_name::<()>("icon-edit-requested", &[]);
+            self.open_parent_folder_button.connect_clicked(move |_| {
+                obj.emit_open_location_requested();
             });
 
             let obj = self.obj().clone();
-            let button = self.copy_details_button.get();
-
-            button.connect_clicked(move |_| {
-                obj.copy_details();
+            self.copy_path_button.connect_clicked(move |_| {
+                obj.copy_text(&obj.imp().path_text.borrow(), &gettext("Path copied"));
             });
 
             let obj = self.obj().clone();
-            let button = self.copy_path_button.get();
+            self.copy_sha_button.connect_clicked(move |_| {
+                obj.copy_text(
+                    &obj.imp().full_commit_text.borrow(),
+                    &gettext("Commit SHA copied"),
+                );
+            });
 
-            button.connect_clicked(move |_| {
-                obj.copy_path();
+            let obj = self.obj().clone();
+            self.copy_object_button.connect_clicked(move |_| {
+                obj.copy_text(
+                    &obj.imp().git_object_text.borrow(),
+                    &gettext("Object hash copied"),
+                );
+            });
+
+            let obj = self.obj().clone();
+            self.copy_details_row.connect_activated(move |_| {
+                obj.copy_text(
+                    &obj.imp().details_text.borrow(),
+                    &gettext("Details copied"),
+                );
+            });
+
+            let nav = self.nav_view.get();
+            self.permissions_row.connect_activated(move |_| {
+                nav.push_by_tag("permissions");
             });
         }
 
@@ -173,9 +209,6 @@ impl NodePropertiesDialog {
     pub fn set_properties(&self, props: &NodeProperties) {
         let imp = self.imp();
 
-        imp.dialog_title.set_title("");
-        imp.dialog_title.set_subtitle("");
-
         imp.icon_image.set_icon_name(Some(&props.icon_name));
 
         imp.name_label.set_label(&props.name);
@@ -185,39 +218,49 @@ impl NodePropertiesDialog {
         imp.summary_label
             .set_label(&format!("{} · {}", props.size, props.snapshot_date));
 
-        imp.parent_folder_label.set_label(&props.parent_folder);
-        imp.parent_folder_label
+        imp.parent_folder_row.set_subtitle(&props.parent_folder);
+        imp.parent_folder_row
             .set_tooltip_text(Some(&props.repository_path));
 
-        imp.repository_label.set_label(&props.repository);
-        imp.repository_label
-            .set_tooltip_text(Some(&props.repository));
+        imp.repository_row.set_subtitle(&props.repository);
+        imp.system_status_row.set_subtitle(&props.system_status);
 
-        // Git does not store a real per-file "modified" timestamp in the tree.
-        // We display the selected snapshot commit date instead.
-        imp.modified_label.set_label(&props.snapshot_date);
-        imp.modified_label
+        imp.modified_row.set_subtitle(&props.snapshot_date);
+        imp.modified_row
             .set_tooltip_text(Some(&props.full_commit));
 
-        // Git snapshots do not store a real file creation timestamp.
-        imp.created_label
-            .set_label(&gettext("Not available in Git snapshot"));
-        imp.created_label.set_tooltip_text(Some(&gettext(
-            "Git stores content snapshots, not filesystem creation time",
-        )));
+        imp.created_row
+            .set_subtitle(&gettext("Not available in Git snapshot"));
 
-        // Nautilus shows filesystem permissions here. For a Git snapshot,
-        // the closest equivalent is the Git tree mode.
         imp.permissions_label.set_label(&props.git_mode);
-        imp.snapshot_label.set_label(&props.snapshot_commit);
-        imp.snapshot_label
+        imp.snapshot_row.set_subtitle(&props.snapshot_commit);
+        imp.snapshot_row
             .set_tooltip_text(Some(&props.full_commit));
 
-        imp.object_label
-            .set_label(&shorten_middle(&props.git_object, 18));
-        imp.object_label.set_tooltip_text(Some(&props.git_object));
+        imp.object_row
+            .set_subtitle(&shorten_middle(&props.git_object, 22));
+        imp.object_row.set_tooltip_text(Some(&props.git_object));
+
+        // Populate Permissions subpage (Nautilus-style drill-down)
+        let (octal, kind_desc) = props
+            .git_mode
+            .split_once(" · ")
+            .unwrap_or((props.git_mode.as_str(), props.kind.as_str()));
+        imp.mode_octal_row.set_subtitle(octal);
+        imp.mode_type_row.set_subtitle(kind_desc);
+        let is_exec = octal == "100755";
+        imp.mode_exec_row.set_subtitle(&if is_exec {
+            gettext("Yes (executable bit set)")
+        } else {
+            gettext("No")
+        });
+        imp.perm_commit_row.set_subtitle(&props.full_commit);
+        imp.perm_object_row.set_subtitle(&props.git_object);
 
         *imp.path_text.borrow_mut() = props.repository_path.clone();
+        *imp.full_commit_text.borrow_mut() = props.full_commit.clone();
+        *imp.git_object_text.borrow_mut() = props.git_object.clone();
+
         imp.favorite_active.set(props.favorite);
         imp.favorite_button.set_icon_name(if props.favorite {
             "starred-symbolic"
@@ -265,17 +308,10 @@ impl NodePropertiesDialog {
         *imp.details_text.borrow_mut() = details;
     }
 
-    fn copy_details(&self) {
+    fn copy_text(&self, text: &str, toast_msg: &str) {
         if let Some(display) = gtk::gdk::Display::default() {
-            display
-                .clipboard()
-                .set_text(&self.imp().details_text.borrow());
-        }
-    }
-
-    fn copy_path(&self) {
-        if let Some(display) = gtk::gdk::Display::default() {
-            display.clipboard().set_text(&self.imp().path_text.borrow());
+            display.clipboard().set_text(text);
+            self.imp().toast_overlay.add_toast(adw::Toast::new(toast_msg));
         }
     }
 

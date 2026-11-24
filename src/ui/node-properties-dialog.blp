@@ -6,306 +6,356 @@ template $NodePropertiesDialog : Adw.Dialog {
   content-width: 480;
   content-height: 620;
 
-  child: Adw.ToolbarView {
-    [top]
-    Adw.HeaderBar {
-      show-start-title-buttons: false;
-      show-end-title-buttons: false;
+  styles [
+    "nautilus-properties",
+  ]
 
-      [start]
-      Button favorite_button {
-        icon-name: "non-starred-symbolic";
-        tooltip-text: _("Star");
-        styles ["flat", "star"]
-      }
+  child: Adw.ToastOverlay toast_overlay {
+    child: Adw.NavigationView nav_view {
+      Adw.NavigationPage {
+        title: _("Properties");
+        tag: "main";
 
-      [end]
-      Button open_location_button {
-        icon-name: "external-link-symbolic";
-        tooltip-text: _("Open Location");
-        styles ["flat"]
-      }
+        child: Adw.ToolbarView {
+          [top]
+          Adw.HeaderBar {
+            show-title: false;
 
-      [end]
-      Button {
-        icon-name: "window-close-symbolic";
-        tooltip-text: _("Close");
-        clicked => $adw_dialog_close() swapped;
-        styles ["flat"]
-      }
-
-      title-widget: Adw.WindowTitle dialog_title {
-        title: "";
-      };
-    }
-
-    content: ScrolledWindow {
-      hscrollbar-policy: never;
-      vscrollbar-policy: automatic;
-      propagate-natural-height: true;
-
-      child: Box {
-        orientation: vertical;
-        spacing: 22;
-        margin-top: 18;
-        margin-bottom: 18;
-        margin-start: 18;
-        margin-end: 18;
-
-        Box {
-          orientation: vertical;
-          spacing: 8;
-          halign: center;
-
-          Overlay {
-            halign: center;
-
-            child: Image icon_image {
-              pixel-size: 96;
-              icon-name: "text-x-generic-symbolic";
-              halign: center;
-            };
-
-            [overlay]
-            Button edit_icon_button {
-              icon-name: "document-edit-symbolic";
-              tooltip-text: _("Snapshot item icons cannot be edited");
-              sensitive: false;
-              halign: end;
-              valign: end;
-              styles ["circular", "osd"]
-            }
-          }
-
-          Label name_label {
-            label: "";
-            justify: center;
-            wrap: true;
-            wrap-mode: word_char;
-            max-width-chars: 32;
-            lines: 3;
-            ellipsize: middle;
-            halign: center;
-            styles ["title-1"]
-          }
-
-          Label kind_label {
-            label: "";
-            halign: center;
-            styles ["dim-label"]
-          }
-
-          Label summary_label {
-            label: "";
-            halign: center;
-            styles ["caption", "dim-label"]
-          }
-        }
-
-        Box {
-          orientation: vertical;
-          spacing: 0;
-          styles ["properties-card"]
-
-          Box {
-            orientation: horizontal;
-            spacing: 12;
-            margin-top: 10;
-            margin-bottom: 10;
-            margin-start: 12;
-            margin-end: 12;
-
-            Box {
-              orientation: vertical;
-              hexpand: true;
-
-              Label {
-                label: _("Parent Folder");
-                xalign: 0;
-                styles ["caption", "dim-label"]
-              }
-
-              Label parent_folder_label {
-                label: "";
-                xalign: 0;
-                ellipsize: middle;
-              }
-            }
-
-            Button copy_path_button {
-              icon-name: "edit-copy-symbolic";
-              tooltip-text: _("Copy Path");
+            [start]
+            Button favorite_button {
+              icon-name: "non-starred-symbolic";
+              tooltip-text: _("Star");
               valign: center;
-              styles ["flat"]
+
+              styles [
+                "star",
+              ]
+            }
+
+            [end]
+            Button open_location_button {
+              icon-name: "external-link-symbolic";
+              tooltip-text: _("Open Location");
             }
           }
 
-          Separator {}
+          content: Adw.PreferencesPage {
+            Adw.PreferencesGroup {
+              Box {
+                orientation: vertical;
+                spacing: 12;
 
-          Box {
-            orientation: horizontal;
-            spacing: 12;
-            margin-top: 10;
-            margin-bottom: 10;
-            margin-start: 12;
-            margin-end: 12;
+                CenterBox {
+                  [center]
+                  Adw.Bin {
+                    width-request: 96;
+                    height-request: 96;
 
-            Box {
-              orientation: vertical;
-              hexpand: true;
+                    child: Image icon_image {
+                      pixel-size: 96;
+                      icon-name: "text-x-generic-symbolic";
+                      halign: center;
+                      valign: center;
 
-              Label {
-                label: _("Repository");
-                xalign: 0;
-                styles ["caption", "dim-label"]
+                      styles [
+                        "icon-dropshadow",
+                      ]
+                    };
+                  }
+                }
+
+                Box {
+                  orientation: vertical;
+                  spacing: 6;
+
+                  Label name_label {
+                    label: "";
+                    selectable: true;
+                    ellipsize: end;
+                    max-width-chars: 28;
+                    wrap: true;
+                    wrap-mode: word_char;
+                    lines: 3;
+                    justify: center;
+
+                    styles [
+                      "title-3",
+                    ]
+                  }
+
+                  Label kind_label {
+                    label: "";
+                    ellipsize: end;
+                    selectable: true;
+                    justify: center;
+                  }
+
+                  Label summary_label {
+                    label: "";
+                    ellipsize: end;
+                    selectable: true;
+                    justify: center;
+
+                    styles [
+                      "caption",
+                      "dim-label",
+                    ]
+                  }
+                }
+              }
+            }
+
+            Adw.PreferencesGroup {
+              Adw.ActionRow parent_folder_row {
+                title: _("Parent _Folder");
+                selectable: false;
+                subtitle-selectable: true;
+                use-underline: true;
+                use-markup: false;
+
+                styles [
+                  "property",
+                ]
+
+                [suffix]
+                Button copy_path_button {
+                  icon-name: "edit-copy-symbolic";
+                  tooltip-text: _("Copy Path");
+                  valign: center;
+
+                  styles [
+                    "flat",
+                  ]
+                }
+
+                [suffix]
+                Button open_parent_folder_button {
+                  icon-name: "folder-open-symbolic";
+                  tooltip-text: _("Open Parent Folder");
+                  valign: center;
+
+                  styles [
+                    "flat",
+                  ]
+                }
               }
 
-              Label repository_label {
-                label: "";
-                xalign: 0;
-                ellipsize: middle;
+              Adw.ActionRow repository_row {
+                title: _("Repository");
+                selectable: false;
+                subtitle-selectable: true;
+                use-markup: false;
+
+                styles [
+                  "property",
+                ]
+              }
+
+              Adw.ActionRow system_status_row {
+                title: _("Working Tree");
+                selectable: false;
+                subtitle-selectable: true;
+                use-markup: false;
+
+                styles [
+                  "property",
+                ]
               }
             }
-          }
-        }
 
-        Box {
-          orientation: vertical;
-          spacing: 0;
-          styles ["properties-card"]
+            Adw.PreferencesGroup {
+              Adw.ActionRow modified_row {
+                title: _("Modified");
+                selectable: false;
+                subtitle-selectable: true;
+                subtitle-lines: 1;
+                use-markup: false;
 
-          Box {
-            orientation: vertical;
-            margin-top: 10;
-            margin-bottom: 10;
-            margin-start: 12;
-            margin-end: 12;
+                styles [
+                  "property",
+                  "numeric",
+                ]
+              }
 
-            Label {
-              label: _("Modified");
-              xalign: 0;
-              styles ["caption", "dim-label"]
+              Adw.ActionRow created_row {
+                title: _("Created");
+                selectable: false;
+                subtitle-selectable: true;
+                subtitle-lines: 1;
+                use-markup: false;
+
+                styles [
+                  "property",
+                  "numeric",
+                ]
+              }
             }
 
-            Label modified_label {
-              label: "";
-              xalign: 0;
-              selectable: true;
-              ellipsize: middle;
-            }
-          }
+            Adw.PreferencesGroup {
+              Adw.ActionRow permissions_row {
+                title: _("_Permissions");
+                use-underline: true;
+                activatable: true;
 
-          Separator {}
+                [suffix]
+                Label permissions_label {
+                  label: "";
+                  valign: center;
 
-          Box {
-            orientation: vertical;
-            margin-top: 10;
-            margin-bottom: 10;
-            margin-start: 12;
-            margin-end: 12;
+                  styles [
+                    "dim-label",
+                  ]
+                }
 
-            Label {
-              label: _("Created");
-              xalign: 0;
-              styles ["caption", "dim-label"]
-            }
+                [suffix]
+                Image {
+                  icon-name: "go-next-symbolic";
+                  valign: center;
 
-            Label created_label {
-              label: "";
-              xalign: 0;
-              selectable: true;
-              ellipsize: middle;
-            }
-          }
-        }
+                  styles [
+                    "dim-label",
+                  ]
+                }
+              }
 
-        Box {
-          orientation: vertical;
-          spacing: 0;
-          styles ["properties-card"]
+              Adw.ActionRow snapshot_row {
+                title: _("Git Snapshot");
+                selectable: false;
+                subtitle-selectable: true;
+                subtitle-lines: 1;
+                use-markup: false;
 
-          Box {
-            orientation: horizontal;
-            spacing: 12;
-            margin-top: 12;
-            margin-bottom: 12;
-            margin-start: 12;
-            margin-end: 12;
+                styles [
+                  "property",
+                  "numeric",
+                ]
 
-            Label {
-              label: _("Permissions");
-              xalign: 0;
-              hexpand: true;
-            }
+                [suffix]
+                Button copy_sha_button {
+                  icon-name: "edit-copy-symbolic";
+                  tooltip-text: _("Copy Commit SHA");
+                  valign: center;
 
-            Label permissions_label {
-              label: "";
-              xalign: 1;
-              styles ["dim-label"]
-            }
+                  styles [
+                    "flat",
+                  ]
+                }
+              }
 
-            Image {
-              icon-name: "go-next-symbolic";
-              pixel-size: 12;
-              styles ["dim-label"]
-            }
-          }
+              Adw.ActionRow object_row {
+                title: _("Git Object");
+                selectable: false;
+                subtitle-selectable: true;
+                subtitle-lines: 1;
+                use-markup: false;
 
-          Separator {}
+                styles [
+                  "property",
+                  "numeric",
+                ]
 
-          Box {
-            orientation: horizontal;
-            spacing: 12;
-            margin-top: 12;
-            margin-bottom: 12;
-            margin-start: 12;
-            margin-end: 12;
+                [suffix]
+                Button copy_object_button {
+                  icon-name: "edit-copy-symbolic";
+                  tooltip-text: _("Copy Object Hash");
+                  valign: center;
 
-            Label {
-              label: _("Git Snapshot");
-              xalign: 0;
-              hexpand: true;
+                  styles [
+                    "flat",
+                  ]
+                }
+              }
             }
 
-            Label snapshot_label {
-              label: "";
-              xalign: 1;
-              ellipsize: middle;
-              styles ["dim-label"]
+            Adw.PreferencesGroup {
+              Adw.ButtonRow copy_details_row {
+                title: _("_Copy Details");
+                use-underline: true;
+                start-icon-name: "edit-copy-symbolic";
+              }
             }
-          }
+          };
+        };
+      }
 
-          Separator {}
+      Adw.NavigationPage {
+        title: _("Permissions");
+        tag: "permissions";
 
-          Box {
-            orientation: horizontal;
-            spacing: 12;
-            margin-top: 12;
-            margin-bottom: 12;
-            margin-start: 12;
-            margin-end: 12;
+        child: Adw.ToolbarView {
+          [top]
+          Adw.HeaderBar {}
 
-            Label {
-              label: _("Git Object");
-              xalign: 0;
-              hexpand: true;
+          content: Adw.PreferencesPage {
+            Adw.PreferencesGroup {
+              title: _("Git Tree Mode");
+              description: _("Git snapshots record POSIX tree mode bits instead of full filesystem ACLs.");
+
+              Adw.ActionRow mode_octal_row {
+                title: _("Mode");
+                selectable: false;
+                subtitle-selectable: true;
+                use-markup: false;
+
+                styles [
+                  "property",
+                  "numeric",
+                ]
+              }
+
+              Adw.ActionRow mode_type_row {
+                title: _("Object Kind");
+                selectable: false;
+                subtitle-selectable: true;
+                use-markup: false;
+
+                styles [
+                  "property",
+                ]
+              }
+
+              Adw.ActionRow mode_exec_row {
+                title: _("Executable");
+                selectable: false;
+                subtitle-selectable: true;
+                use-markup: false;
+
+                styles [
+                  "property",
+                ]
+              }
             }
 
-            Label object_label {
-              label: "";
-              xalign: 1;
-              ellipsize: middle;
-              styles ["dim-label"]
-            }
-          }
-        }
+            Adw.PreferencesGroup {
+              title: _("Snapshot Integrity");
 
-        Button copy_details_button {
-          label: _("Copy Details");
-          halign: center;
-          styles ["pill"]
-        }
-      };
+              Adw.ActionRow perm_commit_row {
+                title: _("Full Commit SHA");
+                selectable: false;
+                subtitle-selectable: true;
+                use-markup: false;
+
+                styles [
+                  "property",
+                  "numeric",
+                ]
+              }
+
+              Adw.ActionRow perm_object_row {
+                title: _("Git Object Hash");
+                selectable: false;
+                subtitle-selectable: true;
+                use-markup: false;
+
+                styles [
+                  "property",
+                  "numeric",
+                ]
+              }
+            }
+          };
+        };
+      }
     };
   };
 }

@@ -114,23 +114,23 @@ impl TemporalExplorerWindow {
     }
 
     pub(super) fn setup_history_controls(&self) {
-        let win = self.clone();
-        self.imp()
-            .toolbar
-            .history_controls()
-            .connect_local("navigate-back", false, move |_| {
+        let imp = self.imp();
+        for controls in [
+            imp.toolbar.history_controls(),
+            &imp.mobile_history_controls.get(),
+        ] {
+            let win = self.clone();
+            controls.connect_local("navigate-back", false, move |_| {
                 win.navigate_back();
                 None
             });
 
-        let win = self.clone();
-        self.imp()
-            .toolbar
-            .history_controls()
-            .connect_local("navigate-forward", false, move |_| {
+            let win = self.clone();
+            controls.connect_local("navigate-forward", false, move |_| {
                 win.navigate_forward();
                 None
             });
+        }
     }
 
     /// Push `hash` onto the commit navigation back-stack and clear the forward stack.
@@ -165,7 +165,6 @@ impl TemporalExplorerWindow {
     /// `current_hash` and `current_dir` internally; any live `imp` binding at the
     /// call-site would alias those borrows and cause a fatal RefCell panic inside
     /// the non-unwinding glib closure marshaller (SIGABRT).
-    #[allow(dead_code)]
     pub(super) fn navigate_commit_back(&self) {
         // ── Extract all needed values; every borrow guard drops at end of block ──
         let (prev_hash, current) = {
@@ -194,7 +193,6 @@ impl TemporalExplorerWindow {
     /// Mirrors `navigate_commit_back`: all RefCell values are extracted into
     /// owned locals before `jump_to_commit_hash` is called, avoiding any
     /// simultaneous borrow_mut aliasing.
-    #[allow(dead_code)]
     pub(super) fn navigate_commit_forward(&self) {
         // ── Extract all needed values; every borrow guard drops at end of block ──
         let (next_hash, current) = {
@@ -268,6 +266,7 @@ impl TemporalExplorerWindow {
         let current_oid = imp.current_oid.get();
 
         *imp.current_dir.borrow_mut() = dir.clone();
+        self.update_star_button();
 
         let win_ab1 = self.clone();
         let win_ab2 = self.clone();
@@ -299,6 +298,16 @@ impl TemporalExplorerWindow {
         self.update_dir_nav_buttons();
         self.save_active_tab_state();
 
+        // Fast path: serve from the LRU DirCache without spawning a thread or
+        // re-opening libgit2.
+        if let Some(cached) = imp.dir_cache.borrow_mut().get(&hash, &dir) {
+            if let Some(prev) = imp.load_cancel.borrow_mut().take() {
+                prev.store(true, Ordering::Relaxed);
+            }
+            self.render_dir((*cached).clone());
+            return;
+        }
+
         // Cancellation token for directory loads.
         //
         // Each navigation invalidates the previous token before starting a new
@@ -312,8 +321,13 @@ impl TemporalExplorerWindow {
         *imp.load_cancel.borrow_mut() = Some(cancel.clone());
 
         let dir_clone = dir.clone();
+        let worker_cancel = cancel.clone();
+        let worker_hash = hash.clone();
         let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<TreeNode>, String>>(1);
         std::thread::spawn(move || {
+            if worker_cancel.load(Ordering::Relaxed) {
+                return;
+            }
             let result = git2::Repository::open(&repo_path)
                 .map_err(|e| e.to_string())
                 .and_then(|repo| {
@@ -323,24 +337,42 @@ impl TemporalExplorerWindow {
                             .resolve_dir_oid(oid, &dir_clone)
                             .map_err(|e| e.to_string()),
                         None => resolver
-                            .resolve_dir(&hash, &dir_clone)
+                            .resolve_dir(&worker_hash, &dir_clone)
                             .map_err(|e| e.to_string()),
                     }
                 });
-            let _ = tx.send(result);
+            if !worker_cancel.load(Ordering::Relaxed) {
+                let _ = tx.send(result);
+            }
         });
 
         let win = self.clone();
-        glib::idle_add_local(move || match rx.try_recv() {
-            Ok(result) => {
-                match result {
-                    Ok(nodes) => win.render_dir(nodes),
-                    Err(e) => win.show_error(&format!("{}: {e}", gettext("Error reading tree"))),
-                }
-                glib::ControlFlow::Break
+        let cache_hash = hash;
+        let cache_dir = dir;
+        glib::idle_add_local(move || {
+            if cancel.load(Ordering::Relaxed) {
+                return glib::ControlFlow::Break;
             }
-            Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-            Err(_) => glib::ControlFlow::Break,
+            match rx.try_recv() {
+                Ok(result) => {
+                    match result {
+                        Ok(nodes) => {
+                            win.imp().dir_cache.borrow_mut().insert(
+                                cache_hash.clone(),
+                                cache_dir.clone(),
+                                nodes.clone(),
+                            );
+                            win.render_dir(nodes);
+                        }
+                        Err(e) => {
+                            win.show_error(&format!("{}: {e}", gettext("Error reading tree")));
+                        }
+                    }
+                    glib::ControlFlow::Break
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(_) => glib::ControlFlow::Break,
+            }
         });
     }
 
@@ -443,6 +475,15 @@ impl TemporalExplorerWindow {
         }
     }
 
+    pub(super) fn navigate_up(&self) {
+        let current = self.imp().current_dir.borrow().clone();
+        if current.as_os_str().is_empty() {
+            return;
+        }
+        let parent = current.parent().map(Path::to_path_buf).unwrap_or_default();
+        self.push_dir(parent);
+    }
+
     pub(super) fn update_dir_nav_buttons(&self) {
         self.update_navigation_buttons();
     }
@@ -453,6 +494,8 @@ impl TemporalExplorerWindow {
         let can_forward = !imp.history_forward.borrow().is_empty();
         imp.toolbar
             .history_controls()
+            .set_sensitivity(can_back, can_forward);
+        imp.mobile_history_controls
             .set_sensitivity(can_back, can_forward);
     }
 

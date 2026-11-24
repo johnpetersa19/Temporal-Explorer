@@ -205,6 +205,17 @@ impl TemporalExplorerWindow {
         self.set_view_mode_from_action(true);
     }
 
+    pub(super) fn toggle_hidden_files(&self) {
+        let next = !self.imp().show_hidden_files.get();
+        self.imp().show_hidden_files.set(next);
+        self.imp().toolbar.view_controls().set_show_hidden_files(next);
+        self.imp().mobile_view_controls.set_show_hidden_files(next);
+        if let Some(settings) = self.imp().settings.get() {
+            settings.set_boolean("show-hidden-files", next).ok();
+        }
+        self.reload_current_dir_if_possible();
+    }
+
     pub(super) fn set_view_mode_from_action(&self, is_grid: bool) {
         *self.imp().view_mode.borrow_mut() = if is_grid {
             ViewMode::Grid
@@ -212,6 +223,7 @@ impl TemporalExplorerWindow {
             ViewMode::List
         };
         self.imp().toolbar.view_controls().set_view_mode(is_grid);
+        self.imp().mobile_view_controls.set_view_mode(is_grid);
 
         if let Some(settings) = self.imp().settings.get() {
             settings
@@ -254,6 +266,7 @@ impl TemporalExplorerWindow {
 
         *self.imp().grid_zoom.borrow_mut() = zoom;
         self.imp().toolbar.view_controls().set_zoom_level(raw);
+        self.imp().mobile_view_controls.set_zoom_level(raw);
 
         if let Some(settings) = self.imp().settings.get() {
             settings.set_uint("grid-zoom-level", raw).ok();
@@ -374,6 +387,17 @@ impl TemporalExplorerWindow {
         imp.toolbar
             .view_controls()
             .set_show_hidden_files(show_hidden);
+        imp.mobile_view_controls.set_view_mode(*imp.view_mode.borrow() == ViewMode::Grid);
+        imp.mobile_view_controls.set_zoom_level(zoom_level);
+        imp.mobile_view_controls.set_sort_mode(sort_mode);
+        imp.mobile_view_controls.set_show_hidden_files(show_hidden);
+
+        set_date_format_from_str(settings.string("date-format").as_str());
+        if settings.boolean("dense-mode") {
+            imp.commit_list.add_css_class("dense-commits");
+        } else {
+            imp.commit_list.remove_css_class("dense-commits");
+        }
     }
 
     pub(super) fn setup_settings_change_listeners(&self) {
@@ -451,7 +475,27 @@ impl TemporalExplorerWindow {
                     .toolbar
                     .view_controls()
                     .set_show_hidden_files(next);
+                win.imp()
+                    .mobile_view_controls
+                    .set_show_hidden_files(next);
                 win.reload_current_dir_if_possible();
+            }
+        });
+
+        let win = self.clone();
+        settings.connect_changed(Some("date-format"), move |settings, _| {
+            set_date_format_from_str(settings.string("date-format").as_str());
+            let hash = win.imp().current_hash.borrow().clone();
+            win.sync_commit_info_for_hash(hash.as_deref());
+            win.reload_current_dir_if_possible();
+        });
+
+        let win = self.clone();
+        settings.connect_changed(Some("dense-mode"), move |settings, _| {
+            if settings.boolean("dense-mode") {
+                win.imp().commit_list.add_css_class("dense-commits");
+            } else {
+                win.imp().commit_list.remove_css_class("dense-commits");
             }
         });
     }
@@ -571,6 +615,73 @@ impl TemporalExplorerWindow {
                 win.show_file_grid_captions_dialog();
                 None
             });
+
+        // Wire mobile_view_controls (shown in the bottom action bar on narrow windows)
+        let mobile_vc = self.imp().mobile_view_controls.get();
+        let win = self.clone();
+        mobile_vc.connect_local("view-mode-changed", false, move |args| {
+            let is_grid = args[1].get::<bool>().unwrap_or(false);
+            win.set_view_mode_from_action(is_grid);
+            None
+        });
+        let win = self.clone();
+        mobile_vc.connect_local("sort-changed", false, move |args| {
+            let raw = args[1].get::<u32>().unwrap_or(0);
+            let mode = match raw {
+                1 => FileSortMode::NameDescending,
+                2 => FileSortMode::LastModified,
+                3 => FileSortMode::FirstModified,
+                4 => FileSortMode::Size,
+                5 => FileSortMode::Extension,
+                _ => FileSortMode::Name,
+            };
+            *win.imp().sort_mode.borrow_mut() = mode;
+            win.imp().toolbar.view_controls().set_sort_mode(mode);
+            let sort_key = match mode {
+                FileSortMode::Name => "name",
+                FileSortMode::NameDescending => "name-desc",
+                FileSortMode::LastModified => "last-modified",
+                FileSortMode::FirstModified => "first-modified",
+                FileSortMode::Size => "size",
+                FileSortMode::Status => "status",
+                FileSortMode::Extension => "type",
+            };
+            if let Some(settings) = win.imp().settings.get() {
+                settings.set_string("file-sort-mode", sort_key).ok();
+            }
+            win.reload_current_dir_if_possible();
+            None
+        });
+        let win = self.clone();
+        mobile_vc.connect_local("zoom-changed", false, move |args| {
+            let raw = args[1].get::<u32>().unwrap_or(1);
+            win.set_grid_zoom_from_action(raw);
+            None
+        });
+        let win = self.clone();
+        mobile_vc.connect_local("hidden-files-changed", false, move |args| {
+            let show_hidden = args[1].get::<bool>().unwrap_or(false);
+            win.imp().show_hidden_files.set(show_hidden);
+            win.imp()
+                .toolbar
+                .view_controls()
+                .set_show_hidden_files(show_hidden);
+            if let Some(settings) = win.imp().settings.get() {
+                settings.set_boolean("show-hidden-files", show_hidden).ok();
+            }
+            win.reload_current_dir_if_possible();
+            None
+        });
+        let win = self.clone();
+        mobile_vc.connect_local("visible-columns-requested", false, move |_| {
+            win.show_column_chooser();
+            None
+        });
+        let win = self.clone();
+        mobile_vc.connect_local("captions-requested", false, move |_| {
+            win.show_file_grid_captions_dialog();
+            None
+        });
     }
 
     pub fn show_file_grid_captions_dialog(&self) {
@@ -612,6 +723,14 @@ impl TemporalExplorerWindow {
     }
 
     pub(super) fn render_dir(&self, nodes: Vec<TreeNode>) {
+        self.render_dir_inner(nodes, true);
+    }
+
+    pub(super) fn render_dir_filtered(&self, nodes: Vec<TreeNode>) {
+        self.render_dir_inner(nodes, false);
+    }
+
+    fn render_dir_inner(&self, nodes: Vec<TreeNode>, update_current_nodes: bool) {
         let imp = self.imp();
         let mode = *imp.view_mode.borrow();
         let sort_mode = *imp.sort_mode.borrow();
@@ -708,7 +827,9 @@ impl TemporalExplorerWindow {
         }
 
         let nodes: Vec<TreeNode> = decorated.into_iter().map(|(node, _, _)| node).collect();
-        *imp.current_nodes.borrow_mut() = nodes.clone();
+        if update_current_nodes {
+            *imp.current_nodes.borrow_mut() = nodes.clone();
+        }
 
         let win1 = self.clone();
         let win2 = self.clone();

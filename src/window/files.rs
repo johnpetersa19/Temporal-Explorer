@@ -140,12 +140,39 @@ impl TemporalExplorerWindow {
                     .get_path(&node_path)
                     .map_err(|e| format!("Cannot find item in snapshot: {e}"))?;
 
+                fn is_safe_entry_name(name: &str) -> bool {
+                    !name.is_empty()
+                        && name != "."
+                        && name != ".."
+                        && !name.contains('/')
+                        && !name.contains('\\')
+                        && !name.contains('\0')
+                }
+
+                fn refuse_symlink(path: &std::path::Path) -> Result<(), String> {
+                    if let Ok(meta) = std::fs::symlink_metadata(path) {
+                        if meta.file_type().is_symlink() {
+                            return Err(format!(
+                                "Refusing to write through symbolic link: {}",
+                                path.display()
+                            ));
+                        }
+                    }
+                    Ok(())
+                }
+
                 fn materialize_tree(
                     repo: &git2::Repository,
                     tree: &git2::Tree<'_>,
                     destination: &std::path::Path,
                     cancel: &AtomicBool,
+                    depth: usize,
                 ) -> Result<(), String> {
+                    const MAX_MATERIALIZE_DEPTH: usize = 64;
+                    if depth > MAX_MATERIALIZE_DEPTH {
+                        return Err("Snapshot directory nesting exceeds safety limit".to_string());
+                    }
+                    refuse_symlink(destination)?;
                     std::fs::create_dir_all(destination)
                         .map_err(|e| format!("Cannot create destination directory: {e}"))?;
 
@@ -154,13 +181,23 @@ impl TemporalExplorerWindow {
                             return Err("Operation cancelled".to_string());
                         }
                         let Some(name) = child.name() else { continue };
+                        if !is_safe_entry_name(name) {
+                            return Err(format!("Unsafe path component in Git tree: {name}"));
+                        }
                         let child_target = destination.join(name);
+                        refuse_symlink(&child_target)?;
                         match child.kind() {
                             Some(git2::ObjectType::Tree) => {
                                 let child_tree = repo
                                     .find_tree(child.id())
                                     .map_err(|e| format!("Cannot read snapshot directory: {e}"))?;
-                                materialize_tree(repo, &child_tree, &child_target, cancel)?;
+                                materialize_tree(
+                                    repo,
+                                    &child_tree,
+                                    &child_target,
+                                    cancel,
+                                    depth + 1,
+                                )?;
                             }
                             Some(git2::ObjectType::Blob) => {
                                 let blob = repo
@@ -192,7 +229,7 @@ impl TemporalExplorerWindow {
                         let selected_tree = repo
                             .find_tree(entry.id())
                             .map_err(|e| format!("Cannot read snapshot directory: {e}"))?;
-                        materialize_tree(&repo, &selected_tree, &target, &worker_cancel)?;
+                        materialize_tree(&repo, &selected_tree, &target, &worker_cancel, 0)?;
                     }
                     Some(git2::ObjectType::Blob) => {
                         let blob = repo
@@ -283,10 +320,14 @@ impl TemporalExplorerWindow {
 
     pub(super) fn temp_target_for_snapshot_node(&self, node: &TreeNode) -> Option<PathBuf> {
         let hash = self.imp().current_hash.borrow().clone()?;
+        // Prefer user-private directories (0700) over shared /tmp to avoid
+        // predictable-path symlink attacks (CWE-377) on multi-user systems.
         let cache_root = if Path::new("/.flatpak-info").exists() {
             glib::home_dir().join(".cache").join("temporal-explorer")
+        } else if let Some(runtime_dir) = std::env::var_os("XDG_RUNTIME_DIR") {
+            PathBuf::from(runtime_dir).join("temporal-explorer")
         } else {
-            std::env::temp_dir().join("temporal-explorer")
+            glib::user_cache_dir().join("temporal-explorer").join("preview")
         };
         Some(cache_root.join(short_hash(&hash)).join(node.path()))
     }
@@ -386,6 +427,7 @@ impl TemporalExplorerWindow {
             .arg("--host")
             .arg("gio")
             .arg("open")
+            .arg("--")
             .arg(path)
             .spawn()
             .map(|_| ())
@@ -422,6 +464,7 @@ impl TemporalExplorerWindow {
         // Delegate to the system dispatcher in that case.
         Command::new("gio")
             .arg("open")
+            .arg("--")
             .arg(path)
             .spawn()
             .map(|_| ())
@@ -455,31 +498,158 @@ impl TemporalExplorerWindow {
         );
     }
 
-    #[allow(deprecated)]
     pub(super) fn show_native_app_chooser(&self, path: PathBuf) {
-        let dialog = gtk::AppChooserDialog::new(
-            Some(self),
-            gtk::DialogFlags::MODAL,
-            &gio::File::for_path(&path),
-        );
-        dialog.set_heading(&gettext("Open With"));
+        let file = gio::File::for_path(&path);
+        let content_type = file
+            .query_info(
+                gio::FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE,
+                gio::FileQueryInfoFlags::NONE,
+                None::<&gio::Cancellable>,
+            )
+            .ok()
+            .and_then(|info| info.content_type())
+            .map(|s| s.to_string());
 
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("file")
+            .to_string();
+
+        let dialog = crate::app_chooser_dialog::AppChooserDialog::new();
         let win = self.clone();
-        dialog.connect_response(move |dialog, response| {
-            if response == gtk::ResponseType::Ok {
-                if let Some(app) = dialog.app_info() {
-                    let file = gio::File::for_path(&path);
-                    if let Err(err) = app.launch(&[file], None::<&gio::AppLaunchContext>) {
-                        win.show_error(&format!(
-                            "{}: {err}",
-                            gettext("Could not open the item with the selected application")
-                        ));
-                    }
+        let launch_path = path.clone();
+        dialog.configure(
+            &file_name,
+            content_type.as_deref(),
+            Box::new(move |app| {
+                let file = gio::File::for_path(&launch_path);
+                if let Err(err) = app.launch(&[file], None::<&gio::AppLaunchContext>) {
+                    win.show_error(&format!(
+                        "{}: {err}",
+                        gettext("Could not open the item with the selected application")
+                    ));
                 }
-            }
-            dialog.close();
-        });
-        dialog.present();
+            }),
+        );
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
+    }
+
+    pub(super) fn show_export_snapshot_archive_dialog(&self) {
+        let Some(hash) = self.imp().current_hash.borrow().clone() else {
+            self.show_toast(&gettext("No snapshot selected"));
+            return;
+        };
+        let Some(repo_path) = self.imp().repo_path.borrow().clone() else {
+            self.show_toast(&gettext("No repository loaded"));
+            return;
+        };
+
+        let repo_name = self.imp().repo_name.borrow().clone();
+        let current_dir = self.imp().current_dir.borrow().clone();
+        let default_name = format!(
+            "{}-{}",
+            if repo_name.is_empty() {
+                "snapshot"
+            } else {
+                repo_name.as_str()
+            },
+            short_hash(&hash)
+        );
+
+        let dialog = crate::compress_dialog::CompressDialog::new();
+        let win = self.clone();
+        dialog.configure(
+            &default_name,
+            Box::new(move |archive_name, format| {
+                let file_name = if archive_name.ends_with(format.extension()) {
+                    archive_name
+                } else {
+                    format!("{archive_name}{}", format.extension())
+                };
+
+                let chooser = gtk::FileDialog::builder()
+                    .title(gettext("Save Snapshot Archive"))
+                    .initial_name(&file_name)
+                    .build();
+
+                let win_save = win.clone();
+                let repo_for_worker = repo_path.clone();
+                let hash_for_worker = hash.clone();
+                let dir_for_worker = current_dir.clone();
+                chooser.save(Some(&win), gio::Cancellable::NONE, move |res| {
+                    let Ok(dest_file) = res else { return };
+                    let Some(dest_path) = dest_file.path() else {
+                        return;
+                    };
+
+                    let cancel = Arc::new(AtomicBool::new(false));
+                    win_save.begin_operation(
+                        &format!("{}: {}", gettext("Exporting Archive"), dest_path.display()),
+                        cancel,
+                    );
+
+                    let (tx, rx) = std::sync::mpsc::sync_channel::<Result<PathBuf, String>>(1);
+                    let dest_worker = dest_path.clone();
+                    std::thread::spawn(move || {
+                        if git2::Oid::from_str(&hash_for_worker).is_err() {
+                            let _ = tx.send(Err("Invalid commit SHA".to_string()));
+                            return;
+                        }
+                        let mut cmd = Command::new("git");
+                        cmd.arg("-C")
+                            .arg(&repo_for_worker)
+                            .arg("archive")
+                            .arg(format!("--format={}", format.git_format()))
+                            .arg("--output")
+                            .arg(&dest_worker)
+                            .arg(&hash_for_worker);
+                        if !dir_for_worker.as_os_str().is_empty() {
+                            cmd.arg("--").arg(&dir_for_worker);
+                        }
+                        let result = match cmd.output() {
+                            Ok(output) if output.status.success() => Ok(dest_worker),
+                            Ok(output) => {
+                                let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                                Err(if err.is_empty() {
+                                    "git archive failed".to_string()
+                                } else {
+                                    err
+                                })
+                            }
+                            Err(e) => Err(e.to_string()),
+                        };
+                        let _ = tx.send(result);
+                    });
+
+                    let win_done = win_save.clone();
+                    glib::idle_add_local(move || match rx.try_recv() {
+                        Ok(Ok(path)) => {
+                            win_done.complete_operation(
+                                &format!("{}: {}", gettext("Exported"), path.display()),
+                                true,
+                            );
+                            win_done.show_toast(&format!(
+                                "{}: {}",
+                                gettext("Archive exported"),
+                                path.file_name()
+                                    .and_then(|n| n.to_str())
+                                    .unwrap_or_default()
+                            ));
+                            glib::ControlFlow::Break
+                        }
+                        Ok(Err(msg)) => {
+                            win_done.complete_operation(&msg, false);
+                            win_done.show_error(&msg);
+                            glib::ControlFlow::Break
+                        }
+                        Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                        Err(_) => glib::ControlFlow::Break,
+                    });
+                });
+            }),
+        );
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
     pub(super) fn open_snapshot_node_location(&self, node: &TreeNode) {

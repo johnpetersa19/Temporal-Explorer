@@ -45,8 +45,8 @@ template $TemporalToolbar : Adw.Bin {
               hscrollbar-policy: automatic;
               vscrollbar-policy: never;
               propagate-natural-width: true;
-              min-content-width: 320;
-              max-content-width: 420;
+              min-content-width: 180;
+              max-content-width: 480;
 
               Box address_bar {
                 orientation: horizontal;
@@ -61,7 +61,8 @@ template $TemporalToolbar : Adw.Bin {
           name: "location";
           child: Box {
             orientation: horizontal;
-            width-request: 360;
+            width-request: 260;
+            hexpand: true;
             styles ["linked", "location-bar"]
 
             Entry location_entry {
@@ -77,6 +78,26 @@ template $TemporalToolbar : Adw.Bin {
             }
           };
         }
+
+        StackPage {
+          name: "search";
+          child: Box {
+            orientation: horizontal;
+            width-request: 260;
+            hexpand: true;
+            styles ["linked", "location-bar"]
+
+            SearchEntry folder_search_entry {
+              hexpand: true;
+              placeholder-text: _("Search current folder…");
+            }
+
+            Button folder_search_close_btn {
+              icon-name: "window-close-symbolic";
+              tooltip-text: _("Cancel");
+            }
+          };
+        }
       }
 
       Stack search_button_stack {
@@ -84,7 +105,7 @@ template $TemporalToolbar : Adw.Bin {
         transition-type: crossfade;
 
         ToggleButton search_button {
-          tooltip-text: _("Search Commits");
+          tooltip-text: _("Search Current Folder");
           halign: center;
           valign: center;
           icon-name: "nautilus-folder-search";

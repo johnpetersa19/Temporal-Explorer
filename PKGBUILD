@@ -1,7 +1,7 @@
 # Maintainer: johnpetersa19 <johnppetersa at gmail dot com>
 
 pkgname=temporal-explorer
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=1
 pkgdesc='Browse Git repository history as a time-navigable file tree'
 arch=('x86_64' 'aarch64')

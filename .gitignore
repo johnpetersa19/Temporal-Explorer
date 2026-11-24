@@ -2,10 +2,14 @@
 target/
 Cargo.lock
 
-# GNOME Builder
+# GNOME Builder / Meson
 .buildconfig
 .builds/
 _build/
+build/
+
+# Compiled gettext catalogs
+*.mo
 
 # Flatpak builder cache
 .flatpak-builder/

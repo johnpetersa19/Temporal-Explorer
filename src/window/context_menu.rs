@@ -67,14 +67,29 @@ impl TemporalExplorerWindow {
 
         let popover = gtk::PopoverMenu::from_model(Some(&menu));
         popover.set_has_arrow(false);
+        popover.set_halign(gtk::Align::Start);
+        popover.set_position(gtk::PositionType::Bottom);
         popover.add_css_class("nautilus-context-menu");
-        popover.set_parent(anchor);
-        popover.set_pointing_to(Some(&gtk::gdk::Rectangle::new(
-            x.round() as i32,
-            y.round() as i32,
-            1,
-            1,
-        )));
+        if let Some(point) = anchor.compute_point(
+            self,
+            &gtk::graphene::Point::new(x as f32, y as f32),
+        ) {
+            popover.set_parent(self.upcast_ref::<gtk::Widget>());
+            popover.set_pointing_to(Some(&gtk::gdk::Rectangle::new(
+                point.x().round() as i32,
+                point.y().round() as i32,
+                1,
+                1,
+            )));
+        } else {
+            popover.set_parent(anchor);
+            popover.set_pointing_to(Some(&gtk::gdk::Rectangle::new(
+                x.round() as i32,
+                y.round() as i32,
+                1,
+                1,
+            )));
+        }
         self.set_active_context_popover(&popover);
 
         let win = self.clone();
@@ -135,14 +150,11 @@ impl TemporalExplorerWindow {
             Some(&gettext("Copy Content")),
             Some("ctx.context-copy-content"),
         );
-        menu.append_section(None, &edit_section);
-
-        let system_section = gio::Menu::new();
-        system_section.append(
+        edit_section.append(
             Some(&gettext("Show in System")),
             Some("ctx.context-show-system"),
         );
-        menu.append_section(None, &system_section);
+        menu.append_section(None, &edit_section);
 
         let properties_section = gio::Menu::new();
         properties_section.append(Some(&gettext("Properties")), Some("ctx.context-properties"));
@@ -302,8 +314,27 @@ impl TemporalExplorerWindow {
         let popover = gtk::PopoverMenu::from_model(Some(&menu));
         popover.insert_action_group("ctx", Some(&group));
         popover.set_has_arrow(false);
+        popover.set_halign(gtk::Align::Start);
+        popover.set_position(gtk::PositionType::Bottom);
         popover.add_css_class("nautilus-context-menu");
-        popover.set_parent(anchor);
+        // Parent to the top-level window with a 1x1 pointing rectangle so GTK4
+        // uses the full window height (and flips upward near the bottom) instead
+        // of clipping/scrolling the menu inside the item row or scrolled view.
+        let anchor_point = gtk::graphene::Point::new(
+            (anchor.width() as f32 * 0.5).max(1.0),
+            (anchor.height() as f32 * 0.5).max(1.0),
+        );
+        if let Some(point) = anchor.compute_point(self, &anchor_point) {
+            popover.set_parent(self.upcast_ref::<gtk::Widget>());
+            popover.set_pointing_to(Some(&gtk::gdk::Rectangle::new(
+                point.x().round() as i32,
+                point.y().round() as i32,
+                1,
+                1,
+            )));
+        } else {
+            popover.set_parent(anchor);
+        }
         self.set_active_context_popover(&popover);
 
         let win = self.clone();

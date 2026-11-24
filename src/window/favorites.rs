@@ -8,11 +8,84 @@
 //! Favorite snapshots shown from the main menu.
 
 use super::*;
-use super::util::*;
 
 impl TemporalExplorerWindow {
+    pub(super) fn current_favorite_id(&self) -> Option<String> {
+        let imp = self.imp();
+        let repo = imp.repo_path.borrow().clone()?;
+        let hash = imp.current_hash.borrow().clone()?;
+        let path = self
+            .selected_file_view_node()
+            .map(|node| node.path().to_path_buf())
+            .unwrap_or_else(|| imp.current_dir.borrow().clone());
+        Some(format!("{}\n{}\n{}", repo.display(), hash, path.display()))
+    }
+
+    pub(super) fn is_favorite_id(&self, favorite_id: &str) -> bool {
+        self.imp()
+            .settings
+            .get()
+            .map(|settings| {
+                settings
+                    .strv("favorite-snapshot-items")
+                    .iter()
+                    .any(|item| item.as_str() == favorite_id)
+            })
+            .unwrap_or(false)
+    }
+
+    pub(super) fn update_star_button(&self) {
+        let starred = self
+            .current_favorite_id()
+            .is_some_and(|id| self.is_favorite_id(&id));
+        let button = &self.imp().star_button;
+        button.set_icon_name(if starred {
+            "starred-symbolic"
+        } else {
+            "non-starred-symbolic"
+        });
+        button.set_tooltip_text(Some(&if starred {
+            gettext("Remove from Favorites")
+        } else {
+            gettext("Add to Favorites")
+        }));
+    }
+
+    pub(super) fn toggle_star_current_snapshot(&self) {
+        let Some(favorite_id) = self.current_favorite_id() else {
+            self.show_toast(&gettext("No snapshot selected"));
+            return;
+        };
+
+        let Some(settings) = self.imp().settings.get() else {
+            return;
+        };
+
+        let mut favorites: Vec<String> = settings
+            .strv("favorite-snapshot-items")
+            .iter()
+            .map(|item| item.to_string())
+            .collect();
+        let was_starred = favorites.iter().any(|item| item == &favorite_id);
+        favorites.retain(|item| item != &favorite_id);
+        if !was_starred {
+            favorites.push(favorite_id);
+        }
+        settings
+            .set_value("favorite-snapshot-items", &favorites.to_variant())
+            .ok();
+
+        self.update_star_button();
+        let msg = if was_starred {
+            gettext("Removed from favorites")
+        } else {
+            gettext("Marked as favorite")
+        };
+        self.show_toast(&msg);
+    }
+
     pub(super) fn show_favorites(&self) {
-        let favorites = self
+        let entries = self
             .imp()
             .settings
             .get()
@@ -21,91 +94,44 @@ impl TemporalExplorerWindow {
                     .strv("favorite-snapshot-items")
                     .iter()
                     .filter_map(|item| {
+                        let raw_id = item.to_string();
                         let mut parts = item.splitn(3, '\n');
-                        Some((
-                            PathBuf::from(parts.next()?),
-                            parts.next()?.to_string(),
-                            PathBuf::from(parts.next()?),
-                        ))
+                        Some(crate::favorites_dialog::FavoriteEntry {
+                            raw_id,
+                            repo_path: PathBuf::from(parts.next()?),
+                            hash: parts.next()?.to_string(),
+                            item_path: PathBuf::from(parts.next()?),
+                        })
                     })
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
 
-        let dialog = gtk::Window::builder()
-            .title(gettext("Favorite Snapshots"))
-            .transient_for(self)
-            .modal(true)
-            .default_width(520)
-            .default_height(440)
-            .build();
-        let content = gtk::Box::new(gtk::Orientation::Vertical, 12);
-        content.set_margin_top(18);
-        content.set_margin_bottom(18);
-        content.set_margin_start(18);
-        content.set_margin_end(18);
-
-        let list = gtk::ListBox::new();
-        list.set_selection_mode(gtk::SelectionMode::None);
-        list.add_css_class("boxed-list");
-
-        if favorites.is_empty() {
-            let empty = gtk::Label::new(Some(&gettext(
-                "No favorite snapshot items yet. Star an item in its properties.",
-            )));
-            empty.set_wrap(true);
-            empty.set_margin_top(24);
-            empty.set_margin_bottom(24);
-            list.append(&empty);
-        } else {
-            for (repo_path, hash, item_path) in favorites {
-                let repo_name = repo_path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or_else(|| repo_path.to_str().unwrap_or_default());
-                let label = gtk::Label::new(Some(&format!(
-                    "{}  ·  {}  ·  {}",
-                    repo_name,
-                    short_hash(&hash),
-                    item_path.display()
-                )));
-                label.set_xalign(0.0);
-                label.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
-                label.set_margin_top(8);
-                label.set_margin_bottom(8);
-                label.set_margin_start(10);
-                label.set_margin_end(10);
-
-                let button = gtk::Button::new();
-                button.set_child(Some(&label));
-                button.add_css_class("flat");
-                let row = gtk::ListBoxRow::new();
-                row.set_child(Some(&button));
-                list.append(&row);
-
-                let window = self.clone();
-                let dialog = dialog.clone();
-                let favorite_repo = repo_path.clone();
-                let favorite_hash = hash.clone();
-                let favorite_path = item_path.clone();
-                button.connect_clicked(move |_| {
-                    dialog.close();
-                    window.open_favorite(
-                        favorite_repo.clone(),
-                        favorite_hash.clone(),
-                        favorite_path.clone(),
-                    );
-                });
-            }
-        }
-
-        let scroll = gtk::ScrolledWindow::builder()
-            .vexpand(true)
-            .child(&list)
-            .build();
-        content.append(&scroll);
-        dialog.set_child(Some(&content));
-        dialog.present();
+        let dialog = crate::favorites_dialog::FavoritesDialog::new();
+        let win_open = self.clone();
+        let win_remove = self.clone();
+        dialog.set_callbacks(
+            Box::new(move |repo, hash, path| {
+                win_open.open_favorite(repo, hash, path);
+            }),
+            Box::new(move |raw_id| {
+                if let Some(settings) = win_remove.imp().settings.get() {
+                    let mut favorites: Vec<String> = settings
+                        .strv("favorite-snapshot-items")
+                        .iter()
+                        .map(|item| item.to_string())
+                        .collect();
+                    favorites.retain(|item| item != &raw_id);
+                    settings
+                        .set_value("favorite-snapshot-items", &favorites.to_variant())
+                        .ok();
+                }
+                win_remove.update_star_button();
+                win_remove.show_toast(&gettext("Removed from favorites"));
+            }),
+        );
+        dialog.set_entries(entries);
+        AdwDialogExt::present(&dialog, Some(self.upcast_ref::<gtk::Widget>()));
     }
 
     pub(super) fn open_favorite(&self, repo: PathBuf, hash: String, path: PathBuf) {

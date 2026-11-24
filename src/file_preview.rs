@@ -36,37 +36,24 @@ use std::path::Path;
 /// Maximum number of bytes read for preview (64 KiB).
 const MAX_PREVIEW_BYTES: usize = 64 * 1024;
 
-/// Reads and formats preview data without touching GTK widgets.
-pub fn read_file_preview(
-    repo: &git2::Repository,
-    revision: &str,
+fn format_preview_result(
     file_path: &Path,
+    result: Result<(Vec<u8>, usize), git2::Error>,
 ) -> (String, String) {
-    let materializer = SnapshotMaterializer::new(repo);
+    let name = file_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("File")
+        .to_owned();
 
-    match materializer.read_file(revision, file_path) {
-        Err(e) => (
-            file_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("File")
-                .to_owned(),
-            format!("{}: {e}", gettext("Could not read file")),
-        ),
-        Ok(bytes) => {
-            let name = file_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("File")
-                .to_owned();
-
-            let preview_bytes = &bytes[..bytes.len().min(MAX_PREVIEW_BYTES)];
-
+    match result {
+        Err(e) => (name, format!("{}: {e}", gettext("Could not read file"))),
+        Ok((preview_bytes, total_size)) => {
             if preview_bytes.contains(&0u8) {
                 (name, gettext("Binary file -- preview not available."))
             } else {
-                let mut text = String::from_utf8_lossy(preview_bytes).into_owned();
-                if bytes.len() > MAX_PREVIEW_BYTES {
+                let mut text = String::from_utf8_lossy(&preview_bytes).into_owned();
+                if total_size > MAX_PREVIEW_BYTES {
                     text.push_str(&format!(
                         "\n\n[{} {}]",
                         gettext("Preview truncated at"),
@@ -79,6 +66,19 @@ pub fn read_file_preview(
     }
 }
 
+/// Reads and formats preview data without touching GTK widgets.
+pub fn read_file_preview(
+    repo: &git2::Repository,
+    revision: &str,
+    file_path: &Path,
+) -> (String, String) {
+    let materializer = SnapshotMaterializer::new(repo);
+    format_preview_result(
+        file_path,
+        materializer.read_file_prefix(revision, file_path, MAX_PREVIEW_BYTES),
+    )
+}
+
 /// Same as [`read_file_preview`], but uses a pre-resolved commit OID.
 pub fn read_file_preview_oid(
     repo: &git2::Repository,
@@ -86,40 +86,10 @@ pub fn read_file_preview_oid(
     file_path: &Path,
 ) -> (String, String) {
     let materializer = SnapshotMaterializer::new(repo);
-
-    match materializer.read_file_oid(revision_oid, file_path) {
-        Err(e) => (
-            file_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("File")
-                .to_owned(),
-            format!("{}: {e}", gettext("Could not read file")),
-        ),
-        Ok(bytes) => {
-            let name = file_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("File")
-                .to_owned();
-
-            let preview_bytes = &bytes[..bytes.len().min(MAX_PREVIEW_BYTES)];
-
-            if preview_bytes.contains(&0u8) {
-                (name, gettext("Binary file -- preview not available."))
-            } else {
-                let mut text = String::from_utf8_lossy(preview_bytes).into_owned();
-                if bytes.len() > MAX_PREVIEW_BYTES {
-                    text.push_str(&format!(
-                        "\n\n[{} {}]",
-                        gettext("Preview truncated at"),
-                        format_size(MAX_PREVIEW_BYTES),
-                    ));
-                }
-                (name, text)
-            }
-        }
-    }
+    format_preview_result(
+        file_path,
+        materializer.read_file_oid_prefix(revision_oid, file_path, MAX_PREVIEW_BYTES),
+    )
 }
 
 /// Shows a modal dialog previewing already-read file content.

@@ -3,7 +3,8 @@ using Adw 1;
 
 template $NewBranchDialog : Adw.Dialog {
   title: _("New Branch");
-  content-width: 400;
+  content-width: 460;
+  content-height: 240;
 
   Adw.ToolbarView {
     [top]
@@ -30,11 +31,11 @@ template $NewBranchDialog : Adw.Dialog {
     }
 
     content: Adw.Clamp {
-      maximum-size: 400;
-      margin-top: 12;
+      maximum-size: 460;
+      margin-top: 18;
       margin-bottom: 24;
-      margin-start: 12;
-      margin-end: 12;
+      margin-start: 18;
+      margin-end: 18;
 
       Box {
         orientation: vertical;

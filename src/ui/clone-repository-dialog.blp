@@ -3,7 +3,8 @@ using Adw 1;
 
 template $CloneRepositoryDialog : Adw.Dialog {
   title: _("Clone Repository");
-  content-width: 460;
+  content-width: 540;
+  content-height: 480;
 
   Adw.ToolbarView {
     [top]
@@ -41,12 +42,16 @@ template $CloneRepositoryDialog : Adw.Dialog {
       };
     }
 
-    content: Adw.Clamp {
-      maximum-size: 460;
-      margin-top: 12;
-      margin-bottom: 24;
-      margin-start: 12;
-      margin-end: 12;
+    content: ScrolledWindow {
+      hscrollbar-policy: never;
+      vscrollbar-policy: automatic;
+
+      child: Adw.Clamp {
+        maximum-size: 520;
+        margin-top: 18;
+        margin-bottom: 24;
+        margin-start: 18;
+        margin-end: 18;
 
       Box {
         orientation: vertical;
@@ -88,6 +93,7 @@ template $CloneRepositoryDialog : Adw.Dialog {
           }
         }
       }
+      };
     };
   }
 }

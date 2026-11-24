@@ -1,0 +1,81 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $AppChooserDialog : Adw.Dialog {
+  title: _("Open File");
+  content-width: 420;
+  content-height: 540;
+  default-widget: open_button;
+  focus-widget: search_entry;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      [start]
+      Button cancel_button {
+        label: _("_Cancel");
+        use-underline: true;
+        can-shrink: true;
+      }
+
+      [end]
+      Button open_button {
+        label: _("_Open");
+        use-underline: true;
+        can-shrink: true;
+        sensitive: false;
+
+        styles [
+          "suggested-action",
+        ]
+      }
+    }
+
+    [top]
+    Adw.Bin {
+      styles [
+        "toolbar",
+      ]
+
+      child: SearchEntry search_entry {
+        placeholder-text: _("Search applications…");
+        activates-default: true;
+      };
+    }
+
+    content: ScrolledWindow {
+      hscrollbar-policy: never;
+      vscrollbar-policy: automatic;
+
+      child: Adw.Clamp {
+        margin-top: 18;
+        margin-bottom: 18;
+        margin-start: 18;
+        margin-end: 18;
+
+        child: Box {
+          orientation: vertical;
+          spacing: 12;
+
+          Label description_label {
+            wrap: true;
+            wrap-mode: word_char;
+            justify: center;
+            label: _("Choose an app to open the selected file");
+          }
+
+          ListBox apps_list {
+            selection-mode: single;
+
+            styles [
+              "boxed-list",
+            ]
+          }
+        };
+      };
+    };
+  };
+}

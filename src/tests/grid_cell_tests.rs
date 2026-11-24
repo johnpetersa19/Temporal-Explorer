@@ -8,6 +8,7 @@
 
 use gtk::prelude::*;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 /// Registers the application resources, so that the composite templates
 /// can be instantiated.  Returns `false` when they cannot be found, in
@@ -48,34 +49,43 @@ fn register_resources() -> bool {
 }
 
 /// Returns `true` when the widget tests can run.
+///
+/// The result is cached in a `OnceLock` because calling `gtk::init()` a second
+/// time in the same process after an initial failure (e.g., headless CI without
+/// a display) can crash GTK4 with SIGSEGV.
 fn can_run_widget_tests() -> bool {
-    if gtk::init().is_err() {
-        eprintln!("skipping grid cell tests: no display available");
-        return false;
-    }
+    static READY: OnceLock<bool> = OnceLock::new();
+    *READY.get_or_init(|| {
+        if gtk::init().is_err() {
+            eprintln!("skipping grid cell tests: no display available");
+            return false;
+        }
 
-    if !register_resources() {
-        eprintln!("skipping grid cell tests: resources not found");
-        return false;
-    }
+        if !register_resources() {
+            eprintln!("skipping grid cell tests: resources not found");
+            return false;
+        }
 
-    true
+        true
+    })
 }
 
-/// A grid cell must report a fixed width, no matter how long the file
-/// name is.  A growing natural width is what made the last column of the
-/// grid get clipped.
+/// A grid cell must report a fixed width for both long and short file names.
+/// A growing natural width is what made the last column of the grid get clipped.
+///
+/// Both cases run in a single test function so GTK4 is initialized and accessed
+/// exclusively from one thread even under Cargo's multi-threaded test runner.
 #[test]
-fn grid_cell_keeps_a_fixed_width_for_long_names() {
+fn grid_cell_keeps_a_fixed_width_for_long_and_short_names() {
     if !can_run_widget_tests() {
         return;
     }
 
-    let cell = crate::file_grid_cell::FileGridCell::new();
-    cell.set_cell_width(132);
-    cell.set_name("org.gnome.gnome-system-monitor.policy.in");
+    let long_cell = crate::file_grid_cell::FileGridCell::new();
+    long_cell.set_cell_width(132);
+    long_cell.set_name("org.gnome.gnome-system-monitor.policy.in");
 
-    let (minimum, natural, _, _) = cell.measure(gtk::Orientation::Horizontal, -1);
+    let (minimum, natural, _, _) = long_cell.measure(gtk::Orientation::Horizontal, -1);
 
     assert_eq!(
         minimum, 132,
@@ -85,21 +95,12 @@ fn grid_cell_keeps_a_fixed_width_for_long_names() {
         natural, 132,
         "the cell must not grow beyond its fixed width"
     );
-}
 
-/// The same must hold for a short name, so that every cell of the grid
-/// has exactly the same width.
-#[test]
-fn grid_cell_keeps_a_fixed_width_for_short_names() {
-    if !can_run_widget_tests() {
-        return;
-    }
+    let short_cell = crate::file_grid_cell::FileGridCell::new();
+    short_cell.set_cell_width(132);
+    short_cell.set_name("a.txt");
 
-    let cell = crate::file_grid_cell::FileGridCell::new();
-    cell.set_cell_width(132);
-    cell.set_name("a.txt");
-
-    let (minimum, natural, _, _) = cell.measure(gtk::Orientation::Horizontal, -1);
+    let (minimum, natural, _, _) = short_cell.measure(gtk::Orientation::Horizontal, -1);
 
     assert_eq!(minimum, 132);
     assert_eq!(natural, 132);

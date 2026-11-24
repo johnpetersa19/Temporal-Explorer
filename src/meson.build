@@ -3,6 +3,7 @@ gnome = import('gnome')
 
 # ── 1. Compile Blueprint files (src/ui/*.blp → <build>/src/*.ui) ──────────
 blueprint_names = [
+  'app-chooser-dialog',
   'batch-operations-dialog',
   'branch-sidebar-row',
   'clone-repository-dialog',
@@ -10,7 +11,9 @@ blueprint_names = [
   'commit-details-dialog',
   'commit-name-cell',
   'commit-row',
+  'compress-dialog',
   'date-range-dialog',
+  'favorites-dialog',
   'file-grid-captions-dialog',
   'file-grid-cell',
   'file-list-row',
@@ -112,6 +115,7 @@ cargo_inputs = files(
   '../Cargo.toml',
   '../Cargo.lock',
   'address_bar.rs',
+  'app_chooser_dialog.rs',
   'application.rs',
   'batch_operations_dialog.rs',
   'branch_sidebar_row.rs',
@@ -120,8 +124,10 @@ cargo_inputs = files(
   'commit_controller.rs',
   'commit_details_dialog.rs',
   'commit_name_cell.rs',
+  'compress_dialog.rs',
   'config.rs',
   'date_range_dialog.rs',
+  'favorites_dialog.rs',
   'file_grid_captions_dialog.rs',
   'file_grid_cell.rs',
   'file_list_row.rs',

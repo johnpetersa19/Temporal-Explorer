@@ -76,6 +76,10 @@ mod imp {
         pub location_entry: TemplateChild<gtk::Entry>,
         #[template_child]
         pub location_cancel_btn: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub folder_search_entry: TemplateChild<gtk::SearchEntry>,
+        #[template_child]
+        pub folder_search_close_btn: TemplateChild<gtk::Button>,
 
         // ── End-slot widgets ──────────────────────────────────────────────────
         #[template_child]
@@ -106,6 +110,8 @@ mod imp {
                 address_bar: TemplateChild::default(),
                 location_entry: TemplateChild::default(),
                 location_cancel_btn: TemplateChild::default(),
+                folder_search_entry: TemplateChild::default(),
+                folder_search_close_btn: TemplateChild::default(),
                 search_button: TemplateChild::default(),
                 view_controls: TemplateChild::default(),
                 // Same defaults as the GObject properties: the history and
@@ -246,6 +252,24 @@ impl TemporalToolbar {
 
     pub fn location_cancel_btn(&self) -> &gtk::Button {
         &self.imp().location_cancel_btn
+    }
+
+    pub fn folder_search_entry(&self) -> &gtk::SearchEntry {
+        &self.imp().folder_search_entry
+    }
+
+    pub fn folder_search_close_btn(&self) -> &gtk::Button {
+        &self.imp().folder_search_close_btn
+    }
+
+    pub fn set_search_mode(&self, active: bool) {
+        let page = if active { "search" } else { "pathbar" };
+        self.imp().toolbar_switcher.set_visible_child_name(page);
+        if active {
+            self.imp().folder_search_entry.grab_focus();
+        } else {
+            self.imp().folder_search_entry.set_text("");
+        }
     }
 
     pub fn search_button(&self) -> &gtk::ToggleButton {

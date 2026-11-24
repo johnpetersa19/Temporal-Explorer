@@ -37,6 +37,17 @@
   </branding>
 
   <releases>
+    <release version="0.3.0" date="2026-11-24">
+      <description translate="no">
+        <ul>
+          <li>Redesigned Properties dialog in the GNOME Files (Nautilus) style with a Permissions subpage.</li>
+          <li>Added inline current-folder search in the header bar, App Chooser, Archive Export, and Favorites dialogs.</li>
+          <li>Improved window sizing, context menu positioning, keyboard shortcuts, and GSettings integration.</li>
+          <li>Optimized the Git engine for massive repositories with bounded backpressure, cancellation, and directory caching.</li>
+          <li>Hardened file materialization, temporary directories, and external command invocations.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-07-19">
       <description translate="no">
         <ul>

@@ -3,18 +3,23 @@ using Adw 1;
 
 template $SshPassphraseDialog : Adw.Dialog {
   title: _("Authentication Required");
-  content-width: 380;
+  content-width: 440;
+  content-height: 460;
 
   Adw.ToolbarView {
     [top]
     Adw.HeaderBar {}
 
-    content: Adw.Clamp {
-      maximum-size: 380;
-      margin-top: 12;
-      margin-bottom: 12;
-      margin-start: 12;
-      margin-end: 12;
+    content: ScrolledWindow {
+      hscrollbar-policy: never;
+      vscrollbar-policy: automatic;
+
+      child: Adw.Clamp {
+        maximum-size: 420;
+        margin-top: 18;
+        margin-bottom: 18;
+        margin-start: 18;
+        margin-end: 18;
 
       Box {
         orientation: vertical;
@@ -48,6 +53,7 @@ template $SshPassphraseDialog : Adw.Dialog {
           }
         }
       }
+      };
     };
   }
 }

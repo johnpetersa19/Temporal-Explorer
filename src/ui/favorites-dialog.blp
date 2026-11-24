@@ -1,0 +1,35 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $FavoritesDialog : Adw.Dialog {
+  title: _("Favorite Snapshots");
+  content-width: 480;
+  content-height: 520;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {}
+
+    content: Stack content_stack {
+      StackPage {
+        name: "empty";
+
+        child: Adw.StatusPage {
+          icon-name: "starred-symbolic";
+          title: _("No Favorite Snapshots");
+          description: _("Star a snapshot or file from the sidebar or Properties to revisit it here.");
+        };
+      }
+
+      StackPage {
+        name: "list";
+
+        child: Adw.PreferencesPage {
+          Adw.PreferencesGroup favorites_group {
+            title: _("Starred Items");
+          }
+        };
+      }
+    };
+  };
+}

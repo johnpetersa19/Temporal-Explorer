@@ -80,6 +80,7 @@ use crate::git_engine::{
     build_commit_file_index, CommitFileIndex, CommitInfo, DirCache, FileIndexStore, HistoryReader,
     SnapshotResolver, TreeNode,
 };
+use crate::history_controls::HistoryControls;
 use crate::merge_conflict_dialog::{ConflictInfo, MergeConflictDialog};
 use crate::new_branch_dialog::NewBranchDialog;
 use crate::node_properties_dialog::{NodeProperties, NodePropertiesDialog};
@@ -88,7 +89,7 @@ use crate::search_filter_popover::{FilterState, SearchFilterPopover};
 use crate::select_commits_by_pattern::{commit_matches_pattern, SelectCommitsByPattern};
 use crate::timeline_filter;
 use crate::toolbar::TemporalToolbar;
-use crate::view_controls::FileSortMode;
+use crate::view_controls::{FileSortMode, ViewControls};
 use crate::views::grid_view::{FileGridMetadata, GridZoom};
 use crate::views::list_view::{OnEnterDir, OnOpenFile};
 use crate::views::{grid_view, list_view};
@@ -185,6 +186,8 @@ mod imp {
         #[template_child]
         pub sidebar_search_revealer: TemplateChild<gtk::Revealer>,
         #[template_child]
+        pub star_button: TemplateChild<gtk::Button>,
+        #[template_child]
         pub sidebar_menu_button: TemplateChild<gtk::MenuButton>,
         #[template_child]
         pub timeline_header_title: TemplateChild<adw::WindowTitle>,
@@ -227,6 +230,10 @@ mod imp {
         pub commit_date_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub mobile_controls_bar: TemplateChild<gtk::ActionBar>,
+        #[template_child]
+        pub mobile_history_controls: TemplateChild<HistoryControls>,
+        #[template_child]
+        pub mobile_view_controls: TemplateChild<ViewControls>,
         #[template_child]
         pub sidebar_bottom_bar: TemplateChild<gtk::ActionBar>,
         #[template_child]
@@ -304,6 +311,8 @@ mod imp {
         type ParentType = adw::ApplicationWindow;
 
         fn class_init(klass: &mut Self::Class) {
+            HistoryControls::ensure_type();
+            ViewControls::ensure_type();
             TemporalToolbar::ensure_type();
             klass.bind_template();
         }
@@ -477,18 +486,61 @@ impl TemporalExplorerWindow {
 
         let win = self.clone();
         imp.toolbar.search_button().connect_toggled(move |button| {
-            if button.is_active() {
-                win.enter_search_mode();
-            } else if !win.imp().commit_search_entry.text().is_empty() {
-                win.leave_search_mode();
+            let active = button.is_active();
+            win.imp().toolbar.set_search_mode(active);
+            if !active {
+                let nodes = win.imp().current_nodes.borrow().clone();
+                if !nodes.is_empty() {
+                    win.render_dir(nodes);
+                }
             }
         });
+
+        let win = self.clone();
+        imp.toolbar
+            .folder_search_entry()
+            .connect_search_changed(move |entry| {
+                let query = entry.text().trim().to_lowercase();
+                let all_nodes = win.imp().current_nodes.borrow().clone();
+                if query.is_empty() {
+                    if !all_nodes.is_empty() {
+                        win.render_dir(all_nodes);
+                    }
+                    return;
+                }
+                let filtered: Vec<TreeNode> = all_nodes
+                    .into_iter()
+                    .filter(|node| {
+                        node.path()
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("")
+                            .to_lowercase()
+                            .contains(&query)
+                    })
+                    .collect();
+                win.render_dir_filtered(filtered);
+            });
+
+        let win = self.clone();
+        imp.toolbar
+            .folder_search_entry()
+            .connect_stop_search(move |_| {
+                win.imp().toolbar.search_button().set_active(false);
+            });
+
+        let win = self.clone();
+        imp.toolbar
+            .folder_search_close_btn()
+            .connect_clicked(move |_| {
+                win.imp().toolbar.search_button().set_active(false);
+            });
 
         let win = self.clone();
         imp.sidebar_search_button.connect_toggled(move |button| {
             if button.is_active() {
                 win.enter_search_mode();
-            } else if !win.imp().commit_search_entry.text().is_empty() {
+            } else {
                 win.leave_search_mode();
             }
         });
@@ -579,6 +631,7 @@ impl TemporalExplorerWindow {
             ("open-tab-overview", Self::open_tab_overview),
             ("move-tab-to-new-window", Self::move_tab_to_new_window),
             ("show-favorites", Self::show_favorites),
+            ("star-snapshot", Self::toggle_star_current_snapshot),
             ("search-snapshot-content", Self::search_snapshot_content),
             ("show-operation-panel", Self::show_operation_panel),
             ("show-operation-history", Self::show_operation_history),
@@ -586,9 +639,17 @@ impl TemporalExplorerWindow {
             ("close-operation-panel", Self::close_operation_panel),
             ("navigate-back", Self::navigate_back),
             ("navigate-forward", Self::navigate_forward),
+            ("navigate-up", Self::navigate_up),
+            ("prev-commit", Self::navigate_commit_back),
+            ("next-commit", Self::navigate_commit_forward),
+            ("toggle-hidden-files", Self::toggle_hidden_files),
             (
                 "restore-project-snapshot",
                 Self::confirm_restore_project_snapshot,
+            ),
+            (
+                "export-snapshot-archive",
+                Self::show_export_snapshot_archive_dialog,
             ),
             ("toggle-sidebar", Self::toggle_sidebar),
             ("search-commits", Self::focus_commit_search),
@@ -635,6 +696,14 @@ impl TemporalExplorerWindow {
             self.add_action(&action);
         }
 
+        // Register undo/redo actions (disabled when no undoable operation is
+        // pending, matching Nautilus's empty undo manager state).
+        for name in ["undo", "redo"] {
+            let action = gio::SimpleAction::new(name, None);
+            action.set_enabled(false);
+            self.add_action(&action);
+        }
+
         // Menus declared inside TemporalToolbar use actions such as win.reload-repository.
         // Insert action groups explicitly into both the custom toolbar and the
         // MenuButton, so PopoverMenu action lookup is stable.
@@ -659,7 +728,7 @@ impl TemporalExplorerWindow {
             app.set_accels_for_action("win.search-commits", &["<Control>f"]);
             app.set_accels_for_action("win.toggle-filter-popover", &["<Control><Shift>f"]);
             app.set_accels_for_action("win.open-date-range-dialog", &["<Control><Shift>d"]);
-            app.set_accels_for_action("win.filter-file-type", &["<Control><Shift>t"]);
+            app.set_accels_for_action("win.filter-file-type", &["<Control><Alt>t"]);
             app.set_accels_for_action("win.clear-all-filters", &["<Control>Escape"]);
             app.set_accels_for_action("win.list-view", &["<Control>1"]);
             app.set_accels_for_action("win.grid-view", &["<Control>2"]);
@@ -676,6 +745,13 @@ impl TemporalExplorerWindow {
             app.set_accels_for_action("win.show-merge-conflicts", &["<Control><Shift>m"]);
             app.set_accels_for_action("win.select-by-pattern", &["<Control>s"]);
             app.set_accels_for_action("win.invert-commit-selection", &["<Control><Shift>i"]);
+            app.set_accels_for_action("win.navigate-back", &["<Alt>Left"]);
+            app.set_accels_for_action("win.navigate-forward", &["<Alt>Right"]);
+            app.set_accels_for_action("win.navigate-up", &["<Alt>Up"]);
+            app.set_accels_for_action("win.toggle-hidden-files", &["<Control>h"]);
+            app.set_accels_for_action("win.restore-closed-tab", &["<Control><Shift>t"]);
+            app.set_accels_for_action("win.open-tab-overview", &["<Control><Shift>o"]);
+            app.set_accels_for_action("win.star-snapshot", &["<Control>d"]);
         }
     }
 }

@@ -348,8 +348,9 @@ button.star.interacted:not(.starred) image {
 
 /* ── Nautilus-like native context menu ─────────────────────────────── */
 
-.nautilus-context-menu {
-    padding: 6px;
+.nautilus-context-menu modelbutton {
+    min-height: 28px;
+    padding: 2px 10px;
 }
 
 /* ── Operations indicator in the sidebar footer ────────────────────── */
@@ -500,4 +501,11 @@ rubberband {
 .nautilus-context-menu modelbutton,
 .nautilus-context-menu button {
     border-radius: 7px;
+}
+
+/* Dense commit list mode (controlled by GSettings `dense-mode`) */
+.dense-commits row {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    min-height: 28px;
 }

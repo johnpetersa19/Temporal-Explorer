@@ -1,4 +1,5 @@
 mod address_bar;
+mod app_chooser_dialog;
 mod application;
 mod batch_operations_dialog;
 mod branch_sidebar_row;
@@ -7,8 +8,10 @@ mod column_chooser;
 mod commit_controller;
 mod commit_details_dialog;
 mod commit_name_cell;
+mod compress_dialog;
 mod config;
 mod date_range_dialog;
+mod favorites_dialog;
 mod file_grid_captions_dialog;
 mod file_grid_cell;
 mod file_list_row;

@@ -469,7 +469,6 @@ impl TemporalExplorerWindow {
     pub(super) fn enter_search_mode(&self) {
         let imp = self.imp();
         imp.split_view.set_show_sidebar(true);
-        imp.toolbar.search_button().set_active(true);
         imp.sidebar_search_button.set_active(true);
         imp.sidebar_search_revealer.set_reveal_child(true);
         imp.commit_search_entry.grab_focus();
@@ -479,62 +478,33 @@ impl TemporalExplorerWindow {
         let imp = self.imp();
         imp.commit_search_entry.set_text("");
         imp.filter_button.set_active(false);
-        imp.toolbar.search_button().set_active(false);
         imp.sidebar_search_button.set_active(false);
         imp.sidebar_search_revealer.set_reveal_child(false);
     }
 
     pub(super) fn rebuild_author_chips_from_all_commits(&self) {
+        const MAX_AUTHOR_CHIPS: usize = 60;
         let imp = self.imp();
         let pop_borrow = imp.filter_popover.borrow();
         let Some(ref pop) = *pop_borrow else { return };
 
         let commits = imp.all_commits.borrow();
+        let mut counts: HashMap<String, usize> = HashMap::new();
+        for commit in commits.iter() {
+            let author = commit.author.trim();
+            if !author.is_empty() {
+                *counts.entry(author.to_string()).or_default() += 1;
+            }
+        }
 
-        let mut authors: Vec<String> = commits
-            .iter()
-            .map(|commit| commit.author.trim().to_string())
-            .filter(|author| !author.is_empty())
-            .collect();
-
-        authors.sort_by_key(|author| author.to_lowercase());
-        authors.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+        // Keep the top contributors so repositories with tens of thousands of
+        // authors (e.g. Linux kernel) never spawn 30k+ GtkToggleButtons.
+        let mut ranked: Vec<(String, usize)> = counts.into_iter().collect();
+        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        ranked.truncate(MAX_AUTHOR_CHIPS);
+        let authors: Vec<String> = ranked.into_iter().map(|(name, _)| name).collect();
 
         pop.populate_author_chips(&authors);
-    }
-
-    /// Feeds new author names into the filter popover, deduplicating against
-    /// authors already seen in previous pages.
-    ///
-    /// Called once per received page so the popover chips grow incrementally
-    /// as commits stream in, without re-scanning the entire `all_commits` vec.
-    pub(super) fn update_author_chips_for_page(&self, page: &[CommitInfo]) {
-        let imp = self.imp();
-        let pop_borrow = imp.filter_popover.borrow();
-        let Some(ref pop) = *pop_borrow else { return };
-
-        let mut changed = false;
-        let mut authors = Vec::new();
-
-        {
-            let mut seen = imp.seen_authors.borrow_mut();
-
-            for commit in page {
-                let author = commit.author.trim();
-                if !author.is_empty() && seen.insert(author.to_string()) {
-                    changed = true;
-                }
-            }
-
-            if changed {
-                authors = seen.iter().cloned().collect();
-            }
-        }
-
-        if changed {
-            authors.sort();
-            pop.populate_author_chips(&authors);
-        }
     }
 
     pub(super) fn load_timeline(&self, cancel: Arc<AtomicBool>) {
@@ -559,20 +529,21 @@ impl TemporalExplorerWindow {
         // displays stale content from a previous repository during loading.
         self.show_empty_state();
 
-        // Rendezvous channel (capacity 0): the worker blocks after each page
-        // until the GTK main loop consumes it, bounding memory to ~1 page.
-        //
-        // Protocol:
-        //   Ok(non-empty vec)  — one page of CommitInfo; more pages may follow.
-        //   Ok(empty vec)      — end-of-stream (EOS) sentinel; no more pages.
-        //   Err(msg)           — fatal git2 error; worker has exited.
-        let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<CommitInfo>, String>>(0);
+        // Bounded channel (capacity 4) allows the worker to stay ahead of the
+        // 60 FPS UI poller without buffering unbounded pages in RAM.
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Result<Vec<CommitInfo>, String>>(4);
+
+        let page_size = self
+            .imp()
+            .settings
+            .get()
+            .map(|s| s.int("commits-per-page").clamp(10, 500) as usize)
+            .unwrap_or(TIMELINE_PAGE_SIZE);
 
         let cancel_worker = cancel.clone();
         std::thread::spawn(move || {
             let result = HistoryReader::open(&repo_path).and_then(|reader| {
-                reader.list_commits_paginated(TIMELINE_PAGE_SIZE, |page| {
-                    // Honour cancellation between pages so switching repos is instant.
+                reader.list_commits_paginated_cancelable(page_size, &cancel_worker, |page| {
                     if cancel_worker.load(Ordering::Relaxed) {
                         return;
                     }
@@ -580,8 +551,12 @@ impl TemporalExplorerWindow {
                 })
             });
 
+            if cancel_worker.load(Ordering::Relaxed) {
+                return;
+            }
+
             // Send the EOS sentinel (empty vec) on success, or the error string.
-            // The idle callback distinguishes them by the is_empty() check.
+            // The UI callback distinguishes them by the is_empty() check.
             match result {
                 Ok(()) => {
                     let _ = tx.send(Ok(Vec::new()));
@@ -593,76 +568,35 @@ impl TemporalExplorerWindow {
         });
 
         let win = self.clone();
-        glib::idle_add_local(move || {
-            // Abort idle callbacks belonging to a superseded load operation.
+        let mut last_rendered_years = 0usize;
+        let mut pages_since_year_refresh = 0usize;
+        // Poll at 60 FPS instead of `idle_add_local` busy-spinning at 100% CPU
+        // while waiting for libgit2's revwalk on gigantic repositories.
+        glib::timeout_add_local(std::time::Duration::from_millis(16), move || {
             if cancel.load(Ordering::Relaxed) {
                 return glib::ControlFlow::Break;
             }
 
-            match rx.try_recv() {
-                // ── End-of-stream sentinel ────────────────────────────────────
-                Ok(Ok(page)) if page.is_empty() => {
-                    win.imp().loading_commits.set(false);
+            let mut received_any = false;
+            let mut finished = false;
+            let mut fatal_error: Option<String> = None;
 
-                    let reachable = win
-                        .imp()
-                        .all_commits
-                        .borrow()
-                        .iter()
-                        .enumerate()
-                        .map(|(index, commit)| (commit.oid(), index))
-                        .collect::<HashMap<_, _>>();
-                    if let Some(store) = win.imp().file_index_store.borrow_mut().as_mut() {
-                        store.retain_oids(&reachable);
-                        let store_to_save = store.clone();
-                        std::thread::spawn(move || {
-                            let _ = store_to_save.save();
-                        });
+            // Drain up to 8 pages per frame for fast ingestion while keeping UI smooth.
+            for _ in 0..8 {
+                match rx.try_recv() {
+                    Ok(Ok(page)) if page.is_empty() => {
+                        finished = true;
+                        break;
                     }
-                    win.start_background_file_index(cancel.clone());
-
-                    // Guard: if no commits arrived at all the repository has no
-                    // history reachable from HEAD (empty repo, unborn branch, or
-                    // detached HEAD with no ancestors).  Show an informative state
-                    // instead of silently leaving the sidebar blank.
-                    if win.imp().all_commits.borrow().is_empty() {
-                        win.show_empty_repository_state();
-                    } else {
-                        win.rebuild_author_chips_from_all_commits();
-                        win.imp().split_view.set_show_sidebar(true);
-                        win.populate_year_list();
-                    }
-                    if let Some((repo, hash, path)) = win.imp().pending_favorite.borrow_mut().take()
-                    {
-                        win.open_loaded_favorite(repo, hash, path);
-                    }
-                    if let Some((state, title)) = win.imp().pending_tab_state.borrow_mut().take() {
-                        if let Some(page) = win.imp().tab_view.selected_page() {
-                            page.set_title(&title);
-                            win.imp()
-                                .tab_states
-                                .borrow_mut()
-                                .insert(Self::tab_key(&page), state);
-                            win.restore_selected_tab_state();
-                        }
-                    }
-
-                    glib::ControlFlow::Break
-                }
-
-                // ── Data page: accumulate and refresh timeline ────────────────
-                Ok(Ok(page)) => {
-                    // Update author chips incrementally — before extending
-                    // all_commits so the dedup set reflects the current state.
-                    win.update_author_chips_for_page(&page);
-
-                    {
+                    Ok(Ok(page)) => {
+                        received_any = true;
+                        pages_since_year_refresh += 1;
                         let imp = win.imp();
                         let base = imp.all_commits.borrow().len();
-
                         {
                             let mut index = imp.commit_index.borrow_mut();
                             let mut year_counts = imp.year_counts.borrow_mut();
+                            index.reserve(page.len());
 
                             for (offset, commit) in page.iter().enumerate() {
                                 index.insert(commit.hash.clone(), base + offset);
@@ -672,31 +606,83 @@ impl TemporalExplorerWindow {
                                 }
                             }
                         }
-
                         imp.all_commits.borrow_mut().extend(page);
                     }
-
-                    win.populate_year_list();
-                    win.imp().split_view.set_show_sidebar(true);
-                    glib::ControlFlow::Continue
-                }
-
-                // ── Fatal error from the worker thread ────────────────────────
-                Ok(Err(e)) => {
-                    win.imp().loading_commits.set(false);
-                    win.show_error(&format!("{}: {e}", gettext("Failed to read history")));
-                    glib::ControlFlow::Break
-                }
-
-                // ── Worker hasn't sent yet — yield back to the GTK main loop ──
-                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-
-                // ── Channel closed unexpectedly (worker panicked) ─────────────
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    win.imp().loading_commits.set(false);
-                    glib::ControlFlow::Break
+                    Ok(Err(e)) => {
+                        fatal_error = Some(e);
+                        break;
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => break,
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        finished = true;
+                        break;
+                    }
                 }
             }
+
+            if let Some(e) = fatal_error {
+                win.imp().loading_commits.set(false);
+                win.show_error(&format!("{}: {e}", gettext("Failed to read history")));
+                return glib::ControlFlow::Break;
+            }
+
+            if finished {
+                win.imp().loading_commits.set(false);
+
+                let reachable = win
+                    .imp()
+                    .all_commits
+                    .borrow()
+                    .iter()
+                    .enumerate()
+                    .map(|(index, commit)| (commit.oid(), index))
+                    .collect::<HashMap<_, _>>();
+                if let Some(store) = win.imp().file_index_store.borrow_mut().as_mut() {
+                    store.retain_oids(&reachable);
+                    let store_to_save = store.clone();
+                    std::thread::spawn(move || {
+                        let _ = store_to_save.save();
+                    });
+                }
+                win.start_background_file_index(cancel.clone());
+
+                if win.imp().all_commits.borrow().is_empty() {
+                    win.show_empty_repository_state();
+                } else {
+                    win.rebuild_author_chips_from_all_commits();
+                    win.imp().split_view.set_show_sidebar(true);
+                    win.populate_year_list();
+                }
+                if let Some((repo, hash, path)) = win.imp().pending_favorite.borrow_mut().take() {
+                    win.open_loaded_favorite(repo, hash, path);
+                }
+                if let Some((state, title)) = win.imp().pending_tab_state.borrow_mut().take() {
+                    if let Some(page) = win.imp().tab_view.selected_page() {
+                        page.set_title(&title);
+                        win.imp()
+                            .tab_states
+                            .borrow_mut()
+                            .insert(Self::tab_key(&page), state);
+                        win.restore_selected_tab_state();
+                    }
+                }
+
+                return glib::ControlFlow::Break;
+            }
+
+            if received_any {
+                let year_len = win.imp().year_counts.borrow().len();
+                // Refresh year_list immediately when a new year appears, or
+                // every 10 pages to avoid thousands of full GTK ListBox rebuilds.
+                if year_len != last_rendered_years || pages_since_year_refresh >= 10 {
+                    last_rendered_years = year_len;
+                    pages_since_year_refresh = 0;
+                    win.populate_year_list();
+                    win.imp().split_view.set_show_sidebar(true);
+                }
+            }
+
+            glib::ControlFlow::Continue
         });
     }
 
@@ -714,10 +700,15 @@ impl TemporalExplorerWindow {
             .map(FileIndexStore::snapshot)
             .unwrap_or_default();
 
+        // Cap automatic background diff indexing to the newest 4,000 commits so
+        // multi-million-commit repos (e.g. Linux kernel) don't saturate CPU/disk
+        // for hours after opening.
+        const MAX_BACKGROUND_INDEX_COMMITS: usize = 4_000;
         let missing_oids = {
             let commits = self.imp().all_commits.borrow();
             commits
                 .iter()
+                .take(MAX_BACKGROUND_INDEX_COMMITS)
                 .map(|commit| commit.oid())
                 .filter(|oid| !existing.contains_key(oid))
                 .collect::<Vec<_>>()

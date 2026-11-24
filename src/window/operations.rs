@@ -1002,16 +1002,56 @@ impl TemporalExplorerWindow {
                         .insert(Self::tab_key(&page), TabState::default());
                     self.update_tab_title(&page);
                 }
+                imp.dir_cache.borrow_mut().clear();
                 imp.toolbar.new_branch_button().set_sensitive(true);
 
-                // Populate branch chips and build a branch -> commit-hash index.
-                let (branches, branch_index) =
-                    collect_branch_commit_index(&imp.repository.borrow().as_ref().unwrap().0);
-                *imp.branch_commit_index.borrow_mut() = branch_index;
+                // Populate branch chips immediately (O(branches), non-blocking),
+                // then compute the branch -> commit-hash index in the background
+                // so giant repositories (e.g. Linux kernel) never freeze the UI.
+                let branches = imp
+                    .repository
+                    .borrow()
+                    .as_ref()
+                    .map(|repo| collect_local_branch_names(&repo.0))
+                    .unwrap_or_default();
+                imp.branch_commit_index.borrow_mut().clear();
 
                 if let Some(ref pop) = *imp.filter_popover.borrow() {
                     pop.populate_branch_chips(&branches);
                 }
+
+                let (btx, brx) =
+                    std::sync::mpsc::sync_channel::<HashMap<String, HashSet<String>>>(1);
+                let branch_repo_path = path.clone();
+                let branch_cancel = cancel.clone();
+                std::thread::spawn(move || {
+                    const MAX_COMMITS_PER_BRANCH_INDEX: usize = 50_000;
+                    if let Ok(repo) = git2::Repository::open(&branch_repo_path) {
+                        let idx = collect_branch_commit_index_cancelable(
+                            &repo,
+                            &branch_cancel,
+                            MAX_COMMITS_PER_BRANCH_INDEX,
+                        );
+                        if !branch_cancel.load(Ordering::Relaxed) {
+                            let _ = btx.send(idx);
+                        }
+                    }
+                });
+                let win_branch = self.clone();
+                let branch_poll_cancel = cancel.clone();
+                glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+                    if branch_poll_cancel.load(Ordering::Relaxed) {
+                        return glib::ControlFlow::Break;
+                    }
+                    match brx.try_recv() {
+                        Ok(branch_index) => {
+                            *win_branch.imp().branch_commit_index.borrow_mut() = branch_index;
+                            glib::ControlFlow::Break
+                        }
+                        Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                        Err(_) => glib::ControlFlow::Break,
+                    }
+                });
 
                 self.load_timeline(cancel);
             }

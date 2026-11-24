@@ -172,6 +172,11 @@ menu primary_menu {
         }
 
         item {
+          label: _("Export Snapshot Archive…");
+          action: "win.export-snapshot-archive";
+        }
+
+        item {
           label: _("Batch Operations…");
           action: "win.batch-operations";
         }
@@ -210,6 +215,11 @@ menu primary_menu {
     item {
       label: _("_Keyboard Shortcuts");
       action: "app.shortcuts";
+    }
+
+    item {
+      label: _("_Help");
+      action: "app.help";
     }
 
     item {
@@ -281,8 +291,8 @@ menu tab_overview_menu_model {
 
 template $TemporalExplorerWindow : Adw.ApplicationWindow {
   title: _("Temporal Explorer");
-  default-width: 890;
-  default-height: 550;
+  default-width: 1024;
+  default-height: 640;
   width-request: 360;
   height-request: 294;
   show-menubar: false;
@@ -300,7 +310,9 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
       child: Adw.OverlaySplitView split_view {
         enable-show-gesture: false;
         enable-hide-gesture: false;
-        sidebar-width-fraction: 0.2;
+        sidebar-width-fraction: 0.25;
+        min-sidebar-width: 240;
+        max-sidebar-width: 340;
         show-sidebar: true;
 
         sidebar: Adw.ToolbarView {
@@ -424,23 +436,6 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
               styles [
                 "flat",
               ]
-            }
-
-            [start]
-            ToggleButton view_list_button {
-              icon-name: "view-list-symbolic";
-              tooltip-text: _("List View");
-              active: true;
-              action-name: "win.list-view";
-            }
-
-            [start]
-            ToggleButton view_grid_button {
-              icon-name: "view-grid-symbolic";
-              tooltip-text: _("Grid View");
-              active: false;
-              group: view_list_button;
-              action-name: "win.grid-view";
             }
           }
 
@@ -588,44 +583,10 @@ template $TemporalExplorerWindow : Adw.ApplicationWindow {
               revealed: false;
 
               [start]
-              Button {
-                icon-name: "go-previous-symbolic";
-                tooltip-text: _("Back");
-                action-name: "win.navigate-back";
-                styles [
-                  "flat",
-                ]
-              }
+              $HistoryControls mobile_history_controls {}
 
-              [start]
-              Button {
-                icon-name: "go-next-symbolic";
-                tooltip-text: _("Forward");
-                action-name: "win.navigate-forward";
-                styles [
-                  "flat",
-                ]
-              }
-
-              [center]
-              Button {
-                icon-name: "view-list-symbolic";
-                tooltip-text: _("List View");
-                action-name: "win.list-view";
-                styles [
-                  "flat",
-                ]
-              }
-
-              [center]
-              Button {
-                icon-name: "view-grid-symbolic";
-                tooltip-text: _("Grid View");
-                action-name: "win.grid-view";
-                styles [
-                  "flat",
-                ]
-              }
+              [end]
+              $ViewControls mobile_view_controls {}
 
               [end]
               Adw.TabButton tab_button {
